@@ -1,10 +1,11 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import { resolvePackPrice, resolveUnitPrice } from "@/lib/pricing";
-import type { BatchWithProduct, DashboardData, DashboardStats, ExpiryStatus, Product, ProductWithStock, SaleWithProduct } from "@/lib/types";
+import type { BatchWithProduct, DashboardData, DashboardStats, ExpiryStatus, Pharmacy, Product, ProductWithStock, SaleWithProduct } from "@/lib/types";
 
 const millisecondsPerDay = 86_400_000;
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
+type PharmacyRow = Database["public"]["Tables"]["pharmacies"]["Row"];
 type ProductStockSummaryRow = Database["public"]["Views"]["product_stock_summary"]["Row"];
 type BatchExpirySummaryRow = Database["public"]["Views"]["batch_expiry_summary"]["Row"];
 type SaleRow = Database["public"]["Tables"]["sales"]["Row"];
@@ -69,7 +70,38 @@ function getTodayRange() {
   };
 }
 
-async function getDashboardStats(): Promise<DashboardStats> {
+export async function getPharmacies(): Promise<Pharmacy[]> {
+  const supabase = getSupabaseAdmin();
+  const result = await supabase.from("pharmacies").select("*").order("pharmacy_name");
+
+  if (result.error) throw result.error;
+  return (result.data || []).map((pharmacy: PharmacyRow) => ({
+    id: pharmacy.id,
+    pharmacy_name: pharmacy.pharmacy_name,
+    owner_name: pharmacy.owner_name,
+    phone: pharmacy.phone,
+    created_at: pharmacy.created_at,
+  }));
+}
+
+function emptyDashboardData(): DashboardData {
+  return {
+    stats: {
+      total_products: 0,
+      low_stock_items: 0,
+      out_of_stock_items: 0,
+      expiring_soon_batches: 0,
+      total_inventory_value: 0,
+      todays_sales: 0,
+    },
+    products: [],
+    batches: [],
+    expiringBatches: [],
+    sales: [],
+  };
+}
+
+async function getDashboardStats(pharmacyId: string): Promise<DashboardStats> {
   const supabase = getSupabaseAdmin();
   const today = getTodayRange();
   const [
@@ -80,12 +112,12 @@ async function getDashboardStats(): Promise<DashboardStats> {
     inventoryValueResult,
     todaysSalesResult,
   ] = await Promise.all([
-    supabase.from("products").select("id", { count: "exact", head: true }),
-    supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("stock_status", "LOW STOCK"),
-    supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("stock_status", "OUT OF STOCK"),
-    supabase.from("batch_expiry_summary").select("id", { count: "exact", head: true }).eq("expiry_status", "EXPIRING SOON"),
-    supabase.from("product_stock_summary").select("available_stock, derived_unit_cost"),
-    supabase.from("sales").select("total_sale").gte("created_at", today.start).lt("created_at", today.end),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId),
+    supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("stock_status", "LOW STOCK"),
+    supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("stock_status", "OUT OF STOCK"),
+    supabase.from("batch_expiry_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("expiry_status", "EXPIRING SOON"),
+    supabase.from("product_stock_summary").select("available_stock, derived_unit_cost").eq("pharmacy_id", pharmacyId),
+    supabase.from("sales").select("total_sale").eq("pharmacy_id", pharmacyId).gte("created_at", today.start).lt("created_at", today.end),
   ]);
 
   if (productsCountResult.error) throw productsCountResult.error;
@@ -108,15 +140,18 @@ async function getDashboardStats(): Promise<DashboardStats> {
   };
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+export async function getDashboardData(pharmacyId?: string): Promise<DashboardData> {
+  if (!pharmacyId) return emptyDashboardData();
+
   const supabase = getSupabaseAdmin();
   const [stats, productsResult, batchesResult, salesResult] = await Promise.all([
-    getDashboardStats(),
-    supabase.from("product_stock_summary").select("*").order("product_name"),
-    supabase.from("batch_expiry_summary").select("*").order("expiry_date", { ascending: true }),
+    getDashboardStats(pharmacyId),
+    supabase.from("product_stock_summary").select("*").eq("pharmacy_id", pharmacyId).order("product_name"),
+    supabase.from("batch_expiry_summary").select("*").eq("pharmacy_id", pharmacyId).order("expiry_date", { ascending: true }),
     supabase
       .from("sales")
       .select("*, product:products(*)")
+      .eq("pharmacy_id", pharmacyId)
       .order("created_at", { ascending: false }),
   ]);
 
@@ -135,6 +170,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
       return {
         id: batch.id,
+        pharmacy_id: batch.pharmacy_id,
         product_id: batch.product_id,
         batch_number: batch.batch_number,
         expiry_date: batch.expiry_date,
@@ -157,6 +193,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
     return {
       id: sale.id,
+      pharmacy_id: sale.pharmacy_id,
       product_id: sale.product_id,
       sell_type: sale.sell_type,
       quantity_entered: normalizeNumber(sale.quantity_entered),
@@ -183,8 +220,8 @@ export async function getDashboardData(): Promise<DashboardData> {
   };
 }
 
-export async function getProductDetail(id: string) {
-  const data = await getDashboardData();
+export async function getProductDetail(id: string, pharmacyId?: string) {
+  const data = await getDashboardData(pharmacyId);
   const product = data.products.find((item) => item.id === id);
   if (!product) return null;
 
@@ -195,8 +232,8 @@ export async function getProductDetail(id: string) {
   };
 }
 
-export async function getSaleDetail(id: string) {
-  const data = await getDashboardData();
+export async function getSaleDetail(id: string, pharmacyId?: string) {
+  const data = await getDashboardData(pharmacyId);
   const sale = data.sales.find((item) => item.id === id);
   return sale ? { sale } : null;
 }

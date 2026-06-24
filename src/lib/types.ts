@@ -4,8 +4,17 @@ export type ExpiryStatus = "EXPIRED" | "EXPIRING SOON" | "OK";
 export type SellingMode = "UNIT" | "PACK" | "BOTH";
 export type SellType = "UNIT" | "PACK";
 
+export type Pharmacy = {
+  id: string;
+  pharmacy_name: string;
+  owner_name: string;
+  phone: string;
+  created_at: string;
+};
+
 export type Product = {
   id: string;
+  pharmacy_id: string | null;
   product_name: string;
   generic_name: string;
   brand_name: string;
@@ -23,6 +32,7 @@ export type Product = {
 
 export type InventoryBatch = {
   id: string;
+  pharmacy_id: string | null;
   product_id: string;
   batch_number: string;
   expiry_date: string;
@@ -36,6 +46,7 @@ export type InventoryBatch = {
 
 export type Sale = {
   id: string;
+  pharmacy_id: string | null;
   product_id: string;
   sell_type: SellType;
   quantity_entered: number;

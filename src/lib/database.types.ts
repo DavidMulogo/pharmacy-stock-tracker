@@ -5,9 +5,28 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      pharmacies: {
+        Row: {
+          id: string;
+          pharmacy_name: string;
+          owner_name: string;
+          phone: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_name: string;
+          owner_name: string;
+          phone: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["pharmacies"]["Insert"]>;
+        Relationships: [];
+      };
       products: {
         Row: {
           id: string;
+          pharmacy_id: string | null;
           product_name: string;
           generic_name: string;
           brand_name: string;
@@ -24,6 +43,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          pharmacy_id?: string | null;
           product_name: string;
           generic_name: string;
           brand_name: string;
@@ -44,6 +64,7 @@ export type Database = {
       inventory_batches: {
         Row: {
           id: string;
+          pharmacy_id: string | null;
           product_id: string;
           batch_number: string;
           expiry_date: string;
@@ -56,6 +77,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          pharmacy_id?: string | null;
           product_id: string;
           batch_number: string;
           expiry_date: string;
@@ -79,6 +101,7 @@ export type Database = {
       sales: {
         Row: {
           id: string;
+          pharmacy_id: string | null;
           product_id: string;
           sell_type: SellType;
           quantity_entered: number;
@@ -95,6 +118,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          pharmacy_id?: string | null;
           product_id: string;
           sell_type?: SellType;
           quantity_entered?: number;

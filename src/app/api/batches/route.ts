@@ -17,11 +17,16 @@ function isValidIsoDate(value: string) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const pharmacyId = String(body.pharmacy_id || "");
     const productId = String(body.product_id || "");
     const batchNumber = String(body.batch_number || "").trim();
     const expiryDate = String(body.expiry_date || "");
     const packsReceived = Number(body.packs_received);
     const buyingPricePerPack = Number(body.buying_price_per_pack ?? body.buying_price);
+
+    if (!pharmacyId) {
+      return NextResponse.json({ error: "Select a pharmacy before adding stock." }, { status: 400 });
+    }
 
     if (!productId) {
       return NextResponse.json({ error: "Select a product before adding stock." }, { status: 400 });
@@ -44,13 +49,19 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdmin();
-    const productResult = await supabase.from("products").select("units_per_pack").eq("id", productId).single();
+    const productResult = await supabase
+      .from("products")
+      .select("units_per_pack")
+      .eq("id", productId)
+      .eq("pharmacy_id", pharmacyId)
+      .single();
 
     if (productResult.error) throw productResult.error;
 
     const existingBatchResult = await supabase
       .from("inventory_batches")
       .select("id, batch_number")
+      .eq("pharmacy_id", pharmacyId)
       .eq("product_id", productId)
       .eq("expiry_date", expiryDate);
 
@@ -63,6 +74,7 @@ export async function POST(request: Request) {
     }
 
     const batchPayload: BatchInsert = {
+      pharmacy_id: pharmacyId,
       product_id: productId,
       batch_number: batchNumber,
       expiry_date: expiryDate,

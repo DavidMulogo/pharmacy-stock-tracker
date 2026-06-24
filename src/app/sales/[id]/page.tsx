@@ -5,9 +5,16 @@ import { formatDateTime, formatTZS } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function SaleDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function SaleDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ pharmacy_id?: string }>;
+}) {
   const { id } = await params;
-  const detail = await getSaleDetail(id);
+  const { pharmacy_id } = await searchParams;
+  const detail = await getSaleDetail(id, pharmacy_id);
   if (!detail) notFound();
 
   const { sale } = detail;

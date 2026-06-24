@@ -73,7 +73,12 @@ function validateRow(row: Record<string, unknown>, index: number) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const pharmacyId = String(body.pharmacy_id || "");
     const rows = Array.isArray(body.rows) ? (body.rows as Record<string, unknown>[]) : [];
+
+    if (!pharmacyId) {
+      return NextResponse.json({ error: "Select a pharmacy before importing products." }, { status: 400 });
+    }
 
     if (rows.length === 0) {
       return NextResponse.json({ error: "No product rows found." }, { status: 400 });
@@ -92,7 +97,10 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdmin();
-    const result = await supabase.from("products").insert(validated.map((item) => item.product)).select("id");
+    const result = await supabase
+      .from("products")
+      .insert(validated.map((item) => ({ ...item.product, pharmacy_id: pharmacyId })))
+      .select("id");
 
     if (result.error) throw result.error;
 

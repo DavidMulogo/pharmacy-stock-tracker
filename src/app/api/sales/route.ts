@@ -15,10 +15,15 @@ function isSellType(value: string): value is SellType {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const pharmacyId = String(body.pharmacy_id || "");
     const productId = String(body.product_id || "");
     const sellType = String(body.sell_type || "");
     const quantityEntered = Number(body.quantity_entered);
     const overridePrice = body.override_price === "" || body.override_price == null ? null : Number(body.override_price);
+
+    if (!pharmacyId) {
+      return NextResponse.json({ error: "Select a pharmacy before saving a sale." }, { status: 400 });
+    }
 
     if (!productId) {
       return NextResponse.json({ error: "Select a product before saving a sale." }, { status: 400 });
@@ -40,6 +45,7 @@ export async function POST(request: Request) {
     const stockResult = await supabase
       .from("product_stock_summary")
       .select("id, selling_mode, units_per_pack, default_unit_price, default_pack_price, available_stock, derived_unit_cost")
+      .eq("pharmacy_id", pharmacyId)
       .eq("id", productId)
       .single();
 
@@ -74,6 +80,7 @@ export async function POST(request: Request) {
     }
 
     const salePayload: SaleInsert = {
+      pharmacy_id: pharmacyId,
       product_id: productId,
       sell_type: sellType,
       quantity_entered: quantityEntered,

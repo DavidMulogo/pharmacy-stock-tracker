@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
 import { resolveDefaultPrice } from "@/lib/pricing";
-import type { DashboardData, ExpiryStatus, OverrideFlag, ProductWithStock, SellType, StockStatus } from "@/lib/types";
+import type { DashboardData, ExpiryStatus, OverrideFlag, Pharmacy, ProductWithStock, SellType, StockStatus } from "@/lib/types";
 
 type Tab = "dashboard" | "sell" | "products" | "stock" | "expiry" | "sales" | "csv";
 type Toast = {
@@ -239,8 +239,25 @@ function validateImportRows(
   return { rows, errors, warnings, missingColumns };
 }
 
-export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
+export function PharmacyApp({
+  initialData,
+  initialPharmacies,
+  initialPharmacyId,
+}: {
+  initialData: DashboardData;
+  initialPharmacies: Pharmacy[];
+  initialPharmacyId: string;
+}) {
   const router = useRouter();
+  const [pharmacies, setPharmacies] = useState(initialPharmacies);
+  const [activePharmacyId, setActivePharmacyId] = useState(initialPharmacyId);
+  const [dashboardData, setDashboardData] = useState(initialData);
+  const [isLoadingPharmacy, setIsLoadingPharmacy] = useState(false);
+  const [pharmacyMessage, setPharmacyMessage] = useState("");
+  const [pharmacyName, setPharmacyName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [isCreatingPharmacy, setIsCreatingPharmacy] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [query, setQuery] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -272,15 +289,15 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
 
   const filteredProducts = useMemo(() => {
     const text = query.trim().toLowerCase();
-    if (!text) return initialData.products;
-    return initialData.products.filter((product) =>
+    if (!text) return dashboardData.products;
+    return dashboardData.products.filter((product) =>
       [product.product_name, product.generic_name, product.brand_name].some((value) => value.toLowerCase().includes(text)),
     );
-  }, [initialData.products, query]);
+  }, [dashboardData.products, query]);
   const filteredProductList = useMemo(() => {
     const text = productSearch.trim().toLowerCase();
 
-    return initialData.products.filter((product) => {
+    return dashboardData.products.filter((product) => {
       const matchesText =
         !text ||
         product.product_name.toLowerCase().includes(text) ||
@@ -289,10 +306,10 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
 
       return matchesText && matchesStatus;
     });
-  }, [initialData.products, productSearch, productStockStatus]);
+  }, [dashboardData.products, productSearch, productStockStatus]);
 
-  const selectedProduct = initialData.products.find((product) => product.id === selectedProductId);
-  const batchProduct = initialData.products.find((product) => product.id === batchProductId) || initialData.products[0];
+  const selectedProduct = dashboardData.products.find((product) => product.id === selectedProductId);
+  const batchProduct = dashboardData.products.find((product) => product.id === batchProductId) || dashboardData.products[0];
   const sellType: SellType = selectedProduct ? getProductSellType(selectedProduct, preferredSellType) : preferredSellType;
   const saleQuantity = Number(quantity);
   const overridePriceNumber = overridePrice.trim() === "" ? null : Number(overridePrice);
@@ -316,6 +333,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
   const saleQuantityBlocked = saleQuantityInvalid || saleQuantityFractional;
   const saveSaleDisabled =
     isSavingSale ||
+    !activePharmacyId ||
     !selectedProduct ||
     selectedDefaultPrice == null ||
     saleQuantityBlocked ||
@@ -330,7 +348,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
   const expiryBatches = useMemo(() => {
     const text = expirySearch.trim().toLowerCase();
 
-    return [...initialData.batches]
+    return [...dashboardData.batches]
       .filter((batch) => {
         const matchesText = !text || batch.product.product_name.toLowerCase().includes(text);
         const matchesStatus = expiryStatus === "ALL" || batch.expiry_status === expiryStatus;
@@ -338,72 +356,72 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
         return matchesText && matchesStatus;
       })
       .sort((a, b) => a.expiry_date.localeCompare(b.expiry_date));
-  }, [initialData.batches, expirySearch, expiryStatus]);
+  }, [dashboardData.batches, expirySearch, expiryStatus]);
   const filteredSales = useMemo(() => {
     const text = salesSearch.trim().toLowerCase();
 
-    return initialData.sales.filter((sale) => {
+    return dashboardData.sales.filter((sale) => {
       const matchesText = !text || sale.product.product_name.toLowerCase().includes(text);
       const matchesDate = !salesDate || sale.created_at.slice(0, 10) === salesDate;
       const matchesFlag = salesOverrideFlag === "ALL" || sale.override_flag === salesOverrideFlag;
 
       return matchesText && matchesDate && matchesFlag;
     });
-  }, [initialData.sales, salesDate, salesOverrideFlag, salesSearch]);
+  }, [dashboardData.sales, salesDate, salesOverrideFlag, salesSearch]);
   const productsByName = useMemo(
-    () => new Map(initialData.products.map((product) => [product.product_name.toLowerCase(), product])),
-    [initialData.products],
+    () => new Map(dashboardData.products.map((product) => [product.product_name.toLowerCase(), product])),
+    [dashboardData.products],
   );
   const existingBatchKeys = useMemo(
-    () => new Set(initialData.batches.map((batch) => getImportBatchKey(batch.product_id, batch.batch_number, batch.expiry_date))),
-    [initialData.batches],
+    () => new Set(dashboardData.batches.map((batch) => getImportBatchKey(batch.product_id, batch.batch_number, batch.expiry_date))),
+    [dashboardData.batches],
   );
   const kpiCards = useMemo(
     () => [
       {
         label: "Total Products",
-        value: String(initialData.stats.total_products),
+        value: String(dashboardData.stats.total_products),
         detail: "Products in catalog",
         target: "products" as Tab,
         tone: "slate" as const,
       },
       {
         label: "Low Stock Items",
-        value: String(initialData.stats.low_stock_items),
+        value: String(dashboardData.stats.low_stock_items),
         detail: "At or below reorder level",
         target: "products" as Tab,
         tone: "yellow" as const,
       },
       {
         label: "Out of Stock Items",
-        value: String(initialData.stats.out_of_stock_items),
+        value: String(dashboardData.stats.out_of_stock_items),
         detail: "Available stock is zero",
         target: "products" as Tab,
         tone: "rose" as const,
       },
       {
         label: "Expiring Soon Batches",
-        value: String(initialData.stats.expiring_soon_batches),
+        value: String(dashboardData.stats.expiring_soon_batches),
         detail: "Within 30 days",
         target: "expiry" as Tab,
         tone: "orange" as const,
       },
       {
         label: "Total Inventory Value",
-        value: formatTZS(initialData.stats.total_inventory_value),
+        value: formatTZS(dashboardData.stats.total_inventory_value),
         detail: "Available stock at unit cost",
         target: "products" as Tab,
         tone: "emerald" as const,
       },
       {
         label: "Today's Sales",
-        value: formatTZS(initialData.stats.todays_sales),
+        value: formatTZS(dashboardData.stats.todays_sales),
         detail: "Sales recorded today",
         target: "sales" as Tab,
         tone: "blue" as const,
       },
     ],
-    [initialData.stats],
+    [dashboardData.stats],
   );
   const stockBatchDuplicate =
     batchProduct && batchNumber.trim() && isValidIsoDate(expiryDate)
@@ -417,7 +435,105 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
     packsReceivedInvalid ||
     buyingPricePerPackInvalid ||
     stockBatchDuplicate;
-  const saveStockDisabled = isSavingStock || stockFormInvalid;
+  const saveStockDisabled = isSavingStock || !activePharmacyId || stockFormInvalid;
+  const activePharmacy = pharmacies.find((pharmacy) => pharmacy.id === activePharmacyId) || null;
+
+  async function loadPharmacyData(pharmacyId: string) {
+    if (!pharmacyId) {
+      setDashboardData({
+        stats: {
+          total_products: 0,
+          low_stock_items: 0,
+          out_of_stock_items: 0,
+          expiring_soon_batches: 0,
+          total_inventory_value: 0,
+          todays_sales: 0,
+        },
+        products: [],
+        batches: [],
+        expiringBatches: [],
+        sales: [],
+      });
+      return;
+    }
+
+    setIsLoadingPharmacy(true);
+    setPharmacyMessage("");
+
+    try {
+      const response = await fetch(`/api/dashboard?pharmacy_id=${encodeURIComponent(pharmacyId)}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        const message = result.error || "Unable to load pharmacy data.";
+        setPharmacyMessage(message);
+        setToast({ message, type: "error" });
+        return;
+      }
+
+      setDashboardData(result.data as DashboardData);
+      setSelectedProductId("");
+      setBatchProductId((result.data as DashboardData).products[0]?.id || "");
+      setProductImport(null);
+      setBatchImport(null);
+    } catch {
+      const message = "Unable to load pharmacy data. Check your connection and try again.";
+      setPharmacyMessage(message);
+      setToast({ message, type: "error" });
+    } finally {
+      setIsLoadingPharmacy(false);
+    }
+  }
+
+  async function submitPharmacy(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPharmacyMessage("");
+
+    if (!pharmacyName.trim() || !ownerName.trim() || !phone.trim()) {
+      const message = "Complete all pharmacy fields.";
+      setPharmacyMessage(message);
+      setToast({ message, type: "error" });
+      return;
+    }
+
+    setIsCreatingPharmacy(true);
+
+    try {
+      const response = await fetch("/api/pharmacies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pharmacy_name: pharmacyName,
+          owner_name: ownerName,
+          phone,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        const message = result.error || "Unable to create pharmacy.";
+        setPharmacyMessage(message);
+        setToast({ message, type: "error" });
+        return;
+      }
+
+      const pharmacy = result.pharmacy as Pharmacy;
+      setPharmacies((items) => [...items, pharmacy].sort((a, b) => a.pharmacy_name.localeCompare(b.pharmacy_name)));
+      setActivePharmacyId(pharmacy.id);
+      setPharmacyName("");
+      setOwnerName("");
+      setPhone("");
+      setToast({ message: `${pharmacy.pharmacy_name} created.`, type: "success" });
+      await loadPharmacyData(pharmacy.id);
+      router.refresh();
+    } catch {
+      const message = "Unable to create pharmacy. Check your connection and try again.";
+      setPharmacyMessage(message);
+      setToast({ message, type: "error" });
+    } finally {
+      setIsCreatingPharmacy(false);
+    }
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -432,18 +548,25 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
   useEffect(() => {
     const selectedStillValid =
       selectedProductId &&
-      initialData.products.some((product) => product.id === selectedProductId && hasPriceForSellType(product, preferredSellType));
+      dashboardData.products.some((product) => product.id === selectedProductId && hasPriceForSellType(product, preferredSellType));
 
     if (selectedStillValid) return;
 
-    const firstSellableProduct = initialData.products.find((product) => hasPriceForSellType(product, preferredSellType));
+    const firstSellableProduct = dashboardData.products.find((product) => hasPriceForSellType(product, preferredSellType));
     setSelectedProductId(firstSellableProduct?.id || "");
-  }, [initialData.products, preferredSellType, selectedProductId]);
+  }, [dashboardData.products, preferredSellType, selectedProductId]);
 
   async function submitSale(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaleMessage("");
     setStockConfirmation("");
+
+    if (!activePharmacyId) {
+      const message = "Select a pharmacy before saving a sale.";
+      setSaleMessage(message);
+      setToast({ message, type: "error" });
+      return;
+    }
 
     if (!selectedProduct) return;
     if (saleQuantityBlocked) {
@@ -475,6 +598,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product_id: selectedProduct.id,
+          pharmacy_id: activePharmacyId,
           sell_type: sellType,
           quantity_entered: saleQuantity,
           override_price: overridePrice,
@@ -492,6 +616,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
       setQuantity("1");
       setOverridePrice("");
       setToast({ message: "Sale saved successfully.", type: "success" });
+      await loadPharmacyData(activePharmacyId);
       router.refresh();
     } catch {
       const message = "Unable to save sale. Check your connection and try again.";
@@ -506,6 +631,13 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
     event.preventDefault();
     setStockMessage("");
     setStockConfirmation("");
+
+    if (!activePharmacyId) {
+      const message = "Select a pharmacy before adding stock.";
+      setStockMessage(message);
+      setToast({ message, type: "error" });
+      return;
+    }
 
     if (!batchProduct) return;
     if (stockBatchDuplicate) {
@@ -528,6 +660,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product_id: batchProduct.id,
+          pharmacy_id: activePharmacyId,
           batch_number: batchNumber,
           expiry_date: expiryDate,
           packs_received: packsReceived,
@@ -550,6 +683,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
       setBuyingPricePerPack("");
       setStockConfirmation(confirmation);
       setToast({ message: confirmation, type: "success" });
+      await loadPharmacyData(activePharmacyId);
       router.refresh();
     } catch {
       const message = "Unable to save stock. Check your connection and try again.";
@@ -562,6 +696,10 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
 
   async function handleCsvFile(kind: ImportKind, file: File | null) {
     if (!file) return;
+    if (!activePharmacyId) {
+      setToast({ message: "Select a pharmacy before importing CSV files.", type: "error" });
+      return;
+    }
 
     const text = await file.text();
     const rows = parseCsv(text);
@@ -587,6 +725,10 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
   async function importCsv(kind: ImportKind) {
     const preview = kind === "products" ? productImport : batchImport;
     if (!preview || preview.rows.length === 0) return;
+    if (!activePharmacyId) {
+      setToast({ message: "Select a pharmacy before importing CSV files.", type: "error" });
+      return;
+    }
     if (preview.missingColumns.length || preview.errors.length || preview.warnings.length) {
       setToast({ message: "Fix CSV errors before importing.", type: "error" });
       return;
@@ -599,7 +741,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
       const response = await fetch(`/api/import/${kind === "products" ? "products" : "batches"}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: preview.rows }),
+        body: JSON.stringify({ rows: preview.rows, pharmacy_id: activePharmacyId }),
       });
       const result = await response.json();
 
@@ -616,6 +758,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
       if (kind === "products") setProductImport(null);
       else setBatchImport(null);
       setToast({ message: `Imported ${result.imported || 0} ${kind === "products" ? "products" : "batches"}.`, type: "success" });
+      await loadPharmacyData(activePharmacyId);
       router.refresh();
     } catch {
       setToast({ message: "Unable to import CSV. Check the file and try again.", type: "error" });
@@ -630,7 +773,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
         "products.csv",
         buildCsv(
           [...PRODUCT_IMPORT_COLUMNS],
-          initialData.products.map((product) => [
+          dashboardData.products.map((product) => [
             product.product_name,
             product.generic_name,
             product.brand_name,
@@ -652,7 +795,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
         "stock-summary.csv",
         buildCsv(
           ["product_name", "generic_name", "total_received", "total_sold", "available_stock", "reorder_level", "stock_status"],
-          initialData.products.map((product) => [
+          dashboardData.products.map((product) => [
             product.product_name,
             product.generic_name,
             product.total_received,
@@ -670,7 +813,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
         "sales.csv",
         buildCsv(
           ["product_name", "sell_type", "quantity_entered", "units_sold", "default_price", "override_price", "effective_price", "total_sale", "override_flag", "created_at"],
-          initialData.sales.map((sale) => [
+          dashboardData.sales.map((sale) => [
             sale.product.product_name,
             sale.sell_type,
             sale.quantity_entered,
@@ -701,7 +844,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
             "buying_price_per_pack",
             "derived_unit_cost",
           ],
-          initialData.batches.map((batch) => [
+          dashboardData.batches.map((batch) => [
             batch.product.product_name,
             batch.batch_number,
             batch.expiry_date,
@@ -731,7 +874,49 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Pharmacy POS</p>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">PharmaStock MVP</h1>
             </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm">
+              <p className="text-xs font-bold uppercase text-emerald-700">Active pharmacy</p>
+              <p className="mt-1 font-bold text-emerald-950">{activePharmacy?.pharmacy_name || "No pharmacy selected"}</p>
+            </div>
           </div>
+          <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="grid gap-3 lg:grid-cols-[1fr_1.4fr]">
+              <label className="block text-sm font-semibold">
+                Select pharmacy
+                <select
+                  value={activePharmacyId}
+                  onChange={async (event) => {
+                    const nextPharmacyId = event.target.value;
+                    setActivePharmacyId(nextPharmacyId);
+                    await loadPharmacyData(nextPharmacyId);
+                  }}
+                  disabled={isLoadingPharmacy || pharmacies.length === 0}
+                  className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base outline-none focus:border-emerald-600 disabled:bg-slate-100"
+                >
+                  {pharmacies.length === 0 ? <option value="">No pharmacies yet</option> : null}
+                  {pharmacies.map((pharmacy) => (
+                    <option key={pharmacy.id} value={pharmacy.id}>
+                      {pharmacy.pharmacy_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <form className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]" onSubmit={submitPharmacy}>
+                <Input label="Pharmacy name" value={pharmacyName} onChange={setPharmacyName} />
+                <Input label="Owner" value={ownerName} onChange={setOwnerName} />
+                <Input label="Phone" value={phone} onChange={setPhone} />
+                <button
+                  type="submit"
+                  disabled={isCreatingPharmacy}
+                  className="self-end rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {isCreatingPharmacy ? "Adding..." : "Add Pharmacy"}
+                </button>
+              </form>
+            </div>
+            {isLoadingPharmacy ? <p className="mt-2 text-sm font-semibold text-slate-600">Loading pharmacy records...</p> : null}
+            {pharmacyMessage ? <p className="mt-2 text-sm font-semibold text-rose-700">{pharmacyMessage}</p> : null}
+          </section>
           <nav className="grid grid-cols-2 gap-2 sm:flex">
             {tabs.map((tab) => (
               <button
@@ -772,7 +957,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
               ))}
             </div>
 
-            {initialData.products.length === 0 ? (
+            {dashboardData.products.length === 0 ? (
               <EmptyState text="No products yet. Add products before the dashboard can show stock value." />
             ) : null}
 
@@ -785,8 +970,8 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
                   </button>
                 </div>
                 <div className="mt-3 grid gap-2">
-                  {initialData.products.filter((product) => product.stock_status !== "OK").length ? (
-                    initialData.products
+                  {dashboardData.products.filter((product) => product.stock_status !== "OK").length ? (
+                    dashboardData.products
                       .filter((product) => product.stock_status !== "OK")
                       .slice(0, 5)
                       .map((product) => (
@@ -812,8 +997,8 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
                   </button>
                 </div>
                 <div className="mt-3 grid gap-2">
-                  {initialData.expiringBatches.length ? (
-                    initialData.expiringBatches.slice(0, 5).map((batch) => (
+                  {dashboardData.expiringBatches.length ? (
+                    dashboardData.expiringBatches.slice(0, 5).map((batch) => (
                       <div key={batch.id} className="flex items-center justify-between gap-3 rounded-md border border-slate-200 px-3 py-2">
                         <div>
                           <p className="font-semibold">{batch.product.product_name}</p>
@@ -842,10 +1027,10 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
                 className="mt-4 w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600"
               />
               <div className="mt-4 grid gap-2">
-                {initialData.products.length === 0 ? (
+                {dashboardData.products.length === 0 ? (
                   <EmptyState text="No products found. Add products in Supabase to start selling." />
                 ) : null}
-                {initialData.products.length > 0 && filteredProducts.length === 0 ? (
+                {dashboardData.products.length > 0 && filteredProducts.length === 0 ? (
                   <EmptyState text="No products match your search." />
                 ) : null}
                 {filteredProducts.map((product) => (
@@ -997,16 +1182,16 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
                   <option value="OUT OF STOCK">Out of stock</option>
                 </select>
               </div>
-              {initialData.products.length ? (
-                <p className="mt-3 text-sm font-semibold text-slate-600">{filteredProductList.length} of {initialData.products.length} products</p>
+              {dashboardData.products.length ? (
+                <p className="mt-3 text-sm font-semibold text-slate-600">{filteredProductList.length} of {dashboardData.products.length} products</p>
               ) : null}
             </div>
 
-            {initialData.products.length > 0 && filteredProductList.length === 0 ? (
+            {dashboardData.products.length > 0 && filteredProductList.length === 0 ? (
               <EmptyState text="No products match the current search and stock filter." />
             ) : null}
 
-            {initialData.products.length ? filteredProductList.map((product) => (
+            {dashboardData.products.length ? filteredProductList.map((product) => (
               <article key={product.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -1022,7 +1207,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
                   <Metric label="Unit cost" value={product.derived_unit_cost == null ? "-" : formatTZS(product.derived_unit_cost)} />
                   <Metric label="Reorder" value={String(product.reorder_level)} />
                 </div>
-                <Link className="mt-4 inline-block text-sm font-bold text-emerald-700" href={`/products/${product.id}`}>
+                <Link className="mt-4 inline-block text-sm font-bold text-emerald-700" href={`/products/${product.id}?pharmacy_id=${activePharmacyId}`}>
                   Product detail
                 </Link>
               </article>
@@ -1033,8 +1218,8 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
         {activeTab === "stock" ? (
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-lg font-bold">Add Stock</h2>
-            {initialData.products.length === 0 ? <div className="mt-4"><EmptyState text="No products available for stock entry." /></div> : null}
-            {initialData.products.length ? <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={submitBatch}>
+            {dashboardData.products.length === 0 ? <div className="mt-4"><EmptyState text="No products available for stock entry." /></div> : null}
+            {dashboardData.products.length ? <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={submitBatch}>
               <label className="block text-sm font-semibold sm:col-span-2">
                 Product
                 <select
@@ -1042,7 +1227,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
                   onChange={(event) => setBatchProductId(event.target.value)}
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600"
                 >
-                  {initialData.products.map((product) => (
+                  {dashboardData.products.map((product) => (
                     <option key={product.id} value={product.id}>{product.product_name}</option>
                   ))}
                 </select>
@@ -1113,16 +1298,16 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
                   <option value="OK">OK</option>
                 </select>
               </div>
-              {initialData.batches.length ? (
-                <p className="mt-3 text-sm font-semibold text-slate-600">{expiryBatches.length} of {initialData.batches.length} batches</p>
+              {dashboardData.batches.length ? (
+                <p className="mt-3 text-sm font-semibold text-slate-600">{expiryBatches.length} of {dashboardData.batches.length} batches</p>
               ) : null}
             </div>
 
-            {initialData.batches.length > 0 && expiryBatches.length === 0 ? (
+            {dashboardData.batches.length > 0 && expiryBatches.length === 0 ? (
               <EmptyState text="No batches match the current expiry filters." />
             ) : null}
 
-            {initialData.batches.length ? expiryBatches.map((batch) => (
+            {dashboardData.batches.length ? expiryBatches.map((batch) => (
               <article key={batch.id} className={`rounded-lg border p-4 shadow-sm ${expiryCardClass[batch.expiry_status]}`}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -1172,16 +1357,16 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
                   <option value="OVERRIDDEN">Overridden</option>
                 </select>
               </div>
-              {initialData.sales.length ? (
-                <p className="mt-3 text-sm font-semibold text-slate-600">{filteredSales.length} of {initialData.sales.length} sales</p>
+              {dashboardData.sales.length ? (
+                <p className="mt-3 text-sm font-semibold text-slate-600">{filteredSales.length} of {dashboardData.sales.length} sales</p>
               ) : null}
             </div>
 
-            {initialData.sales.length > 0 && filteredSales.length === 0 ? (
+            {dashboardData.sales.length > 0 && filteredSales.length === 0 ? (
               <EmptyState text="No sales match the current search and filters." />
             ) : null}
 
-            {initialData.sales.length ? filteredSales.map((sale) => (
+            {dashboardData.sales.length ? filteredSales.map((sale) => (
               <article key={sale.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -1200,7 +1385,7 @@ export function PharmacyApp({ initialData }: { initialData: DashboardData }) {
                   <Metric label="Effective" value={formatTZS(sale.effective_price)} />
                   <Metric label="Total" value={formatTZS(sale.total_sale)} />
                 </div>
-                <Link className="mt-4 inline-block text-sm font-bold text-emerald-700" href={`/sales/${sale.id}`}>
+                <Link className="mt-4 inline-block text-sm font-bold text-emerald-700" href={`/sales/${sale.id}?pharmacy_id=${activePharmacyId}`}>
                   Sale detail
                 </Link>
               </article>
@@ -1472,3 +1657,4 @@ function Input({
 function EmptyState({ text }: { text: string }) {
   return <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center font-semibold text-slate-600">{text}</div>;
 }
+
