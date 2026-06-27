@@ -869,54 +869,64 @@ export function PharmacyApp({
       ) : null}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Pharmacy POS</p>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">PharmaStock MVP</h1>
             </div>
-            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm">
-              <p className="text-xs font-bold uppercase text-emerald-700">Active pharmacy</p>
-              <p className="mt-1 font-bold text-emerald-950">{activePharmacy?.pharmacy_name || "No pharmacy selected"}</p>
+            <div className="rounded-md border-2 border-red-500 bg-red-50 px-4 py-3 text-red-900">
+              <p className="text-sm font-black uppercase">MULTI PHARMACY DEBUG</p>
+              <p className="mt-1 text-sm font-bold">PharmacyApp is rendering.</p>
             </div>
+            <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="grid gap-3 lg:grid-cols-[1fr_1.4fr]">
+                <div className="grid gap-3">
+                  <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm">
+                    <p className="text-xs font-bold uppercase text-emerald-700">Active pharmacy name</p>
+                    <p className="mt-1 font-bold text-emerald-950">{activePharmacy?.pharmacy_name || "No pharmacy selected"}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">Pharmacy count: {pharmacies.length}</p>
+                    <p className="mt-1 text-sm font-semibold text-rose-700">
+                      {pharmacies.length === 0 ? "No pharmacies found." : "Pharmacies loaded."}
+                    </p>
+                  </div>
+                  <label className="block text-sm font-semibold">
+                    Select pharmacy
+                    <select
+                      value={activePharmacyId}
+                      onChange={async (event) => {
+                        const nextPharmacyId = event.target.value;
+                        setActivePharmacyId(nextPharmacyId);
+                        await loadPharmacyData(nextPharmacyId);
+                      }}
+                      disabled={isLoadingPharmacy}
+                      className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base outline-none focus:border-emerald-600 disabled:bg-slate-100"
+                    >
+                      <option value="">{pharmacies.length === 0 ? "No pharmacies yet" : "Choose pharmacy"}</option>
+                      {pharmacies.map((pharmacy) => (
+                        <option key={pharmacy.id} value={pharmacy.id}>
+                          {pharmacy.pharmacy_name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <form className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]" onSubmit={submitPharmacy}>
+                  <Input label="Pharmacy name" value={pharmacyName} onChange={setPharmacyName} />
+                  <Input label="Owner" value={ownerName} onChange={setOwnerName} />
+                  <Input label="Phone" value={phone} onChange={setPhone} />
+                  <button
+                    type="submit"
+                    disabled={isCreatingPharmacy}
+                    className="self-end rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    {isCreatingPharmacy ? "Adding..." : "Add Pharmacy"}
+                  </button>
+                </form>
+              </div>
+              {isLoadingPharmacy ? <p className="mt-2 text-sm font-semibold text-slate-600">Loading pharmacy records...</p> : null}
+              {pharmacyMessage ? <p className="mt-2 text-sm font-semibold text-rose-700">{pharmacyMessage}</p> : null}
+            </section>
           </div>
-          <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <div className="grid gap-3 lg:grid-cols-[1fr_1.4fr]">
-              <label className="block text-sm font-semibold">
-                Select pharmacy
-                <select
-                  value={activePharmacyId}
-                  onChange={async (event) => {
-                    const nextPharmacyId = event.target.value;
-                    setActivePharmacyId(nextPharmacyId);
-                    await loadPharmacyData(nextPharmacyId);
-                  }}
-                  disabled={isLoadingPharmacy || pharmacies.length === 0}
-                  className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base outline-none focus:border-emerald-600 disabled:bg-slate-100"
-                >
-                  {pharmacies.length === 0 ? <option value="">No pharmacies yet</option> : null}
-                  {pharmacies.map((pharmacy) => (
-                    <option key={pharmacy.id} value={pharmacy.id}>
-                      {pharmacy.pharmacy_name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <form className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]" onSubmit={submitPharmacy}>
-                <Input label="Pharmacy name" value={pharmacyName} onChange={setPharmacyName} />
-                <Input label="Owner" value={ownerName} onChange={setOwnerName} />
-                <Input label="Phone" value={phone} onChange={setPhone} />
-                <button
-                  type="submit"
-                  disabled={isCreatingPharmacy}
-                  className="self-end rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-                >
-                  {isCreatingPharmacy ? "Adding..." : "Add Pharmacy"}
-                </button>
-              </form>
-            </div>
-            {isLoadingPharmacy ? <p className="mt-2 text-sm font-semibold text-slate-600">Loading pharmacy records...</p> : null}
-            {pharmacyMessage ? <p className="mt-2 text-sm font-semibold text-rose-700">{pharmacyMessage}</p> : null}
-          </section>
           <nav className="grid grid-cols-2 gap-2 sm:flex">
             {tabs.map((tab) => (
               <button
