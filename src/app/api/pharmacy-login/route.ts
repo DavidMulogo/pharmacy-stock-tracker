@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
     if (sessionResult.error) throw sessionResult.error;
 
-    const response = NextResponse.json({ pharmacy }, { status: 200 });
+    const response = NextResponse.json({ pharmacy, session: { expires_at: expiresAt.toISOString() } }, { status: 200 });
     response.cookies.set(pharmacySessionCookieName, sessionToken, getPharmacySessionCookieOptions(expiresAt));
 
     return response;

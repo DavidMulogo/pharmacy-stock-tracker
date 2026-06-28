@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
+  getExpiredPharmacySessionCookieOptions,
   getPharmacySessionTokenFromCookie,
   pharmacySessionCookieName,
 } from "@/lib/pharmacy-session";
@@ -16,14 +17,7 @@ export async function POST() {
     }
 
     const response = NextResponse.json({ ok: true }, { status: 200 });
-    response.cookies.set(pharmacySessionCookieName, "", {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-      expires: new Date(0),
-    });
+    response.cookies.set(pharmacySessionCookieName, "", getExpiredPharmacySessionCookieOptions());
 
     return response;
   } catch (error) {

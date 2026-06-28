@@ -28,11 +28,22 @@ function normalizePharmacy(pharmacy: PharmacyRow): Pharmacy {
 export function getPharmacySessionCookieOptions(expiresAt?: Date) {
   return {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
     path: "/",
     maxAge: pharmacySessionMaxAgeSeconds,
     expires: expiresAt,
+  };
+}
+
+export function getExpiredPharmacySessionCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
   };
 }
 
