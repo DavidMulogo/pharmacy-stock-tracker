@@ -37,13 +37,16 @@ function toDateInput(value: string | null) {
 }
 
 export function AdminPortal({
+  initialAdmin,
   initialAuthenticated,
   initialPharmacies,
 }: {
+  initialAdmin: { username: string; fullName: string | null; role: string } | null;
   initialAuthenticated: boolean;
   initialPharmacies: Pharmacy[];
 }) {
   const [isAuthenticated, setIsAuthenticated] = useState(initialAuthenticated);
+  const [admin, setAdmin] = useState(initialAdmin);
   const [pharmacies, setPharmacies] = useState(initialPharmacies);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -98,6 +101,7 @@ export function AdminPortal({
       if (!response.ok) throw new Error(result.error || "Invalid admin login.");
 
       setIsAuthenticated(true);
+      setAdmin(result.admin || { username, fullName: null, role: "SUPER_ADMIN" });
       setUsername("");
       setPassword("");
       await loadPharmacies();
@@ -111,6 +115,7 @@ export function AdminPortal({
   async function logout() {
     await fetch("/api/admin/logout", { method: "POST" });
     setIsAuthenticated(false);
+    setAdmin(null);
     setPharmacies([]);
   }
 
@@ -229,6 +234,9 @@ export function AdminPortal({
           <div>
             <p className="text-xs font-bold uppercase text-emerald-700">PharmaStock Admin</p>
             <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+            <p className="mt-1 text-sm font-semibold text-slate-600">
+              Logged in as {admin?.fullName || admin?.username || "Admin"}
+            </p>
           </div>
           <button className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800" type="button" onClick={logout}>
             Log out

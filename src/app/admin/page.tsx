@@ -21,5 +21,5 @@ export default async function AdminPage() {
   const admin = await authenticateAdminFromCookie();
   const pharmacies = await getAdminPharmacies();
 
-  return <AdminPortal initialAuthenticated={Boolean(admin)} initialPharmacies={pharmacies} />;
+  return <AdminPortal initialAdmin={admin} initialAuthenticated={Boolean(admin)} initialPharmacies={pharmacies} />;
 }

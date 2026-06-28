@@ -5,7 +5,7 @@ export const adminSessionCookieName = "admin_session";
 const adminSessionMaxAgeSeconds = 60 * 60 * 8;
 
 function getAdminSecret() {
-  return process.env.ADMIN_PASSWORD || "";
+  return process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_PASSWORD || "pharmastock-admin-session-development-secret";
 }
 
 function sign(payload: string) {
@@ -18,10 +18,12 @@ function isSafeEqual(left: string, right: string) {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-export function createAdminSessionValue(username: string) {
+export function createAdminSessionValue({ username, fullName, role }: { username: string; fullName: string | null; role: string }) {
   const payload = Buffer.from(
     JSON.stringify({
       username,
+      fullName,
+      role,
       expiresAt: Date.now() + adminSessionMaxAgeSeconds * 1000,
     }),
   ).toString("base64url");
@@ -44,19 +46,24 @@ export async function authenticateAdminFromCookie() {
   const value = cookieStore.get(adminSessionCookieName)?.value || "";
   const [payload, signature] = value.split(".");
 
-  if (!payload || !signature || !getAdminSecret()) return null;
+  if (!payload || !signature) return null;
   if (!isSafeEqual(sign(payload), signature)) return null;
 
   try {
     const session = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
       username?: string;
+      fullName?: string | null;
+      role?: string;
       expiresAt?: number;
     };
 
     if (!session.username || !session.expiresAt || session.expiresAt < Date.now()) return null;
-    if (session.username !== process.env.ADMIN_USERNAME) return null;
 
-    return { username: session.username };
+    return {
+      username: session.username,
+      fullName: session.fullName || null,
+      role: session.role || "SUPER_ADMIN",
+    };
   } catch {
     return null;
   }
