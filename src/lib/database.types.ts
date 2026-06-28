@@ -23,6 +23,32 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["pharmacies"]["Insert"]>;
         Relationships: [];
       };
+      pharmacy_access: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          pharmacy_code: string;
+          password: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          pharmacy_code: string;
+          password: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["pharmacy_access"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_access_pharmacy_id_fkey";
+            columns: ["pharmacy_id"];
+            isOneToOne: false;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       products: {
         Row: {
           id: string;

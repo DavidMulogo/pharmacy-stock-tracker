@@ -243,10 +243,12 @@ export function PharmacyApp({
   initialData,
   initialPharmacies,
   initialPharmacyId,
+  isDebugMode,
 }: {
   initialData: DashboardData;
   initialPharmacies: Pharmacy[];
   initialPharmacyId: string;
+  isDebugMode: boolean;
 }) {
   const router = useRouter();
   const [pharmacies, setPharmacies] = useState(initialPharmacies);
@@ -257,6 +259,11 @@ export function PharmacyApp({
   const [pharmacyName, setPharmacyName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [phone, setPhone] = useState("");
+  const [pharmacyCode, setPharmacyCode] = useState("");
+  const [pharmacyPassword, setPharmacyPassword] = useState("");
+  const [loginNameOrCode, setLoginNameOrCode] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isCreatingPharmacy, setIsCreatingPharmacy] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [query, setQuery] = useState("");
@@ -489,7 +496,7 @@ export function PharmacyApp({
     event.preventDefault();
     setPharmacyMessage("");
 
-    if (!pharmacyName.trim() || !ownerName.trim() || !phone.trim()) {
+    if (!pharmacyName.trim() || !ownerName.trim() || !phone.trim() || !pharmacyCode.trim() || !pharmacyPassword) {
       const message = "Complete all pharmacy fields.";
       setPharmacyMessage(message);
       setToast({ message, type: "error" });
@@ -506,6 +513,8 @@ export function PharmacyApp({
           pharmacy_name: pharmacyName,
           owner_name: ownerName,
           phone,
+          pharmacy_code: pharmacyCode,
+          password: pharmacyPassword,
         }),
       });
       const result = await response.json();
@@ -523,6 +532,8 @@ export function PharmacyApp({
       setPharmacyName("");
       setOwnerName("");
       setPhone("");
+      setPharmacyCode("");
+      setPharmacyPassword("");
       setToast({ message: `${pharmacy.pharmacy_name} created.`, type: "success" });
       await loadPharmacyData(pharmacy.id);
       router.refresh();
@@ -533,6 +544,60 @@ export function PharmacyApp({
     } finally {
       setIsCreatingPharmacy(false);
     }
+  }
+
+  async function submitPharmacyLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPharmacyMessage("");
+
+    if (!loginNameOrCode.trim() || !loginPassword) {
+      const message = "Enter pharmacy code or name and password.";
+      setPharmacyMessage(message);
+      setToast({ message, type: "error" });
+      return;
+    }
+
+    setIsLoggingIn(true);
+
+    try {
+      const response = await fetch("/api/pharmacy-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          login: loginNameOrCode,
+          password: loginPassword,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        const message = result.error || "Invalid pharmacy login.";
+        setPharmacyMessage(message);
+        setToast({ message, type: "error" });
+        return;
+      }
+
+      const pharmacy = result.pharmacy as Pharmacy;
+      setPharmacies([pharmacy]);
+      setActivePharmacyId(pharmacy.id);
+      setLoginNameOrCode("");
+      setLoginPassword("");
+      setToast({ message: `Logged in to ${pharmacy.pharmacy_name}.`, type: "success" });
+      await loadPharmacyData(pharmacy.id);
+    } catch {
+      const message = "Unable to log in. Check your connection and try again.";
+      setPharmacyMessage(message);
+      setToast({ message, type: "error" });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }
+
+  async function logoutPharmacy() {
+    setActivePharmacyId("");
+    setPharmacies(isDebugMode ? initialPharmacies : []);
+    await loadPharmacyData("");
+    setToast({ message: "Pharmacy logged out.", type: "success" });
   }
 
   useEffect(() => {
@@ -874,79 +939,124 @@ export function PharmacyApp({
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Pharmacy POS</p>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">PharmaStock MVP</h1>
             </div>
-            <div className="rounded-md border-2 border-red-500 bg-red-50 px-4 py-3 text-red-900">
-              <p className="text-sm font-black uppercase">MULTI PHARMACY DEBUG</p>
-              <p className="mt-1 text-sm font-bold">PharmacyApp is rendering.</p>
-            </div>
             <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="grid gap-3 lg:grid-cols-[1fr_1.4fr]">
-                <div className="grid gap-3">
-                  <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm">
-                    <p className="text-xs font-bold uppercase text-emerald-700">Active pharmacy name</p>
-                    <p className="mt-1 font-bold text-emerald-950">{activePharmacy?.pharmacy_name || "No pharmacy selected"}</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-700">Pharmacy count: {pharmacies.length}</p>
-                    <p className="mt-1 text-sm font-semibold text-rose-700">
-                      {pharmacies.length === 0 ? "No pharmacies found." : "Pharmacies loaded."}
-                    </p>
-                  </div>
-                  <label className="block text-sm font-semibold">
-                    Select pharmacy
-                    <select
-                      value={activePharmacyId}
-                      onChange={async (event) => {
-                        const nextPharmacyId = event.target.value;
-                        setActivePharmacyId(nextPharmacyId);
-                        await loadPharmacyData(nextPharmacyId);
-                      }}
-                      disabled={isLoadingPharmacy}
-                      className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base outline-none focus:border-emerald-600 disabled:bg-slate-100"
-                    >
-                      <option value="">{pharmacies.length === 0 ? "No pharmacies yet" : "Choose pharmacy"}</option>
-                      {pharmacies.map((pharmacy) => (
-                        <option key={pharmacy.id} value={pharmacy.id}>
-                          {pharmacy.pharmacy_name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm">
+                  <p className="text-xs font-bold uppercase text-emerald-700">Active pharmacy</p>
+                  <p className="mt-1 font-bold text-emerald-950">{activePharmacy?.pharmacy_name || "Not logged in"}</p>
                 </div>
-                <form className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]" onSubmit={submitPharmacy}>
-                  <Input label="Pharmacy name" value={pharmacyName} onChange={setPharmacyName} />
-                  <Input label="Owner" value={ownerName} onChange={setOwnerName} />
-                  <Input label="Phone" value={phone} onChange={setPhone} />
+                {activePharmacyId && !isDebugMode ? (
                   <button
-                    type="submit"
-                    disabled={isCreatingPharmacy}
-                    className="self-end rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                    type="button"
+                    onClick={logoutPharmacy}
+                    className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800"
                   >
-                    {isCreatingPharmacy ? "Adding..." : "Add Pharmacy"}
+                    Log out
                   </button>
-                </form>
+                ) : null}
               </div>
               {isLoadingPharmacy ? <p className="mt-2 text-sm font-semibold text-slate-600">Loading pharmacy records...</p> : null}
               {pharmacyMessage ? <p className="mt-2 text-sm font-semibold text-rose-700">{pharmacyMessage}</p> : null}
             </section>
+            {!activePharmacyId ? (
+              <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <h2 className="text-lg font-bold">Pharmacy Login</h2>
+                <form className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]" onSubmit={submitPharmacyLogin}>
+                  <Input label="Pharmacy code or name" value={loginNameOrCode} onChange={setLoginNameOrCode} />
+                  <Input label="Password" value={loginPassword} onChange={setLoginPassword} type="password" />
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="self-end rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    {isLoggingIn ? "Logging in..." : "Log In"}
+                  </button>
+                </form>
+              </section>
+            ) : null}
+            {isDebugMode ? (
+              <section className="rounded-lg border-2 border-red-200 bg-red-50 p-3">
+                <div className="rounded-md border-2 border-red-500 bg-red-50 px-4 py-3 text-red-900">
+                  <p className="text-sm font-black uppercase">MULTI PHARMACY DEBUG</p>
+                  <p className="mt-1 text-sm font-bold">Development admin mode is enabled.</p>
+                </div>
+                <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1.4fr]">
+                  <div className="grid gap-3">
+                    <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm">
+                      <p className="text-xs font-bold uppercase text-emerald-700">Active pharmacy name</p>
+                      <p className="mt-1 font-bold text-emerald-950">{activePharmacy?.pharmacy_name || "No pharmacy selected"}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-700">Pharmacy count: {pharmacies.length}</p>
+                      <p className="mt-1 text-sm font-semibold text-rose-700">
+                        {pharmacies.length === 0 ? "No pharmacies found." : "Pharmacies loaded."}
+                      </p>
+                    </div>
+                    <label className="block text-sm font-semibold">
+                      Select pharmacy
+                      <select
+                        value={activePharmacyId}
+                        onChange={async (event) => {
+                          const nextPharmacyId = event.target.value;
+                          setActivePharmacyId(nextPharmacyId);
+                          await loadPharmacyData(nextPharmacyId);
+                        }}
+                        disabled={isLoadingPharmacy}
+                        className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base outline-none focus:border-emerald-600 disabled:bg-slate-100"
+                      >
+                        <option value="">{pharmacies.length === 0 ? "No pharmacies yet" : "Choose pharmacy"}</option>
+                        {pharmacies.map((pharmacy) => (
+                          <option key={pharmacy.id} value={pharmacy.id}>
+                            {pharmacy.pharmacy_name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <form className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto]" onSubmit={submitPharmacy}>
+                    <Input label="Pharmacy name" value={pharmacyName} onChange={setPharmacyName} />
+                    <Input label="Owner" value={ownerName} onChange={setOwnerName} />
+                    <Input label="Phone" value={phone} onChange={setPhone} />
+                    <Input label="Access code" value={pharmacyCode} onChange={setPharmacyCode} />
+                    <Input label="Password" value={pharmacyPassword} onChange={setPharmacyPassword} type="password" />
+                    <button
+                      type="submit"
+                      disabled={isCreatingPharmacy}
+                      className="self-end rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      {isCreatingPharmacy ? "Adding..." : "Add Pharmacy"}
+                    </button>
+                  </form>
+                </div>
+              </section>
+            ) : null}
           </div>
-          <nav className="grid grid-cols-2 gap-2 sm:flex">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`rounded-md border px-3 py-2 text-sm font-semibold transition ${
-                  activeTab === tab.id
-                    ? "border-emerald-700 bg-emerald-700 text-white"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+          {activePharmacyId || isDebugMode ? (
+            <nav className="grid grid-cols-2 gap-2 sm:flex">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`rounded-md border px-3 py-2 text-sm font-semibold transition ${
+                    activeTab === tab.id
+                      ? "border-emerald-700 bg-emerald-700 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          ) : null}
         </div>
       </header>
 
       <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        {!activePharmacyId && !isDebugMode ? (
+          <EmptyState text="Log in with a pharmacy code or pharmacy name to view pharmacy records." />
+        ) : null}
+
+        {activePharmacyId || isDebugMode ? (
+          <>
         {activeTab === "dashboard" ? (
           <section className="space-y-4">
             <div className="flex flex-col gap-1">
@@ -1477,6 +1587,8 @@ export function PharmacyApp({
               </div>
             </article>
           </section>
+        ) : null}
+          </>
         ) : null}
       </section>
     </main>
