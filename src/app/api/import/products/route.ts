@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
+import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 
 type ProductInsert = Database["public"]["Tables"]["products"]["Insert"];
 
@@ -72,13 +73,15 @@ function validateRow(row: Record<string, unknown>, index: number) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const pharmacyId = String(body.pharmacy_id || "");
-    const rows = Array.isArray(body.rows) ? (body.rows as Record<string, unknown>[]) : [];
+    const session = await authenticatePharmacyFromSessionCookie();
 
-    if (!pharmacyId) {
-      return NextResponse.json({ error: "Select a pharmacy before importing products." }, { status: 400 });
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     }
+
+    const body = await request.json();
+    const pharmacyId = session.pharmacy.id;
+    const rows = Array.isArray(body.rows) ? (body.rows as Record<string, unknown>[]) : [];
 
     if (rows.length === 0) {
       return NextResponse.json({ error: "No product rows found." }, { status: 400 });

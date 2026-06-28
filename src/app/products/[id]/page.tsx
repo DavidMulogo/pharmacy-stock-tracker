@@ -2,19 +2,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProductDetail } from "@/lib/data";
 import { formatDate, formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
+import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductDetail({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ pharmacy_id?: string }>;
 }) {
   const { id } = await params;
-  const { pharmacy_id } = await searchParams;
-  const detail = await getProductDetail(id, pharmacy_id);
+  const session = await authenticatePharmacyFromSessionCookie();
+  if (!session) notFound();
+
+  const detail = await getProductDetail(id, session.pharmacy.id);
   if (!detail) notFound();
 
   const { product, batches, sales } = detail;
@@ -71,7 +72,7 @@ export default async function ProductDetail({
           <h2 className="text-lg font-bold">Recent Sales</h2>
           <div className="mt-3 grid gap-3">
             {sales.map((sale) => (
-              <Link key={sale.id} href={`/sales/${sale.id}?pharmacy_id=${pharmacy_id || ""}`} className="rounded-md border border-slate-200 p-3 hover:border-emerald-300">
+              <Link key={sale.id} href={`/sales/${sale.id}`} className="rounded-md border border-slate-200 p-3 hover:border-emerald-300">
                 <p className="font-semibold">
                   {sale.quantity_entered} {sale.sell_type === "PACK" ? "pack" : "unit"} - {formatTZS(sale.total_sale)}
                 </p>

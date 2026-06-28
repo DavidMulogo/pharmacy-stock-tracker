@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { getDashboardData } from "@/lib/data";
+import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const url = new URL(request.url);
-    const pharmacyId = url.searchParams.get("pharmacy_id") || "";
+    const session = await authenticatePharmacyFromSessionCookie();
 
-    if (!pharmacyId) {
-      return NextResponse.json({ error: "Select a pharmacy before loading data." }, { status: 400 });
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     }
 
-    const data = await getDashboardData(pharmacyId);
+    const data = await getDashboardData(session.pharmacy.id);
     return NextResponse.json({ data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load pharmacy data.";

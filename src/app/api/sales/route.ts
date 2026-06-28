@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import { resolveDefaultPrice } from "@/lib/pricing";
+import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 
 type SaleInsert = Database["public"]["Tables"]["sales"]["Insert"];
 const sellTypes = ["UNIT", "PACK"] as const;
@@ -14,16 +15,18 @@ function isSellType(value: string): value is SellType {
 
 export async function POST(request: Request) {
   try {
+    const session = await authenticatePharmacyFromSessionCookie();
+
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
     const body = await request.json();
-    const pharmacyId = String(body.pharmacy_id || "");
+    const pharmacyId = session.pharmacy.id;
     const productId = String(body.product_id || "");
     const sellType = String(body.sell_type || "");
     const quantityEntered = Number(body.quantity_entered);
     const overridePrice = body.override_price === "" || body.override_price == null ? null : Number(body.override_price);
-
-    if (!pharmacyId) {
-      return NextResponse.json({ error: "Select a pharmacy before saving a sale." }, { status: 400 });
-    }
 
     if (!productId) {
       return NextResponse.json({ error: "Select a product before saving a sale." }, { status: 400 });

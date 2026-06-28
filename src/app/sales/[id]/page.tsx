@@ -2,19 +2,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSaleDetail } from "@/lib/data";
 import { formatDateTime, formatTZS } from "@/lib/format";
+import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 
 export const dynamic = "force-dynamic";
 
 export default async function SaleDetail({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ pharmacy_id?: string }>;
 }) {
   const { id } = await params;
-  const { pharmacy_id } = await searchParams;
-  const detail = await getSaleDetail(id, pharmacy_id);
+  const session = await authenticatePharmacyFromSessionCookie();
+  if (!session) notFound();
+
+  const detail = await getSaleDetail(id, session.pharmacy.id);
   if (!detail) notFound();
 
   const { sale } = detail;

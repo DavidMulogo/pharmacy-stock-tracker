@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
+import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 
 type BatchInsert = Database["public"]["Tables"]["inventory_batches"]["Insert"];
 
@@ -16,17 +17,19 @@ function isValidIsoDate(value: string) {
 
 export async function POST(request: Request) {
   try {
+    const session = await authenticatePharmacyFromSessionCookie();
+
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
     const body = await request.json();
-    const pharmacyId = String(body.pharmacy_id || "");
+    const pharmacyId = session.pharmacy.id;
     const productId = String(body.product_id || "");
     const batchNumber = String(body.batch_number || "").trim();
     const expiryDate = String(body.expiry_date || "");
     const packsReceived = Number(body.packs_received);
     const buyingPricePerPack = Number(body.buying_price_per_pack ?? body.buying_price);
-
-    if (!pharmacyId) {
-      return NextResponse.json({ error: "Select a pharmacy before adding stock." }, { status: 400 });
-    }
 
     if (!productId) {
       return NextResponse.json({ error: "Select a product before adding stock." }, { status: 400 });

@@ -468,7 +468,7 @@ export function PharmacyApp({
     setPharmacyMessage("");
 
     try {
-      const response = await fetch(`/api/dashboard?pharmacy_id=${encodeURIComponent(pharmacyId)}`);
+      const response = await fetch("/api/dashboard");
       const result = await response.json();
 
       if (!response.ok) {
@@ -678,7 +678,6 @@ export function PharmacyApp({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product_id: selectedProduct.id,
-          pharmacy_id: activePharmacyId,
           sell_type: sellType,
           quantity_entered: saleQuantity,
           override_price: overridePrice,
@@ -740,7 +739,6 @@ export function PharmacyApp({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product_id: batchProduct.id,
-          pharmacy_id: activePharmacyId,
           batch_number: batchNumber,
           expiry_date: expiryDate,
           packs_received: packsReceived,
@@ -821,7 +819,7 @@ export function PharmacyApp({
       const response = await fetch(`/api/import/${kind === "products" ? "products" : "batches"}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: preview.rows, pharmacy_id: activePharmacyId }),
+        body: JSON.stringify({ rows: preview.rows }),
       });
       const result = await response.json();
 
@@ -1342,7 +1340,7 @@ export function PharmacyApp({
                   <Metric label="Unit cost" value={product.derived_unit_cost == null ? "-" : formatTZS(product.derived_unit_cost)} />
                   <Metric label="Reorder" value={String(product.reorder_level)} />
                 </div>
-                <Link className="mt-4 inline-block text-sm font-bold text-emerald-700" href={`/products/${product.id}?pharmacy_id=${activePharmacyId}`}>
+                <Link className="mt-4 inline-block text-sm font-bold text-emerald-700" href={`/products/${product.id}`}>
                   Product detail
                 </Link>
               </article>
@@ -1520,7 +1518,7 @@ export function PharmacyApp({
                   <Metric label="Effective" value={formatTZS(sale.effective_price)} />
                   <Metric label="Total" value={formatTZS(sale.total_sale)} />
                 </div>
-                <Link className="mt-4 inline-block text-sm font-bold text-emerald-700" href={`/sales/${sale.id}?pharmacy_id=${activePharmacyId}`}>
+                <Link className="mt-4 inline-block text-sm font-bold text-emerald-700" href={`/sales/${sale.id}`}>
                   Sale detail
                 </Link>
               </article>
