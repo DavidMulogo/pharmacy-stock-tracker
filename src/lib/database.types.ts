@@ -1,4 +1,4 @@
-import type { ExpiryStatus, OverrideFlag, SellingMode, SellType, StockStatus } from "@/lib/types";
+import type { ExpiryStatus, OverrideFlag, PharmacyPlan, PharmacyStatus, SellingMode, SellType, StockStatus } from "@/lib/types";
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -11,6 +11,10 @@ export type Database = {
           pharmacy_name: string;
           owner_name: string;
           phone: string;
+          plan: PharmacyPlan;
+          status: PharmacyStatus;
+          trial_ends_at: string | null;
+          subscription_ends_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -18,6 +22,10 @@ export type Database = {
           pharmacy_name: string;
           owner_name: string;
           phone: string;
+          plan?: PharmacyPlan;
+          status?: PharmacyStatus;
+          trial_ends_at?: string | null;
+          subscription_ends_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["pharmacies"]["Insert"]>;

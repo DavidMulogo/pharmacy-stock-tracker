@@ -57,6 +57,20 @@ function normalizeProduct(product: ProductStockSummaryRow): ProductWithStock {
   };
 }
 
+export function normalizePharmacyRow(pharmacy: PharmacyRow): Pharmacy {
+  return {
+    id: pharmacy.id,
+    pharmacy_name: pharmacy.pharmacy_name,
+    owner_name: pharmacy.owner_name,
+    phone: pharmacy.phone,
+    plan: pharmacy.plan || "TRIAL",
+    status: pharmacy.status || "TRIAL",
+    trial_ends_at: pharmacy.trial_ends_at,
+    subscription_ends_at: pharmacy.subscription_ends_at,
+    created_at: pharmacy.created_at,
+  };
+}
+
 function getTodayRange() {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -75,13 +89,7 @@ export async function getPharmacies(): Promise<Pharmacy[]> {
   const result = await supabase.from("pharmacies").select("*").order("pharmacy_name");
 
   if (result.error) throw result.error;
-  return (result.data || []).map((pharmacy: PharmacyRow) => ({
-    id: pharmacy.id,
-    pharmacy_name: pharmacy.pharmacy_name,
-    owner_name: pharmacy.owner_name,
-    phone: pharmacy.phone,
-    created_at: pharmacy.created_at,
-  }));
+  return (result.data || []).map((pharmacy: PharmacyRow) => normalizePharmacyRow(pharmacy));
 }
 
 function emptyDashboardData(): DashboardData {

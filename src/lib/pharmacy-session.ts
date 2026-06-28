@@ -17,6 +17,10 @@ function normalizePharmacy(pharmacy: PharmacyRow): Pharmacy {
     pharmacy_name: pharmacy.pharmacy_name,
     owner_name: pharmacy.owner_name,
     phone: pharmacy.phone,
+    plan: pharmacy.plan || "TRIAL",
+    status: pharmacy.status || "TRIAL",
+    trial_ends_at: pharmacy.trial_ends_at,
+    subscription_ends_at: pharmacy.subscription_ends_at,
     created_at: pharmacy.created_at,
   };
 }

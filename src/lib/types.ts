@@ -3,12 +3,18 @@ export type StockStatus = "OUT OF STOCK" | "LOW STOCK" | "OK";
 export type ExpiryStatus = "EXPIRED" | "EXPIRING SOON" | "OK";
 export type SellingMode = "UNIT" | "PACK" | "BOTH";
 export type SellType = "UNIT" | "PACK";
+export type PharmacyPlan = "TRIAL" | "BASIC" | "PRO" | "ENTERPRISE";
+export type PharmacyStatus = "ACTIVE" | "TRIAL" | "EXPIRED" | "SUSPENDED";
 
 export type Pharmacy = {
   id: string;
   pharmacy_name: string;
   owner_name: string;
   phone: string;
+  plan: PharmacyPlan;
+  status: PharmacyStatus;
+  trial_ends_at: string | null;
+  subscription_ends_at: string | null;
   created_at: string;
 };
 
