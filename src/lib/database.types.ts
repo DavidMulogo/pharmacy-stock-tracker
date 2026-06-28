@@ -51,6 +51,34 @@ export type Database = {
           },
         ];
       };
+      pharmacy_sessions: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          session_token: string;
+          created_at: string;
+          expires_at: string;
+          last_seen: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          session_token: string;
+          created_at?: string;
+          expires_at: string;
+          last_seen?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["pharmacy_sessions"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_sessions_pharmacy_id_fkey";
+            columns: ["pharmacy_id"];
+            isOneToOne: false;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       products: {
         Row: {
           id: string;

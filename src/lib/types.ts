@@ -21,6 +21,15 @@ export type PharmacyAccess = {
   created_at: string;
 };
 
+export type PharmacySession = {
+  id: string;
+  pharmacy_id: string;
+  session_token: string;
+  created_at: string;
+  expires_at: string;
+  last_seen: string;
+};
+
 export type Product = {
   id: string;
   pharmacy_id: string | null;

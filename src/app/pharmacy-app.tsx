@@ -584,6 +584,7 @@ export function PharmacyApp({
       setLoginPassword("");
       setToast({ message: `Logged in to ${pharmacy.pharmacy_name}.`, type: "success" });
       await loadPharmacyData(pharmacy.id);
+      router.refresh();
     } catch {
       const message = "Unable to log in. Check your connection and try again.";
       setPharmacyMessage(message);
@@ -594,10 +595,24 @@ export function PharmacyApp({
   }
 
   async function logoutPharmacy() {
-    setActivePharmacyId("");
-    setPharmacies(isDebugMode ? initialPharmacies : []);
-    await loadPharmacyData("");
-    setToast({ message: "Pharmacy logged out.", type: "success" });
+    try {
+      const response = await fetch("/api/pharmacy-logout", { method: "POST" });
+      const result = await response.json();
+
+      if (!response.ok) {
+        const message = result.error || "Unable to log out.";
+        setToast({ message, type: "error" });
+        return;
+      }
+
+      setActivePharmacyId("");
+      setPharmacies(isDebugMode ? initialPharmacies : []);
+      await loadPharmacyData("");
+      setToast({ message: "Pharmacy logged out.", type: "success" });
+      router.refresh();
+    } catch {
+      setToast({ message: "Unable to log out. Check your connection and try again.", type: "error" });
+    }
   }
 
   useEffect(() => {

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getPharmacySessionCookieOptions, pharmacySessionCookieName, pharmacySessionMaxAgeSeconds } from "@/lib/pharmacy-session";
 import type { Database } from "@/lib/database.types";
 
 type PharmacyRow = Database["public"]["Tables"]["pharmacies"]["Row"];
@@ -50,7 +52,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Pharmacy login is not linked to a pharmacy." }, { status: 404 });
     }
 
-    return NextResponse.json({ pharmacy }, { status: 200 });
+    const sessionToken = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + pharmacySessionMaxAgeSeconds * 1000);
+    const sessionResult = await supabase
+      .from("pharmacy_sessions")
+      .insert({
+        pharmacy_id: pharmacy.id,
+        session_token: sessionToken,
+        expires_at: expiresAt.toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (sessionResult.error) throw sessionResult.error;
+
+    const response = NextResponse.json({ pharmacy }, { status: 200 });
+    response.cookies.set(pharmacySessionCookieName, sessionToken, getPharmacySessionCookieOptions(expiresAt));
+
+    return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to log in.";
     return NextResponse.json({ error: message }, { status: 500 });
