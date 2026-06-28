@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 
@@ -36,7 +37,11 @@ export async function POST(request: Request) {
       return normalize(item.pharmacy_code) === normalizedLogin || normalize(pharmacy?.pharmacy_name || "") === normalizedLogin;
     });
 
-    if (!access || access.password !== password) {
+    const passwordMatches = access?.password_hash
+      ? await bcrypt.compare(password, access.password_hash)
+      : access?.password === password;
+
+    if (!access || !passwordMatches) {
       return NextResponse.json({ error: "Invalid pharmacy login." }, { status: 401 });
     }
 

@@ -17,6 +17,7 @@ export type PharmacyAccess = {
   pharmacy_id: string;
   pharmacy_code: string;
   password: string;
+  password_hash: string | null;
   created_at: string;
 };
 

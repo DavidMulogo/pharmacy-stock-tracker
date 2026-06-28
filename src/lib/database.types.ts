@@ -29,6 +29,7 @@ export type Database = {
           pharmacy_id: string;
           pharmacy_code: string;
           password: string;
+          password_hash: string | null;
           created_at: string;
         };
         Insert: {
@@ -36,6 +37,7 @@ export type Database = {
           pharmacy_id: string;
           pharmacy_code: string;
           password: string;
+          password_hash?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["pharmacy_access"]["Insert"]>;

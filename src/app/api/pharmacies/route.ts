@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 
@@ -49,10 +50,12 @@ export async function POST(request: Request) {
 
     if (result.error) throw result.error;
 
+    const passwordHash = await bcrypt.hash(password, 12);
     const accessPayload: PharmacyAccessInsert = {
       pharmacy_id: result.data.id,
       pharmacy_code: pharmacyCode,
       password,
+      password_hash: passwordHash,
     };
     const accessResult = await supabase.from("pharmacy_access").insert(accessPayload).select("id").single();
 
