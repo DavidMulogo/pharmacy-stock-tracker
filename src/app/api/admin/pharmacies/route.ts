@@ -10,6 +10,7 @@ import type { PharmacyPlan, PharmacyStatus } from "@/lib/types";
 type PharmacyInsert = Database["public"]["Tables"]["pharmacies"]["Insert"];
 type PharmacyUpdate = Database["public"]["Tables"]["pharmacies"]["Update"];
 type PharmacyAccessInsert = Database["public"]["Tables"]["pharmacy_access"]["Insert"];
+type PharmacyUserInsert = Database["public"]["Tables"]["pharmacy_users"]["Insert"];
 
 const plans: PharmacyPlan[] = ["TRIAL", "BASIC", "PRO", "ENTERPRISE"];
 const statuses: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDED"];
@@ -92,6 +93,18 @@ export async function POST(request: Request) {
 
     if (accessResult.error) throw accessResult.error;
 
+    const userPayload: PharmacyUserInsert = {
+      pharmacy_id: pharmacyResult.data.id,
+      full_name: ownerName,
+      username: pharmacyCode,
+      password_hash: passwordHash,
+      role: "OWNER",
+      active: true,
+    };
+    const userResult = await supabase.from("pharmacy_users").insert(userPayload).select("id").single();
+
+    if (userResult.error) throw userResult.error;
+
     revalidatePath("/admin");
     return NextResponse.json({ pharmacy: normalizePharmacyRow(pharmacyResult.data) }, { status: 201 });
   } catch (error) {
@@ -127,6 +140,15 @@ export async function PATCH(request: Request) {
         .select("id");
 
       if (accessResult.error) throw accessResult.error;
+
+      const ownerResult = await supabase
+        .from("pharmacy_users")
+        .update({ password_hash: passwordHash })
+        .eq("pharmacy_id", id)
+        .eq("role", "OWNER")
+        .select("id");
+
+      if (ownerResult.error) throw ownerResult.error;
       return NextResponse.json({ ok: true }, { status: 200 });
     }
 

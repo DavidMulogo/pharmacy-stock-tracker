@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
 import { resolveDefaultPrice } from "@/lib/pricing";
 import { getPharmacyExpiryWarning } from "@/lib/subscription";
-import type { DashboardData, ExpiryStatus, OverrideFlag, Pharmacy, ProductWithStock, SellType, StockStatus } from "@/lib/types";
+import type { DashboardData, ExpiryStatus, OverrideFlag, Pharmacy, PharmacyUser, ProductWithStock, SellType, StockStatus } from "@/lib/types";
 
 type Tab = "dashboard" | "sell" | "products" | "stock" | "expiry" | "sales" | "csv";
 type Toast = {
@@ -244,11 +244,13 @@ export function PharmacyApp({
   initialData,
   initialPharmacies,
   initialPharmacyId,
+  initialUser,
   isDebugMode,
 }: {
   initialData: DashboardData;
   initialPharmacies: Pharmacy[];
   initialPharmacyId: string;
+  initialUser: PharmacyUser | null;
   isDebugMode: boolean;
 }) {
   const router = useRouter();
@@ -263,7 +265,9 @@ export function PharmacyApp({
   const [pharmacyCode, setPharmacyCode] = useState("");
   const [pharmacyPassword, setPharmacyPassword] = useState("");
   const [loginNameOrCode, setLoginNameOrCode] = useState("");
+  const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [activeUser, setActiveUser] = useState<PharmacyUser | null>(initialUser);
   const [subscriptionWarning, setSubscriptionWarning] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isCreatingPharmacy, setIsCreatingPharmacy] = useState(false);
@@ -556,8 +560,8 @@ export function PharmacyApp({
     event.preventDefault();
     setPharmacyMessage("");
 
-    if (!loginNameOrCode.trim() || !loginPassword) {
-      const message = "Enter pharmacy code or name and password.";
+    if (!loginNameOrCode.trim() || !loginUsername.trim() || !loginPassword) {
+      const message = "Enter pharmacy code, username, and password.";
       setPharmacyMessage(message);
       setToast({ message, type: "error" });
       return;
@@ -571,6 +575,7 @@ export function PharmacyApp({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           login: loginNameOrCode,
+          username: loginUsername,
           password: loginPassword,
         }),
       });
@@ -584,9 +589,12 @@ export function PharmacyApp({
       }
 
       const pharmacy = result.pharmacy as Pharmacy;
+      const user = result.user as PharmacyUser;
       setPharmacies([pharmacy]);
       setActivePharmacyId(pharmacy.id);
+      setActiveUser(user);
       setLoginNameOrCode("");
+      setLoginUsername("");
       setLoginPassword("");
       setToast({ message: `Logged in to ${pharmacy.pharmacy_name}.`, type: "success" });
       await loadPharmacyData(pharmacy.id);
@@ -612,6 +620,7 @@ export function PharmacyApp({
       }
 
       setActivePharmacyId("");
+      setActiveUser(null);
       setPharmacies(isDebugMode ? initialPharmacies : []);
       await loadPharmacyData("");
       setToast({ message: "Pharmacy logged out.", type: "success" });
@@ -963,12 +972,18 @@ export function PharmacyApp({
                 <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm">
                   <p className="text-xs font-bold uppercase text-emerald-700">Active pharmacy</p>
                   <p className="mt-1 font-bold text-emerald-950">{activePharmacy?.pharmacy_name || "Not logged in"}</p>
+                  {activeUser ? <p className="mt-1 text-xs font-bold uppercase text-emerald-700">{activeUser.full_name} / {activeUser.role}</p> : null}
                 </div>
                 {activePharmacyId && !isDebugMode ? (
                   <div className="grid grid-cols-2 gap-2 sm:flex">
                     <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/settings">
                       Settings
                     </Link>
+                    {activeUser?.role === "OWNER" ? (
+                      <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/staff">
+                        Staff
+                      </Link>
+                    ) : null}
                     <button
                       type="button"
                       onClick={logoutPharmacy}
@@ -990,8 +1005,9 @@ export function PharmacyApp({
             {!activePharmacyId ? (
               <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <h2 className="text-lg font-bold">Pharmacy Login</h2>
-                <form className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]" onSubmit={submitPharmacyLogin}>
-                  <Input label="Pharmacy code or name" value={loginNameOrCode} onChange={setLoginNameOrCode} />
+                <form className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]" onSubmit={submitPharmacyLogin}>
+                  <Input label="Pharmacy code" value={loginNameOrCode} onChange={setLoginNameOrCode} />
+                  <Input label="Username" value={loginUsername} onChange={setLoginUsername} />
                   <Input label="Password" value={loginPassword} onChange={setLoginPassword} type="password" />
                   <button
                     type="submit"

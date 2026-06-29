@@ -6,6 +6,7 @@ import type { Database } from "@/lib/database.types";
 
 type PharmacyInsert = Database["public"]["Tables"]["pharmacies"]["Insert"];
 type PharmacyAccessInsert = Database["public"]["Tables"]["pharmacy_access"]["Insert"];
+type PharmacyUserInsert = Database["public"]["Tables"]["pharmacy_users"]["Insert"];
 
 export async function POST(request: Request) {
   try {
@@ -60,6 +61,18 @@ export async function POST(request: Request) {
     const accessResult = await supabase.from("pharmacy_access").insert(accessPayload).select("id").single();
 
     if (accessResult.error) throw accessResult.error;
+
+    const userPayload: PharmacyUserInsert = {
+      pharmacy_id: result.data.id,
+      full_name: ownerName,
+      username: pharmacyCode,
+      password_hash: passwordHash,
+      role: "OWNER",
+      active: true,
+    };
+    const userResult = await supabase.from("pharmacy_users").insert(userPayload).select("id").single();
+
+    if (userResult.error) throw userResult.error;
 
     revalidatePath("/");
     return NextResponse.json({ pharmacy: result.data }, { status: 201 });

@@ -2,14 +2,16 @@ import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getPharmacyAccessStatus } from "@/lib/subscription";
 import type { Database } from "@/lib/database.types";
-import type { Pharmacy } from "@/lib/types";
+import type { Pharmacy, PharmacyUser } from "@/lib/types";
 
 export const pharmacySessionCookieName = "pharmacy_session";
 export const pharmacySessionMaxAgeSeconds = 60 * 60 * 24 * 7;
 
 type PharmacyRow = Database["public"]["Tables"]["pharmacies"]["Row"];
+type PharmacyUserRow = Database["public"]["Tables"]["pharmacy_users"]["Row"];
 type PharmacySessionRow = Database["public"]["Tables"]["pharmacy_sessions"]["Row"] & {
   pharmacy: PharmacyRow | PharmacyRow[] | null;
+  pharmacy_user: PharmacyUserRow | PharmacyUserRow[] | null;
 };
 
 function normalizePharmacy(pharmacy: PharmacyRow): Pharmacy {
@@ -23,6 +25,20 @@ function normalizePharmacy(pharmacy: PharmacyRow): Pharmacy {
     trial_ends_at: pharmacy.trial_ends_at,
     subscription_ends_at: pharmacy.subscription_ends_at,
     created_at: pharmacy.created_at,
+  };
+}
+
+export function normalizePharmacyUser(user: PharmacyUserRow): PharmacyUser {
+  return {
+    id: user.id,
+    pharmacy_id: user.pharmacy_id,
+    full_name: user.full_name,
+    username: user.username,
+    role: user.role,
+    active: Boolean(user.active),
+    last_login_at: user.last_login_at,
+    created_at: user.created_at,
+    updated_at: user.updated_at,
   };
 }
 
@@ -53,14 +69,19 @@ export async function getPharmacySessionTokenFromCookie() {
   return cookieStore.get(pharmacySessionCookieName)?.value || "";
 }
 
-export async function authenticatePharmacyFromSessionCookie(): Promise<{ pharmacy: Pharmacy; sessionToken: string } | null> {
+export async function authenticatePharmacyFromSessionCookie(): Promise<{
+  pharmacy: Pharmacy;
+  user: PharmacyUser;
+  role: PharmacyUser["role"];
+  sessionToken: string;
+} | null> {
   const sessionToken = await getPharmacySessionTokenFromCookie();
   if (!sessionToken) return null;
 
   const supabase = getSupabaseAdmin();
   const result = await supabase
     .from("pharmacy_sessions")
-    .select("*, pharmacy:pharmacies(*)")
+    .select("*, pharmacy:pharmacies(*), pharmacy_user:pharmacy_users(*)")
     .eq("session_token", sessionToken)
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
@@ -69,7 +90,12 @@ export async function authenticatePharmacyFromSessionCookie(): Promise<{ pharmac
 
   const session = result.data as PharmacySessionRow;
   const pharmacy = Array.isArray(session.pharmacy) ? session.pharmacy[0] : session.pharmacy;
+  const user = Array.isArray(session.pharmacy_user) ? session.pharmacy_user[0] : session.pharmacy_user;
   if (!pharmacy) return null;
+  if (!user || !user.active || user.pharmacy_id !== pharmacy.id) {
+    await supabase.from("pharmacy_sessions").delete().eq("id", session.id);
+    return null;
+  }
 
   const normalizedPharmacy = normalizePharmacy(pharmacy);
   if (getPharmacyAccessStatus(normalizedPharmacy) !== "ALLOWED") {
@@ -79,8 +105,11 @@ export async function authenticatePharmacyFromSessionCookie(): Promise<{ pharmac
 
   await supabase.from("pharmacy_sessions").update({ last_seen: new Date().toISOString() }).eq("id", session.id);
 
+  const normalizedUser = normalizePharmacyUser(user);
   return {
     pharmacy: normalizedPharmacy,
+    user: normalizedUser,
+    role: normalizedUser.role,
     sessionToken,
   };
 }

@@ -17,6 +17,7 @@ export default async function Home() {
       initialData={data}
       initialPharmacies={pharmacies}
       initialPharmacyId={initialPharmacyId}
+      initialUser={session?.user || null}
       isDebugMode={isDebugMode}
     />
   );

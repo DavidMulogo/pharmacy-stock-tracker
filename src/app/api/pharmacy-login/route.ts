@@ -10,6 +10,7 @@ type PharmacyRow = Database["public"]["Tables"]["pharmacies"]["Row"];
 type PharmacyAccessRow = Database["public"]["Tables"]["pharmacy_access"]["Row"] & {
   pharmacy: PharmacyRow | PharmacyRow[] | null;
 };
+type PharmacyUserRow = Database["public"]["Tables"]["pharmacy_users"]["Row"];
 
 function normalize(value: string) {
   return value.trim().toLowerCase();
@@ -19,14 +20,19 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const login = String(body.pharmacy_code || body.pharmacy_name || body.login || "").trim();
+    const username = String(body.username || "").trim();
     const password = String(body.password || "");
 
     if (!login) {
-      return NextResponse.json({ error: "Enter pharmacy code or pharmacy name." }, { status: 400 });
+      return NextResponse.json({ error: "Enter pharmacy code." }, { status: 400 });
+    }
+
+    if (!username) {
+      return NextResponse.json({ error: "Enter staff username." }, { status: 400 });
     }
 
     if (!password) {
-      return NextResponse.json({ error: "Enter pharmacy password." }, { status: 400 });
+      return NextResponse.json({ error: "Enter staff password." }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();
@@ -36,15 +42,10 @@ export async function POST(request: Request) {
 
     const normalizedLogin = normalize(login);
     const access = ((result.data || []) as PharmacyAccessRow[]).find((item) => {
-      const pharmacy = Array.isArray(item.pharmacy) ? item.pharmacy[0] : item.pharmacy;
-      return normalize(item.pharmacy_code) === normalizedLogin || normalize(pharmacy?.pharmacy_name || "") === normalizedLogin;
+      return normalize(item.pharmacy_code) === normalizedLogin;
     });
 
-    const passwordMatches = access?.password_hash
-      ? await bcrypt.compare(password, access.password_hash)
-      : access?.password === password;
-
-    if (!access || !passwordMatches) {
+    if (!access) {
       return NextResponse.json({ error: "Invalid pharmacy login." }, { status: 401 });
     }
 
@@ -64,12 +65,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: getPharmacyAccessMessage(accessStatus) }, { status: 403 });
     }
 
+    const userResult = await supabase
+      .from("pharmacy_users")
+      .select("*")
+      .eq("pharmacy_id", pharmacy.id);
+
+    if (userResult.error) throw userResult.error;
+
+    const normalizedUsername = normalize(username);
+    const user = ((userResult.data || []) as PharmacyUserRow[]).find((item) => normalize(item.username) === normalizedUsername) || null;
+    const passwordMatches = user ? await bcrypt.compare(password, user.password_hash) : false;
+
+    if (!user || !user.active || !passwordMatches) {
+      return NextResponse.json({ error: "Invalid staff login." }, { status: 401 });
+    }
+
     const sessionToken = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + pharmacySessionMaxAgeSeconds * 1000);
     const sessionResult = await supabase
       .from("pharmacy_sessions")
       .insert({
         pharmacy_id: pharmacy.id,
+        pharmacy_user_id: user.id,
+        role: user.role,
         session_token: sessionToken,
         expires_at: expiresAt.toISOString(),
       })
@@ -78,7 +96,9 @@ export async function POST(request: Request) {
 
     if (sessionResult.error) throw sessionResult.error;
 
-    const response = NextResponse.json({ pharmacy, session: { expires_at: expiresAt.toISOString() } }, { status: 200 });
+    await supabase.from("pharmacy_users").update({ last_login_at: new Date().toISOString() }).eq("id", user.id);
+
+    const response = NextResponse.json({ pharmacy, user, session: { expires_at: expiresAt.toISOString(), role: user.role } }, { status: 200 });
     response.cookies.set(pharmacySessionCookieName, sessionToken, getPharmacySessionCookieOptions(expiresAt));
 
     return response;

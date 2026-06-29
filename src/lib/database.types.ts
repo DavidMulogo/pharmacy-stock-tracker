@@ -1,4 +1,4 @@
-import type { ExpiryStatus, OverrideFlag, PharmacyPlan, PharmacyStatus, SellingMode, SellType, StockStatus } from "@/lib/types";
+import type { ExpiryStatus, OverrideFlag, PharmacyPlan, PharmacyStatus, PharmacyUserRole, SellingMode, SellType, StockStatus } from "@/lib/types";
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -87,7 +87,9 @@ export type Database = {
         Row: {
           id: string;
           pharmacy_id: string;
+          pharmacy_user_id: string | null;
           session_token: string;
+          role: PharmacyUserRole | null;
           created_at: string;
           expires_at: string;
           last_seen: string;
@@ -95,7 +97,9 @@ export type Database = {
         Insert: {
           id?: string;
           pharmacy_id: string;
+          pharmacy_user_id?: string | null;
           session_token: string;
+          role?: PharmacyUserRole | null;
           created_at?: string;
           expires_at: string;
           last_seen?: string;
@@ -104,6 +108,49 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "pharmacy_sessions_pharmacy_id_fkey";
+            columns: ["pharmacy_id"];
+            isOneToOne: false;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pharmacy_sessions_pharmacy_user_id_fkey";
+            columns: ["pharmacy_user_id"];
+            isOneToOne: false;
+            referencedRelation: "pharmacy_users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pharmacy_users: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          full_name: string;
+          username: string;
+          password_hash: string;
+          role: PharmacyUserRole;
+          active: boolean;
+          last_login_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          full_name: string;
+          username: string;
+          password_hash: string;
+          role?: PharmacyUserRole;
+          active?: boolean;
+          last_login_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["pharmacy_users"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_users_pharmacy_id_fkey";
             columns: ["pharmacy_id"];
             isOneToOne: false;
             referencedRelation: "pharmacies";

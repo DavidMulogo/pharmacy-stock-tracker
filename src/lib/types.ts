@@ -5,6 +5,7 @@ export type SellingMode = "UNIT" | "PACK" | "BOTH";
 export type SellType = "UNIT" | "PACK";
 export type PharmacyPlan = "TRIAL" | "BASIC" | "PRO" | "ENTERPRISE";
 export type PharmacyStatus = "ACTIVE" | "TRIAL" | "EXPIRED" | "SUSPENDED";
+export type PharmacyUserRole = "OWNER" | "PHARMACIST" | "TECHNICIAN";
 
 export type Pharmacy = {
   id: string;
@@ -30,10 +31,24 @@ export type PharmacyAccess = {
 export type PharmacySession = {
   id: string;
   pharmacy_id: string;
+  pharmacy_user_id: string | null;
   session_token: string;
+  role: PharmacyUserRole | null;
   created_at: string;
   expires_at: string;
   last_seen: string;
+};
+
+export type PharmacyUser = {
+  id: string;
+  pharmacy_id: string;
+  full_name: string;
+  username: string;
+  role: PharmacyUserRole;
+  active: boolean;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type PharmacySettings = {
