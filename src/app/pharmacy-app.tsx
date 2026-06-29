@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
 import { resolveDefaultPrice } from "@/lib/pricing";
+import { getPharmacyExpiryWarning } from "@/lib/subscription";
 import type { DashboardData, ExpiryStatus, OverrideFlag, Pharmacy, ProductWithStock, SellType, StockStatus } from "@/lib/types";
 
 type Tab = "dashboard" | "sell" | "products" | "stock" | "expiry" | "sales" | "csv";
@@ -263,6 +264,7 @@ export function PharmacyApp({
   const [pharmacyPassword, setPharmacyPassword] = useState("");
   const [loginNameOrCode, setLoginNameOrCode] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [subscriptionWarning, setSubscriptionWarning] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isCreatingPharmacy, setIsCreatingPharmacy] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
@@ -444,6 +446,10 @@ export function PharmacyApp({
     stockBatchDuplicate;
   const saveStockDisabled = isSavingStock || !activePharmacyId || stockFormInvalid;
   const activePharmacy = pharmacies.find((pharmacy) => pharmacy.id === activePharmacyId) || null;
+
+  useEffect(() => {
+    setSubscriptionWarning(activePharmacy ? getPharmacyExpiryWarning(activePharmacy) : null);
+  }, [activePharmacy]);
 
   async function loadPharmacyData(pharmacyId: string) {
     if (!pharmacyId) {
@@ -969,6 +975,11 @@ export function PharmacyApp({
                 ) : null}
               </div>
               {isLoadingPharmacy ? <p className="mt-2 text-sm font-semibold text-slate-600">Loading pharmacy records...</p> : null}
+              {subscriptionWarning ? (
+                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900">
+                  {subscriptionWarning}
+                </p>
+              ) : null}
               {pharmacyMessage ? <p className="mt-2 text-sm font-semibold text-rose-700">{pharmacyMessage}</p> : null}
             </section>
             {!activePharmacyId ? (

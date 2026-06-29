@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getPharmacyAccessStatus } from "@/lib/subscription";
 import type { Database } from "@/lib/database.types";
 import type { Pharmacy } from "@/lib/types";
 
@@ -70,10 +71,16 @@ export async function authenticatePharmacyFromSessionCookie(): Promise<{ pharmac
   const pharmacy = Array.isArray(session.pharmacy) ? session.pharmacy[0] : session.pharmacy;
   if (!pharmacy) return null;
 
+  const normalizedPharmacy = normalizePharmacy(pharmacy);
+  if (getPharmacyAccessStatus(normalizedPharmacy) !== "ALLOWED") {
+    await supabase.from("pharmacy_sessions").delete().eq("id", session.id);
+    return null;
+  }
+
   await supabase.from("pharmacy_sessions").update({ last_seen: new Date().toISOString() }).eq("id", session.id);
 
   return {
-    pharmacy: normalizePharmacy(pharmacy),
+    pharmacy: normalizedPharmacy,
     sessionToken,
   };
 }

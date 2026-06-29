@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getPharmacySessionCookieOptions, pharmacySessionCookieName, pharmacySessionMaxAgeSeconds } from "@/lib/pharmacy-session";
+import { getPharmacyAccessMessage, getPharmacyAccessStatus } from "@/lib/subscription";
 import type { Database } from "@/lib/database.types";
 
 type PharmacyRow = Database["public"]["Tables"]["pharmacies"]["Row"];
@@ -50,6 +51,17 @@ export async function POST(request: Request) {
     const pharmacy = Array.isArray(access.pharmacy) ? access.pharmacy[0] : access.pharmacy;
     if (!pharmacy) {
       return NextResponse.json({ error: "Pharmacy login is not linked to a pharmacy." }, { status: 404 });
+    }
+
+    const accessStatus = getPharmacyAccessStatus({
+      plan: pharmacy.plan || "TRIAL",
+      status: pharmacy.status || "TRIAL",
+      trial_ends_at: pharmacy.trial_ends_at,
+      subscription_ends_at: pharmacy.subscription_ends_at,
+    });
+
+    if (accessStatus !== "ALLOWED") {
+      return NextResponse.json({ error: getPharmacyAccessMessage(accessStatus) }, { status: 403 });
     }
 
     const sessionToken = randomBytes(32).toString("hex");
