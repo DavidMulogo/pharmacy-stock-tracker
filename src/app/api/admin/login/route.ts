@@ -42,24 +42,7 @@ export async function POST(request: Request) {
       return response;
     }
 
-    if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
-      return NextResponse.json({ error: "Admin user not found." }, { status: 401 });
-    }
-
-    if (username !== process.env.ADMIN_USERNAME || password !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json({ error: "Invalid admin login." }, { status: 401 });
-    }
-
-    const response = NextResponse.json(
-      { admin: { username, fullName: "Environment Admin", role: "SUPER_ADMIN" } },
-      { status: 200 },
-    );
-    response.cookies.set(
-      adminSessionCookieName,
-      createAdminSessionValue({ username, fullName: "Environment Admin", role: "SUPER_ADMIN" }),
-      getAdminSessionCookieOptions(),
-    );
-    return response;
+    return NextResponse.json({ error: "Invalid admin login." }, { status: 401 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to log in.";
     return NextResponse.json({ error: message }, { status: 500 });

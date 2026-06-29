@@ -1,11 +1,12 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 export const adminSessionCookieName = "admin_session";
 const adminSessionMaxAgeSeconds = 60 * 60 * 8;
 
 function getAdminSecret() {
-  return process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_PASSWORD || "pharmastock-admin-session-development-secret";
+  return process.env.ADMIN_SESSION_SECRET || "pharmastock-admin-session-development-secret";
 }
 
 function sign(payload: string) {
@@ -36,12 +37,29 @@ export function getAdminSessionCookieOptions() {
     httpOnly: true,
     secure: true,
     sameSite: "lax" as const,
-    path: "/admin",
+    path: "/",
     maxAge: adminSessionMaxAgeSeconds,
   };
 }
 
-export async function authenticateAdminFromCookie() {
+export function getExpiredAdminSessionCookieOptions(path = "/") {
+  return {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax" as const,
+    path,
+    maxAge: 0,
+    expires: new Date(0),
+  };
+}
+
+export type AdminSession = {
+  username: string;
+  fullName: string | null;
+  role: string;
+};
+
+export async function authenticateAdminFromCookie(): Promise<AdminSession | null> {
   const cookieStore = await cookies();
   const value = cookieStore.get(adminSessionCookieName)?.value || "";
   const [payload, signature] = value.split(".");
@@ -67,4 +85,9 @@ export async function authenticateAdminFromCookie() {
   } catch {
     return null;
   }
+}
+
+export async function requireAdminSession(): Promise<AdminSession | NextResponse> {
+  const admin = await authenticateAdminFromCookie();
+  return admin || NextResponse.json({ error: "Admin authentication required." }, { status: 401 });
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
-import { authenticateAdminFromCookie } from "@/lib/admin-session";
+import { requireAdminSession } from "@/lib/admin-session";
 import { normalizePharmacyRow } from "@/lib/data";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
@@ -14,11 +14,6 @@ type PharmacyUserInsert = Database["public"]["Tables"]["pharmacy_users"]["Insert
 
 const plans: PharmacyPlan[] = ["TRIAL", "BASIC", "PRO", "ENTERPRISE"];
 const statuses: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDED"];
-
-async function requireAdmin() {
-  const admin = await authenticateAdminFromCookie();
-  return admin ? null : NextResponse.json({ error: "Admin authentication required." }, { status: 401 });
-}
 
 function optionalDate(value: unknown) {
   const text = String(value || "").trim();
@@ -36,8 +31,8 @@ function getValidatedStatus(value: unknown): PharmacyStatus {
 }
 
 export async function GET() {
-  const unauthorized = await requireAdmin();
-  if (unauthorized) return unauthorized;
+  const admin = await requireAdminSession();
+  if (admin instanceof NextResponse) return admin;
 
   try {
     const supabase = getSupabaseAdmin();
@@ -53,8 +48,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const unauthorized = await requireAdmin();
-  if (unauthorized) return unauthorized;
+  const admin = await requireAdminSession();
+  if (admin instanceof NextResponse) return admin;
 
   try {
     const body = await request.json();
@@ -114,8 +109,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const unauthorized = await requireAdmin();
-  if (unauthorized) return unauthorized;
+  const admin = await requireAdminSession();
+  if (admin instanceof NextResponse) return admin;
 
   try {
     const body = await request.json();
