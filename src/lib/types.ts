@@ -36,6 +36,32 @@ export type PharmacySession = {
   last_seen: string;
 };
 
+export type PharmacySettings = {
+  id: string;
+  pharmacy_id: string;
+  registration_number: string;
+  license_number: string;
+  address: string;
+  region: string;
+  district: string;
+  email: string;
+  logo_url: string;
+  receipt_header: string;
+  receipt_footer: string;
+  receipt_prefix: string;
+  low_stock_threshold: number;
+  expiry_warning_days: number;
+  allow_negative_stock: boolean;
+  allow_duplicate_batches: boolean;
+  allow_price_override: boolean;
+  max_discount: number;
+  vat_percentage: number;
+  currency: string;
+  timezone: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Product = {
   id: string;
   pharmacy_id: string | null;

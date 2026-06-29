@@ -965,13 +965,18 @@ export function PharmacyApp({
                   <p className="mt-1 font-bold text-emerald-950">{activePharmacy?.pharmacy_name || "Not logged in"}</p>
                 </div>
                 {activePharmacyId && !isDebugMode ? (
-                  <button
-                    type="button"
-                    onClick={logoutPharmacy}
-                    className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800"
-                  >
-                    Log out
-                  </button>
+                  <div className="grid grid-cols-2 gap-2 sm:flex">
+                    <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/settings">
+                      Settings
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={logoutPharmacy}
+                      className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800"
+                    >
+                      Log out
+                    </button>
+                  </div>
                 ) : null}
               </div>
               {isLoadingPharmacy ? <p className="mt-2 text-sm font-semibold text-slate-600">Loading pharmacy records...</p> : null}
