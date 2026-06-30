@@ -32,6 +32,18 @@ const emptyForm: PharmacyForm = {
 const planOptions: PharmacyPlan[] = ["TRIAL", "BASIC", "PRO", "ENTERPRISE"];
 const statusOptions: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDED"];
 
+type AdminApiResponse = {
+  admin?: { username: string; fullName: string | null; role: string };
+  error?: string | { message?: string };
+  message?: string;
+  pharmacy?: Pharmacy;
+  pharmacies?: Pharmacy[];
+};
+
+function getAdminResponseMessage(data: AdminApiResponse, fallback: string) {
+  return typeof data.error === "string" ? data.error : data.error?.message || data.message || fallback;
+}
+
 function toDateInput(value: string | null) {
   return value ? value.slice(0, 10) : "";
 }
@@ -80,8 +92,8 @@ export function AdminPortal({
 
   async function loadPharmacies() {
     const response = await fetch("/api/admin/pharmacies", { credentials: "include" });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Unable to load pharmacies.");
+    const result = (await response.json()) as AdminApiResponse;
+    if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to load pharmacies."));
     setPharmacies(result.pharmacies || []);
   }
 
@@ -97,9 +109,9 @@ export function AdminPortal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      const result = await response.json();
+      const result = (await response.json()) as AdminApiResponse;
 
-      if (!response.ok) throw new Error(result.error || "Invalid admin login.");
+      if (!response.ok) throw new Error(getAdminResponseMessage(result, "Invalid admin login."));
 
       setIsAuthenticated(true);
       setAdmin(result.admin || { username, fullName: null, role: "SUPER_ADMIN" });
@@ -148,13 +160,25 @@ export function AdminPortal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, action: "update" }),
       });
-      const result = await response.json();
+      const result = (await response.json()) as AdminApiResponse;
 
-      if (!response.ok) throw new Error(result.error || "Unable to save pharmacy.");
+      if (!response.ok) throw new Error(getAdminResponseMessage(result, isEditing ? "Unable to update pharmacy." : "Unable to create pharmacy."));
 
       setForm(emptyForm);
       setMessage(isEditing ? "Pharmacy updated." : "Pharmacy created.");
-      await loadPharmacies();
+      const savedPharmacy = result.pharmacy;
+      if (savedPharmacy) {
+        setPharmacies((current) =>
+          isEditing
+            ? current.map((pharmacy) => (pharmacy.id === savedPharmacy.id ? savedPharmacy : pharmacy))
+            : [savedPharmacy, ...current],
+        );
+      }
+      try {
+        await loadPharmacies();
+      } catch (reloadError) {
+        console.error("Admin pharmacies reload failed after save:", reloadError);
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save pharmacy.");
     } finally {
@@ -173,9 +197,9 @@ export function AdminPortal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, action }),
       });
-      const result = await response.json();
+      const result = (await response.json()) as AdminApiResponse;
 
-      if (!response.ok) throw new Error(result.error || "Unable to update pharmacy.");
+      if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to update pharmacy."));
 
       await loadPharmacies();
       setMessage(action === "suspend" ? "Pharmacy suspended." : "Pharmacy reactivated.");
@@ -198,9 +222,9 @@ export function AdminPortal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: resetPharmacyId, action: "reset-password", password: resetPassword }),
       });
-      const result = await response.json();
+      const result = (await response.json()) as AdminApiResponse;
 
-      if (!response.ok) throw new Error(result.error || "Unable to reset password.");
+      if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to reset password."));
 
       setResetPharmacyId("");
       setResetPassword("");
