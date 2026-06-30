@@ -31,8 +31,13 @@ function getValidatedStatus(value: unknown): PharmacyStatus {
 }
 
 export async function GET() {
-  const admin = await requireAdminSession();
-  if (admin instanceof NextResponse) return admin;
+  console.info("[api/admin/pharmacies:GET] authenticating admin request");
+  const admin = await requireAdminSession("api/admin/pharmacies GET");
+  if (admin instanceof NextResponse) {
+    console.warn("[api/admin/pharmacies:GET] admin authentication failed; returning debug 401");
+    return admin;
+  }
+  console.info("[api/admin/pharmacies:GET] admin authentication succeeded", { username: admin.username, role: admin.role });
 
   try {
     const supabase = getSupabaseAdmin();
@@ -48,8 +53,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const admin = await requireAdminSession();
-  if (admin instanceof NextResponse) return admin;
+  console.info("[api/admin/pharmacies:POST] authenticating admin request");
+  const admin = await requireAdminSession("api/admin/pharmacies POST");
+  if (admin instanceof NextResponse) {
+    console.warn("[api/admin/pharmacies:POST] admin authentication failed; returning debug 401");
+    return admin;
+  }
+  console.info("[api/admin/pharmacies:POST] admin authentication succeeded", { username: admin.username, role: admin.role });
 
   try {
     const body = await request.json();
@@ -109,8 +119,13 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const admin = await requireAdminSession();
-  if (admin instanceof NextResponse) return admin;
+  console.info("[api/admin/pharmacies:PATCH] authenticating admin request");
+  const admin = await requireAdminSession("api/admin/pharmacies PATCH");
+  if (admin instanceof NextResponse) {
+    console.warn("[api/admin/pharmacies:PATCH] admin authentication failed; returning debug 401");
+    return admin;
+  }
+  console.info("[api/admin/pharmacies:PATCH] admin authentication succeeded", { username: admin.username, role: admin.role });
 
   try {
     const body = await request.json();
