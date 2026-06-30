@@ -79,7 +79,7 @@ export function AdminPortal({
   }, [pharmacies, query]);
 
   async function loadPharmacies() {
-    const response = await fetch("/api/admin/pharmacies");
+    const response = await fetch("/api/admin/pharmacies", { credentials: "include" });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Unable to load pharmacies.");
     setPharmacies(result.pharmacies || []);
@@ -93,6 +93,7 @@ export function AdminPortal({
     try {
       const response = await fetch("/api/admin/login", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
@@ -113,7 +114,7 @@ export function AdminPortal({
   }
 
   async function logout() {
-    await fetch("/api/admin/logout", { method: "POST" });
+    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setIsAuthenticated(false);
     setAdmin(null);
     setPharmacies([]);
@@ -143,6 +144,7 @@ export function AdminPortal({
       const isEditing = Boolean(form.id);
       const response = await fetch("/api/admin/pharmacies", {
         method: isEditing ? "PATCH" : "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, action: "update" }),
       });
@@ -167,6 +169,7 @@ export function AdminPortal({
     try {
       const response = await fetch("/api/admin/pharmacies", {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, action }),
       });
@@ -191,6 +194,7 @@ export function AdminPortal({
     try {
       const response = await fetch("/api/admin/pharmacies", {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: resetPharmacyId, action: "reset-password", password: resetPassword }),
       });

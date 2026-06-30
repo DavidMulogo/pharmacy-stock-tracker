@@ -35,7 +35,7 @@ export function createAdminSessionValue({ username, fullName, role }: { username
 export function getAdminSessionCookieOptions() {
   return {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
     path: "/",
     maxAge: adminSessionMaxAgeSeconds,
@@ -45,7 +45,7 @@ export function getAdminSessionCookieOptions() {
 export function getExpiredAdminSessionCookieOptions(path = "/") {
   return {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
     path,
     maxAge: 0,
