@@ -30,6 +30,18 @@ function getValidatedStatus(value: unknown): PharmacyStatus {
   return statuses.includes(status) ? status : "TRIAL";
 }
 
+function debugErrorResponse(error: unknown, fallback: string) {
+  console.error(error);
+
+  return NextResponse.json(
+    {
+      error: error instanceof Error ? error.message : String(error || fallback),
+      stack: process.env.NODE_ENV !== "production" ? (error instanceof Error ? error.stack : undefined) : undefined,
+    },
+    { status: 500 },
+  );
+}
+
 export async function GET() {
   console.info("[api/admin/pharmacies:GET] authenticating admin request");
   const admin = await requireAdminSession("api/admin/pharmacies GET");
@@ -41,14 +53,14 @@ export async function GET() {
 
   try {
     const supabase = getSupabaseAdmin();
+    console.info("[api/admin/pharmacies:GET] database operation: pharmacies select all ordered by created_at desc");
     const result = await supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
 
     if (result.error) throw result.error;
 
     return NextResponse.json({ pharmacies: (result.data || []).map(normalizePharmacyRow) }, { status: 200 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to load pharmacies.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return debugErrorResponse(error, "Unable to load pharmacies.");
   }
 }
 
@@ -83,6 +95,15 @@ export async function POST(request: Request) {
       subscription_ends_at: optionalDate(body.subscription_ends_at),
     };
     const supabase = getSupabaseAdmin();
+    console.info("[api/admin/pharmacies:POST] database operation: pharmacies insert", {
+      pharmacy_name: payload.pharmacy_name,
+      owner_name: payload.owner_name,
+      phone: payload.phone,
+      plan: payload.plan,
+      status: payload.status,
+      trial_ends_at: payload.trial_ends_at,
+      subscription_ends_at: payload.subscription_ends_at,
+    });
     const pharmacyResult = await supabase.from("pharmacies").insert(payload).select("*").single();
 
     if (pharmacyResult.error) throw pharmacyResult.error;
@@ -94,6 +115,12 @@ export async function POST(request: Request) {
       password,
       password_hash: passwordHash,
     };
+    console.info("[api/admin/pharmacies:POST] database operation: pharmacy_access insert", {
+      pharmacy_id: accessPayload.pharmacy_id,
+      pharmacy_code: accessPayload.pharmacy_code,
+      has_password: Boolean(accessPayload.password),
+      has_password_hash: Boolean(accessPayload.password_hash),
+    });
     const accessResult = await supabase.from("pharmacy_access").insert(accessPayload).select("id").single();
 
     if (accessResult.error) throw accessResult.error;
@@ -106,6 +133,14 @@ export async function POST(request: Request) {
       role: "OWNER",
       active: true,
     };
+    console.info("[api/admin/pharmacies:POST] database operation: pharmacy_users insert", {
+      pharmacy_id: userPayload.pharmacy_id,
+      full_name: userPayload.full_name,
+      username: userPayload.username,
+      role: userPayload.role,
+      active: userPayload.active,
+      has_password_hash: Boolean(userPayload.password_hash),
+    });
     const userResult = await supabase.from("pharmacy_users").insert(userPayload).select("id").single();
 
     if (userResult.error) throw userResult.error;
@@ -113,8 +148,7 @@ export async function POST(request: Request) {
     revalidatePath("/admin");
     return NextResponse.json({ pharmacy: normalizePharmacyRow(pharmacyResult.data) }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create pharmacy.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return debugErrorResponse(error, "Unable to create pharmacy.");
   }
 }
 
@@ -143,6 +177,11 @@ export async function PATCH(request: Request) {
       if (!password) return NextResponse.json({ error: "New password is required." }, { status: 400 });
 
       const passwordHash = await bcrypt.hash(password, 12);
+      console.info("[api/admin/pharmacies:PATCH] database operation: pharmacy_access update password", {
+        pharmacy_id: id,
+        has_password: Boolean(password),
+        has_password_hash: Boolean(passwordHash),
+      });
       const accessResult = await supabase
         .from("pharmacy_access")
         .update({ password, password_hash: passwordHash })
@@ -151,6 +190,11 @@ export async function PATCH(request: Request) {
 
       if (accessResult.error) throw accessResult.error;
 
+      console.info("[api/admin/pharmacies:PATCH] database operation: pharmacy_users update owner password", {
+        pharmacy_id: id,
+        role: "OWNER",
+        has_password_hash: Boolean(passwordHash),
+      });
       const ownerResult = await supabase
         .from("pharmacy_users")
         .update({ password_hash: passwordHash })
@@ -181,6 +225,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Pharmacy name, owner, and phone are required." }, { status: 400 });
     }
 
+    console.info("[api/admin/pharmacies:PATCH] database operation: pharmacies update", { id, action, update });
     const result = await supabase.from("pharmacies").update(update).eq("id", id).select("*").single();
 
     if (result.error) throw result.error;
@@ -188,7 +233,6 @@ export async function PATCH(request: Request) {
     revalidatePath("/admin");
     return NextResponse.json({ pharmacy: normalizePharmacyRow(result.data) }, { status: 200 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to update pharmacy.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return debugErrorResponse(error, "Unable to update pharmacy.");
   }
 }
