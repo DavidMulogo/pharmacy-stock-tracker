@@ -14,6 +14,7 @@ type PharmacyUserInsert = Database["public"]["Tables"]["pharmacy_users"]["Insert
 
 const plans: PharmacyPlan[] = ["TRIAL", "BASIC", "PRO", "ENTERPRISE"];
 const statuses: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDED"];
+const duplicateCodeMessage = "That pharmacy login code already exists. Please choose another code.";
 
 function optionalDate(value: unknown) {
   const text = String(value || "").trim();
@@ -30,7 +31,7 @@ function getValidatedStatus(value: unknown): PharmacyStatus {
   return statuses.includes(status) ? status : "TRIAL";
 }
 
-function debugErrorResponse(error: unknown, message: string) {
+function logServerError(message: string, error: unknown) {
   console.error(message, error);
 
   const supabaseError = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown } | null | undefined;
@@ -40,14 +41,47 @@ function debugErrorResponse(error: unknown, message: string) {
     hint: supabaseError?.hint,
     code: supabaseError?.code,
   });
+}
 
-  return NextResponse.json(
+function errorResponse(error: unknown, logMessage: string, userMessage: string, status = 500) {
+  logServerError(logMessage, error);
+  return NextResponse.json({ error: userMessage }, { status });
+}
+
+function isUniqueViolation(error: unknown) {
+  const supabaseError = error as { code?: unknown; message?: unknown } | null | undefined;
+  return supabaseError?.code === "23505" || String(supabaseError?.message || "").toLowerCase().includes("duplicate key");
+}
+
+async function rollbackPharmacyCreation(supabase: ReturnType<typeof getSupabaseAdmin>, pharmacyId: string) {
+  console.error("Rolling back failed pharmacy creation", { pharmacy_id: pharmacyId });
+
+  const rollbackSteps = [
     {
-      error,
-      serialized: JSON.stringify(error, null, 2),
+      label: "pharmacy_users",
+      run: () => supabase.from("pharmacy_users").delete().eq("pharmacy_id", pharmacyId),
     },
-    { status: 500 },
-  );
+    {
+      label: "pharmacy_access",
+      run: () => supabase.from("pharmacy_access").delete().eq("pharmacy_id", pharmacyId),
+    },
+    {
+      label: "pharmacy_settings",
+      run: () => supabase.from("pharmacy_settings").delete().eq("pharmacy_id", pharmacyId),
+    },
+    {
+      label: "pharmacies",
+      run: () => supabase.from("pharmacies").delete().eq("id", pharmacyId),
+    },
+  ];
+
+  for (const step of rollbackSteps) {
+    console.error(`Rollback deleting ${step.label}...`);
+    const result = await step.run();
+    if (result.error) {
+      console.error(`FAILED rollback at ${step.label}`, result.error);
+    }
+  }
 }
 
 export async function GET() {
@@ -68,7 +102,7 @@ export async function GET() {
 
     return NextResponse.json({ pharmacies: (result.data || []).map(normalizePharmacyRow) }, { status: 200 });
   } catch (error) {
-    return debugErrorResponse(error, "Admin pharmacies load failed:");
+    return errorResponse(error, "Admin pharmacies load failed:", "Unable to load pharmacies.");
   }
 }
 
@@ -80,6 +114,9 @@ export async function POST(request: Request) {
     return admin;
   }
   console.info("[api/admin/pharmacies:POST] admin authentication succeeded", { username: admin.username, role: admin.role });
+
+  const supabase = getSupabaseAdmin();
+  let createdPharmacyId: string | null = null;
 
   try {
     const body = await request.json();
@@ -93,6 +130,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Complete pharmacy, owner, phone, code, and password." }, { status: 400 });
     }
 
+    console.log("Checking pharmacy_code uniqueness...");
+    const existingCodeResult = await supabase.from("pharmacy_access").select("id").ilike("pharmacy_code", pharmacyCode).limit(1);
+    if (existingCodeResult.error) {
+      console.error("FAILED at pharmacy_access uniqueness check", existingCodeResult.error);
+      throw existingCodeResult.error;
+    }
+    if ((existingCodeResult.data || []).length > 0) {
+      return NextResponse.json({ error: duplicateCodeMessage }, { status: 400 });
+    }
+
     const payload: PharmacyInsert = {
       pharmacy_name: pharmacyName,
       owner_name: ownerName,
@@ -102,7 +149,6 @@ export async function POST(request: Request) {
       trial_ends_at: optionalDate(body.trial_ends_at),
       subscription_ends_at: optionalDate(body.subscription_ends_at),
     };
-    const supabase = getSupabaseAdmin();
     console.log("Creating pharmacy...");
     console.info("[api/admin/pharmacies:POST] database operation: pharmacies insert", {
       pharmacy_name: payload.pharmacy_name,
@@ -119,10 +165,11 @@ export async function POST(request: Request) {
       console.error("FAILED at pharmacies", pharmacyResult.error);
       throw pharmacyResult.error;
     }
+    createdPharmacyId = pharmacyResult.data.id;
 
     const passwordHash = await bcrypt.hash(password, 12);
     const accessPayload: PharmacyAccessInsert = {
-      pharmacy_id: pharmacyResult.data.id,
+      pharmacy_id: createdPharmacyId,
       pharmacy_code: pharmacyCode,
       password,
       password_hash: passwordHash,
@@ -138,11 +185,15 @@ export async function POST(request: Request) {
 
     if (accessResult.error) {
       console.error("FAILED at pharmacy_access", accessResult.error);
+      if (isUniqueViolation(accessResult.error)) {
+        await rollbackPharmacyCreation(supabase, createdPharmacyId);
+        return NextResponse.json({ error: duplicateCodeMessage }, { status: 400 });
+      }
       throw accessResult.error;
     }
 
     const userPayload: PharmacyUserInsert = {
-      pharmacy_id: pharmacyResult.data.id,
+      pharmacy_id: createdPharmacyId,
       full_name: ownerName,
       username: pharmacyCode,
       password_hash: passwordHash,
@@ -168,7 +219,15 @@ export async function POST(request: Request) {
     revalidatePath("/admin");
     return NextResponse.json({ pharmacy: normalizePharmacyRow(pharmacyResult.data) }, { status: 201 });
   } catch (error) {
-    return debugErrorResponse(error, "Admin pharmacy creation failed:");
+    if (createdPharmacyId) {
+      await rollbackPharmacyCreation(supabase, createdPharmacyId);
+    }
+
+    return errorResponse(
+      error,
+      "Admin pharmacy creation failed:",
+      "Unable to create pharmacy. No changes were saved. Please try again.",
+    );
   }
 }
 
@@ -253,6 +312,6 @@ export async function PATCH(request: Request) {
     revalidatePath("/admin");
     return NextResponse.json({ pharmacy: normalizePharmacyRow(result.data) }, { status: 200 });
   } catch (error) {
-    return debugErrorResponse(error, "Admin pharmacy update failed:");
+    return errorResponse(error, "Admin pharmacy update failed:", "Unable to update pharmacy.");
   }
 }
