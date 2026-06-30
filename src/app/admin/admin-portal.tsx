@@ -32,6 +32,10 @@ const emptyForm: PharmacyForm = {
 const planOptions: PharmacyPlan[] = ["TRIAL", "BASIC", "PRO", "ENTERPRISE"];
 const statusOptions: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDED"];
 
+function adminFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  return fetch(input, { ...init, credentials: "include" });
+}
+
 function toDateInput(value: string | null) {
   return value ? value.slice(0, 10) : "";
 }
@@ -79,7 +83,7 @@ export function AdminPortal({
   }, [pharmacies, query]);
 
   async function loadPharmacies() {
-    const response = await fetch("/api/admin/pharmacies", { credentials: "include" });
+    const response = await adminFetch("/api/admin/pharmacies");
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Unable to load pharmacies.");
     setPharmacies(result.pharmacies || []);
@@ -91,9 +95,8 @@ export function AdminPortal({
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/admin/login", {
+      const response = await adminFetch("/api/admin/login", {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
@@ -114,7 +117,7 @@ export function AdminPortal({
   }
 
   async function logout() {
-    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+    await adminFetch("/api/admin/logout", { method: "POST" });
     setIsAuthenticated(false);
     setAdmin(null);
     setPharmacies([]);
@@ -142,9 +145,8 @@ export function AdminPortal({
 
     try {
       const isEditing = Boolean(form.id);
-      const response = await fetch("/api/admin/pharmacies", {
+      const response = await adminFetch("/api/admin/pharmacies", {
         method: isEditing ? "PATCH" : "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, action: "update" }),
       });
@@ -167,9 +169,8 @@ export function AdminPortal({
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/admin/pharmacies", {
+      const response = await adminFetch("/api/admin/pharmacies", {
         method: "PATCH",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, action }),
       });
@@ -192,9 +193,8 @@ export function AdminPortal({
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/admin/pharmacies", {
+      const response = await adminFetch("/api/admin/pharmacies", {
         method: "PATCH",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: resetPharmacyId, action: "reset-password", password: resetPassword }),
       });
