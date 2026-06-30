@@ -30,13 +30,21 @@ function getValidatedStatus(value: unknown): PharmacyStatus {
   return statuses.includes(status) ? status : "TRIAL";
 }
 
-function debugErrorResponse(error: unknown, fallback: string) {
-  console.error(error);
+function debugErrorResponse(error: unknown, message: string) {
+  console.error(message, error);
+
+  const supabaseError = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown } | null | undefined;
+  console.error({
+    message: supabaseError?.message,
+    details: supabaseError?.details,
+    hint: supabaseError?.hint,
+    code: supabaseError?.code,
+  });
 
   return NextResponse.json(
     {
-      error: error instanceof Error ? error.message : String(error || fallback),
-      stack: process.env.NODE_ENV !== "production" ? (error instanceof Error ? error.stack : undefined) : undefined,
+      error,
+      serialized: JSON.stringify(error, null, 2),
     },
     { status: 500 },
   );
@@ -60,7 +68,7 @@ export async function GET() {
 
     return NextResponse.json({ pharmacies: (result.data || []).map(normalizePharmacyRow) }, { status: 200 });
   } catch (error) {
-    return debugErrorResponse(error, "Unable to load pharmacies.");
+    return debugErrorResponse(error, "Admin pharmacies load failed:");
   }
 }
 
@@ -148,7 +156,7 @@ export async function POST(request: Request) {
     revalidatePath("/admin");
     return NextResponse.json({ pharmacy: normalizePharmacyRow(pharmacyResult.data) }, { status: 201 });
   } catch (error) {
-    return debugErrorResponse(error, "Unable to create pharmacy.");
+    return debugErrorResponse(error, "Admin pharmacy creation failed:");
   }
 }
 
@@ -233,6 +241,6 @@ export async function PATCH(request: Request) {
     revalidatePath("/admin");
     return NextResponse.json({ pharmacy: normalizePharmacyRow(result.data) }, { status: 200 });
   } catch (error) {
-    return debugErrorResponse(error, "Unable to update pharmacy.");
+    return debugErrorResponse(error, "Admin pharmacy update failed:");
   }
 }
