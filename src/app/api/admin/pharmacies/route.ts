@@ -103,6 +103,7 @@ export async function POST(request: Request) {
       subscription_ends_at: optionalDate(body.subscription_ends_at),
     };
     const supabase = getSupabaseAdmin();
+    console.log("Creating pharmacy...");
     console.info("[api/admin/pharmacies:POST] database operation: pharmacies insert", {
       pharmacy_name: payload.pharmacy_name,
       owner_name: payload.owner_name,
@@ -114,7 +115,10 @@ export async function POST(request: Request) {
     });
     const pharmacyResult = await supabase.from("pharmacies").insert(payload).select("*").single();
 
-    if (pharmacyResult.error) throw pharmacyResult.error;
+    if (pharmacyResult.error) {
+      console.error("FAILED at pharmacies", pharmacyResult.error);
+      throw pharmacyResult.error;
+    }
 
     const passwordHash = await bcrypt.hash(password, 12);
     const accessPayload: PharmacyAccessInsert = {
@@ -123,6 +127,7 @@ export async function POST(request: Request) {
       password,
       password_hash: passwordHash,
     };
+    console.log("Creating pharmacy_access...");
     console.info("[api/admin/pharmacies:POST] database operation: pharmacy_access insert", {
       pharmacy_id: accessPayload.pharmacy_id,
       pharmacy_code: accessPayload.pharmacy_code,
@@ -131,7 +136,10 @@ export async function POST(request: Request) {
     });
     const accessResult = await supabase.from("pharmacy_access").insert(accessPayload).select("id").single();
 
-    if (accessResult.error) throw accessResult.error;
+    if (accessResult.error) {
+      console.error("FAILED at pharmacy_access", accessResult.error);
+      throw accessResult.error;
+    }
 
     const userPayload: PharmacyUserInsert = {
       pharmacy_id: pharmacyResult.data.id,
@@ -141,6 +149,7 @@ export async function POST(request: Request) {
       role: "OWNER",
       active: true,
     };
+    console.log("Creating pharmacy_users...");
     console.info("[api/admin/pharmacies:POST] database operation: pharmacy_users insert", {
       pharmacy_id: userPayload.pharmacy_id,
       full_name: userPayload.full_name,
@@ -151,7 +160,10 @@ export async function POST(request: Request) {
     });
     const userResult = await supabase.from("pharmacy_users").insert(userPayload).select("id").single();
 
-    if (userResult.error) throw userResult.error;
+    if (userResult.error) {
+      console.error("FAILED at pharmacy_users", userResult.error);
+      throw userResult.error;
+    }
 
     revalidatePath("/admin");
     return NextResponse.json({ pharmacy: normalizePharmacyRow(pharmacyResult.data) }, { status: 201 });
