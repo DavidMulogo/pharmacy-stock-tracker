@@ -430,16 +430,26 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "Only super admins can permanently delete pharmacies." }, { status: 403 });
       }
 
+      const pharmacyResult = await supabase.from("pharmacies").select("pharmacy_name").eq("id", id).maybeSingle();
+      if (pharmacyResult.error) throw pharmacyResult.error;
+      if (!pharmacyResult.data) {
+        return NextResponse.json({ error: "Pharmacy was not found." }, { status: 404 });
+      }
+
       const accessResult = await supabase.from("pharmacy_access").select("pharmacy_code").eq("pharmacy_id", id).maybeSingle();
       if (accessResult.error) throw accessResult.error;
       const pharmacyCode = accessResult.data?.pharmacy_code || "";
+      const expectedConfirmation = pharmacyCode || pharmacyResult.data.pharmacy_name;
 
-      if (!pharmacyCode) {
-        return NextResponse.json({ error: "Pharmacy login code was not found. Permanent deletion cannot continue." }, { status: 400 });
-      }
-
-      if (confirmationCode !== pharmacyCode) {
-        return NextResponse.json({ error: "Type the pharmacy login code exactly to delete permanently." }, { status: 400 });
+      if (confirmationCode !== expectedConfirmation) {
+        return NextResponse.json(
+          {
+            error: pharmacyCode
+              ? "Type the pharmacy login code exactly to delete permanently."
+              : "Login code is missing. Type the pharmacy name exactly to delete permanently.",
+          },
+          { status: 400 },
+        );
       }
 
       await deletePharmacyPermanently(supabase, id);

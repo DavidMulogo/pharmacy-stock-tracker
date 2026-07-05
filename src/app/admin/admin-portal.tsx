@@ -452,7 +452,7 @@ export function AdminPortal({
                     <form className="mt-3 grid gap-2 rounded-md border border-red-200 bg-red-50 p-3 sm:grid-cols-[1fr_auto_auto]" onSubmit={deletePermanently}>
                       <input
                         className="rounded-md border border-red-200 px-3 py-2 text-base outline-none focus:border-red-600"
-                        placeholder="Type pharmacy login code"
+                        placeholder="Type login code or pharmacy name"
                         value={deleteConfirmationCode}
                         onChange={(event) => setDeleteConfirmationCode(event.target.value)}
                       />
