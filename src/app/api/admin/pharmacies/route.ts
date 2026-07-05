@@ -290,15 +290,8 @@ export async function POST(request: Request) {
       if (isUniqueViolation(accessResult.error)) {
         const rollbackFailure = await rollbackPharmacyCreation(supabase, createdPharmacyId);
         if (rollbackFailure) {
-          return NextResponse.json(
-            {
-              error: "Unable to create pharmacy. No changes were saved.",
-              failedStep: rollbackFailure.failedStep,
-              originalError: serializeOriginalError(accessResult.error),
-              rollbackError: serializeOriginalError(rollbackFailure.error),
-            },
-            { status: 500 },
-          );
+          logServerError(`Admin pharmacy rollback failed at ${rollbackFailure.failedStep}:`, rollbackFailure.error);
+          return NextResponse.json({ error: "Unable to create pharmacy. No changes were saved." }, { status: 500 });
         }
         return NextResponse.json({ error: duplicateCodeMessage }, { status: 400 });
       }
@@ -334,31 +327,17 @@ export async function POST(request: Request) {
     revalidatePath("/admin");
     return NextResponse.json({ pharmacy: normalizePharmacyRow(pharmacyResult.data) }, { status: 201 });
   } catch (error) {
-    const originalError = serializeOriginalError(error);
     if (createdPharmacyId) {
       const rollbackFailure = await rollbackPharmacyCreation(supabase, createdPharmacyId);
       if (rollbackFailure) {
-        return NextResponse.json(
-          {
-            error: "Unable to create pharmacy. No changes were saved.",
-            failedStep: rollbackFailure.failedStep,
-            originalError,
-            rollbackError: serializeOriginalError(rollbackFailure.error),
-          },
-          { status: 500 },
-        );
+        logServerError(`Admin pharmacy creation failed at ${failedStep}:`, error);
+        logServerError(`Admin pharmacy rollback failed at ${rollbackFailure.failedStep}:`, rollbackFailure.error);
+        return NextResponse.json({ error: "Unable to create pharmacy. No changes were saved." }, { status: 500 });
       }
     }
 
-    logServerError("Admin pharmacy creation failed:", error);
-    return NextResponse.json(
-      {
-        error: "Unable to create pharmacy. No changes were saved.",
-        failedStep,
-        originalError,
-      },
-      { status: 500 },
-    );
+    logServerError(`Admin pharmacy creation failed at ${failedStep}:`, error);
+    return NextResponse.json({ error: "Unable to create pharmacy. No changes were saved." }, { status: 500 });
   }
 }
 
