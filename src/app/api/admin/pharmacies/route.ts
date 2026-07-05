@@ -11,6 +11,7 @@ type PharmacyInsert = Database["public"]["Tables"]["pharmacies"]["Insert"];
 type PharmacyUpdate = Database["public"]["Tables"]["pharmacies"]["Update"];
 type PharmacyAccessInsert = Database["public"]["Tables"]["pharmacy_access"]["Insert"];
 type PharmacyUserInsert = Database["public"]["Tables"]["pharmacy_users"]["Insert"];
+type SupabaseAdminClient = ReturnType<typeof getSupabaseAdmin>;
 type AdminCreateStep =
   | "precheck_code"
   | "insert_pharmacy"
@@ -63,6 +64,10 @@ function isUniqueViolation(error: unknown) {
   return supabaseError?.code === "23505" || String(supabaseError?.message || "").toLowerCase().includes("duplicate key");
 }
 
+function isSuperAdmin(admin: { role: string }) {
+  return admin.role.toUpperCase() === "SUPER_ADMIN" || admin.role.toUpperCase() === "SUPER-ADMIN";
+}
+
 function serializeOriginalError(error: unknown) {
   const supabaseError = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown } | null | undefined;
 
@@ -74,7 +79,7 @@ function serializeOriginalError(error: unknown) {
   };
 }
 
-async function rollbackPharmacyCreation(supabase: ReturnType<typeof getSupabaseAdmin>, pharmacyId: string) {
+async function rollbackPharmacyCreation(supabase: SupabaseAdminClient, pharmacyId: string) {
   console.error("Rolling back failed pharmacy creation", { pharmacy_id: pharmacyId });
 
   const rollbackSteps: Array<{
@@ -116,7 +121,65 @@ async function rollbackPharmacyCreation(supabase: ReturnType<typeof getSupabaseA
   return null;
 }
 
-export async function GET() {
+async function deletePharmacyPermanently(supabase: SupabaseAdminClient, pharmacyId: string) {
+  const deleteStep = async (label: string, run: () => PromiseLike<{ error: unknown }>) => {
+    console.info(`[api/admin/pharmacies:PATCH] permanent delete: ${label}`);
+    const result = await run();
+    if (result.error) {
+      console.error(`FAILED permanent delete at ${label}`, result.error);
+      throw result.error;
+    }
+  };
+
+  const anySupabase = supabase as unknown as {
+    from: (table: string) => {
+      delete: () => {
+        eq: (column: string, value: string) => PromiseLike<{ error: unknown }>;
+        in: (column: string, values: string[]) => PromiseLike<{ error: unknown }>;
+      };
+    };
+  };
+
+  const salesResult = await supabase.from("sales").select("id").eq("pharmacy_id", pharmacyId);
+  if (salesResult.error) {
+    console.error("FAILED permanent delete sales lookup", salesResult.error);
+    throw salesResult.error;
+  }
+
+  const saleIds = (salesResult.data || []).map((sale) => sale.id);
+  if (saleIds.length > 0) {
+    console.info("[api/admin/pharmacies:PATCH] permanent delete: sale_items by sale_id");
+    const saleItemsBySaleResult = await anySupabase.from("sale_items").delete().in("sale_id", saleIds);
+    if (saleItemsBySaleResult.error) {
+      const message = serializeOriginalError(saleItemsBySaleResult.error).message || "";
+      if (!String(message).toLowerCase().includes("sale_items")) {
+        console.error("FAILED permanent delete at sale_items by sale_id", saleItemsBySaleResult.error);
+        throw saleItemsBySaleResult.error;
+      }
+    }
+  }
+
+  console.info("[api/admin/pharmacies:PATCH] permanent delete: sale_items by pharmacy_id");
+  const saleItemsByPharmacyResult = await anySupabase.from("sale_items").delete().eq("pharmacy_id", pharmacyId);
+  if (saleItemsByPharmacyResult.error) {
+    const message = serializeOriginalError(saleItemsByPharmacyResult.error).message || "";
+    if (!String(message).toLowerCase().includes("sale_items")) {
+      console.error("FAILED permanent delete at sale_items by pharmacy_id", saleItemsByPharmacyResult.error);
+      throw saleItemsByPharmacyResult.error;
+    }
+  }
+
+  await deleteStep("sales", () => supabase.from("sales").delete().eq("pharmacy_id", pharmacyId));
+  await deleteStep("inventory_batches", () => supabase.from("inventory_batches").delete().eq("pharmacy_id", pharmacyId));
+  await deleteStep("products", () => supabase.from("products").delete().eq("pharmacy_id", pharmacyId));
+  await deleteStep("pharmacy_sessions", () => supabase.from("pharmacy_sessions").delete().eq("pharmacy_id", pharmacyId));
+  await deleteStep("pharmacy_users", () => supabase.from("pharmacy_users").delete().eq("pharmacy_id", pharmacyId));
+  await deleteStep("pharmacy_access", () => supabase.from("pharmacy_access").delete().eq("pharmacy_id", pharmacyId));
+  await deleteStep("pharmacy_settings", () => supabase.from("pharmacy_settings").delete().eq("pharmacy_id", pharmacyId));
+  await deleteStep("pharmacies", () => supabase.from("pharmacies").delete().eq("id", pharmacyId));
+}
+
+export async function GET(request: Request) {
   console.info("[api/admin/pharmacies:GET] authenticating admin request");
   const admin = await requireAdminSession("api/admin/pharmacies GET");
   if (admin instanceof NextResponse) {
@@ -127,8 +190,11 @@ export async function GET() {
 
   try {
     const supabase = getSupabaseAdmin();
-    console.info("[api/admin/pharmacies:GET] database operation: pharmacies select all ordered by created_at desc");
-    const result = await supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
+    const showArchived = new URL(request.url).searchParams.get("archived") === "1";
+    console.info("[api/admin/pharmacies:GET] database operation: pharmacies select all ordered by created_at desc", { showArchived });
+    let query = supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
+    if (!showArchived) query = query.is("archived_at", null);
+    const result = await query;
 
     if (result.error) throw result.error;
 
@@ -309,6 +375,7 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const id = String(body.id || "").trim();
     const action = String(body.action || "update");
+    const confirmationCode = String(body.confirmationCode || "").trim();
 
     if (!id) {
       return NextResponse.json({ error: "Pharmacy id is required." }, { status: 400 });
@@ -348,6 +415,57 @@ export async function PATCH(request: Request) {
 
       if (ownerResult.error) throw ownerResult.error;
       return NextResponse.json({ ok: true }, { status: 200 });
+    }
+
+    if (action === "archive") {
+      const result = await supabase
+        .from("pharmacies")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", id)
+        .select("*")
+        .single();
+
+      if (result.error) throw result.error;
+
+      await supabase.from("pharmacy_sessions").delete().eq("pharmacy_id", id);
+      revalidatePath("/admin");
+      return NextResponse.json({ pharmacy: normalizePharmacyRow(result.data), message: "Pharmacy archived." }, { status: 200 });
+    }
+
+    if (action === "restore") {
+      const result = await supabase
+        .from("pharmacies")
+        .update({ archived_at: null })
+        .eq("id", id)
+        .select("*")
+        .single();
+
+      if (result.error) throw result.error;
+
+      revalidatePath("/admin");
+      return NextResponse.json({ pharmacy: normalizePharmacyRow(result.data), message: "Pharmacy restored." }, { status: 200 });
+    }
+
+    if (action === "delete-permanently") {
+      if (!isSuperAdmin(admin)) {
+        return NextResponse.json({ error: "Only super admins can permanently delete pharmacies." }, { status: 403 });
+      }
+
+      const accessResult = await supabase.from("pharmacy_access").select("pharmacy_code").eq("pharmacy_id", id).maybeSingle();
+      if (accessResult.error) throw accessResult.error;
+      const pharmacyCode = accessResult.data?.pharmacy_code || "";
+
+      if (!pharmacyCode) {
+        return NextResponse.json({ error: "Pharmacy login code was not found. Permanent deletion cannot continue." }, { status: 400 });
+      }
+
+      if (confirmationCode !== pharmacyCode) {
+        return NextResponse.json({ error: "Type the pharmacy login code exactly to delete permanently." }, { status: 400 });
+      }
+
+      await deletePharmacyPermanently(supabase, id);
+      revalidatePath("/admin");
+      return NextResponse.json({ message: "Pharmacy permanently deleted." }, { status: 200 });
     }
 
     const update: PharmacyUpdate =

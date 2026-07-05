@@ -16,6 +16,7 @@ export type Pharmacy = {
   status: PharmacyStatus;
   trial_ends_at: string | null;
   subscription_ends_at: string | null;
+  archived_at: string | null;
   created_at: string;
 };
 

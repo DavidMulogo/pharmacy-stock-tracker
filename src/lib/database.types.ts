@@ -39,6 +39,7 @@ export type Database = {
           status: PharmacyStatus;
           trial_ends_at: string | null;
           subscription_ends_at: string | null;
+          archived_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -50,6 +51,7 @@ export type Database = {
           status?: PharmacyStatus;
           trial_ends_at?: string | null;
           subscription_ends_at?: string | null;
+          archived_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["pharmacies"]["Insert"]>;

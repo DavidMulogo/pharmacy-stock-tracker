@@ -67,6 +67,7 @@ export function normalizePharmacyRow(pharmacy: PharmacyRow): Pharmacy {
     status: pharmacy.status || "TRIAL",
     trial_ends_at: pharmacy.trial_ends_at,
     subscription_ends_at: pharmacy.subscription_ends_at,
+    archived_at: pharmacy.archived_at,
     created_at: pharmacy.created_at,
   };
 }
@@ -86,7 +87,7 @@ function getTodayRange() {
 
 export async function getPharmacies(): Promise<Pharmacy[]> {
   const supabase = getSupabaseAdmin();
-  const result = await supabase.from("pharmacies").select("*").order("pharmacy_name");
+  const result = await supabase.from("pharmacies").select("*").is("archived_at", null).order("pharmacy_name");
 
   if (result.error) throw result.error;
   return (result.data || []).map((pharmacy: PharmacyRow) => normalizePharmacyRow(pharmacy));

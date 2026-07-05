@@ -17,7 +17,7 @@ async function getAdminPharmacies(): Promise<Pharmacy[]> {
   if (!admin) return [];
 
   const supabase = getSupabaseAdmin();
-  const result = await supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
+  const result = await supabase.from("pharmacies").select("*").is("archived_at", null).order("created_at", { ascending: false });
 
   if (result.error) throw result.error;
   return (result.data || []).map(normalizePharmacyRow);

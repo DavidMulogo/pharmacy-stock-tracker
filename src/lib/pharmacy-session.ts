@@ -24,6 +24,7 @@ function normalizePharmacy(pharmacy: PharmacyRow): Pharmacy {
     status: pharmacy.status || "TRIAL",
     trial_ends_at: pharmacy.trial_ends_at,
     subscription_ends_at: pharmacy.subscription_ends_at,
+    archived_at: pharmacy.archived_at,
     created_at: pharmacy.created_at,
   };
 }
@@ -92,6 +93,10 @@ export async function authenticatePharmacyFromSessionCookie(): Promise<{
   const pharmacy = Array.isArray(session.pharmacy) ? session.pharmacy[0] : session.pharmacy;
   const user = Array.isArray(session.pharmacy_user) ? session.pharmacy_user[0] : session.pharmacy_user;
   if (!pharmacy) return null;
+  if (pharmacy.archived_at) {
+    await supabase.from("pharmacy_sessions").delete().eq("id", session.id);
+    return null;
+  }
   if (!user || !user.active || user.pharmacy_id !== pharmacy.id) {
     await supabase.from("pharmacy_sessions").delete().eq("id", session.id);
     return null;

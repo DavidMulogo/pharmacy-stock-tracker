@@ -44,6 +44,11 @@ function getAdminResponseMessage(data: AdminApiResponse, fallback: string) {
   return typeof data.error === "string" ? data.error : data.error?.message || data.message || fallback;
 }
 
+function isSuperAdmin(admin: { role: string } | null) {
+  const role = admin?.role.toUpperCase() || "";
+  return role === "SUPER_ADMIN" || role === "SUPER-ADMIN";
+}
+
 function toDateInput(value: string | null) {
   return value ? value.slice(0, 10) : "";
 }
@@ -66,6 +71,9 @@ export function AdminPortal({
   const [form, setForm] = useState<PharmacyForm>(emptyForm);
   const [resetPassword, setResetPassword] = useState("");
   const [resetPharmacyId, setResetPharmacyId] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [deletePharmacyId, setDeletePharmacyId] = useState("");
+  const [deleteConfirmationCode, setDeleteConfirmationCode] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -90,8 +98,8 @@ export function AdminPortal({
     );
   }, [pharmacies, query]);
 
-  async function loadPharmacies() {
-    const response = await fetch("/api/admin/pharmacies", { credentials: "include" });
+  async function loadPharmacies(includeArchived = showArchived) {
+    const response = await fetch(`/api/admin/pharmacies${includeArchived ? "?archived=1" : ""}`, { credentials: "include" });
     const result = (await response.json()) as AdminApiResponse;
     if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to load pharmacies."));
     setPharmacies(result.pharmacies || []);
@@ -147,6 +155,19 @@ export function AdminPortal({
     });
   }
 
+  async function toggleArchived(value: boolean) {
+    setShowArchived(value);
+    setMessage("");
+    setIsLoading(true);
+    try {
+      await loadPharmacies(value);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to load pharmacies.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function submitPharmacy(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
@@ -186,7 +207,7 @@ export function AdminPortal({
     }
   }
 
-  async function pharmacyAction(id: string, action: "suspend" | "reactivate") {
+  async function pharmacyAction(id: string, action: "suspend" | "reactivate" | "archive" | "restore") {
     setMessage("");
     setIsLoading(true);
 
@@ -202,9 +223,40 @@ export function AdminPortal({
       if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to update pharmacy."));
 
       await loadPharmacies();
-      setMessage(action === "suspend" ? "Pharmacy suspended." : "Pharmacy reactivated.");
+      setMessage(result.message || (action === "suspend" ? "Pharmacy suspended." : action === "reactivate" ? "Pharmacy reactivated." : action === "archive" ? "Pharmacy archived." : "Pharmacy restored."));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to update pharmacy.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function deletePermanently(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/admin/pharmacies", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: deletePharmacyId,
+          action: "delete-permanently",
+          confirmationCode: deleteConfirmationCode,
+        }),
+      });
+      const result = (await response.json()) as AdminApiResponse;
+
+      if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to permanently delete pharmacy."));
+
+      setDeletePharmacyId("");
+      setDeleteConfirmationCode("");
+      await loadPharmacies();
+      setMessage(result.message || "Pharmacy permanently deleted.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to permanently delete pharmacy.");
     } finally {
       setIsLoading(false);
     }
@@ -311,12 +363,23 @@ export function AdminPortal({
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-bold">Pharmacies</h2>
-            <input
-              className="w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600 sm:max-w-xs"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search pharmacies"
-            />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                <input
+                  checked={showArchived}
+                  className="h-4 w-4 accent-emerald-700"
+                  onChange={(event) => void toggleArchived(event.target.checked)}
+                  type="checkbox"
+                />
+                Show archived
+              </label>
+              <input
+                className="w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600 sm:max-w-xs"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search pharmacies"
+              />
+            </div>
           </div>
 
           <div className="mt-4 grid gap-3">
@@ -330,6 +393,7 @@ export function AdminPortal({
                       <p className="mt-1 text-sm font-semibold text-slate-700">
                         {pharmacy.plan} / {pharmacy.status}
                       </p>
+                      {pharmacy.archived_at ? <p className="mt-1 text-xs font-bold uppercase text-rose-700">Archived</p> : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold" type="button" onClick={() => editPharmacy(pharmacy)}>
@@ -344,9 +408,30 @@ export function AdminPortal({
                           Suspend
                         </button>
                       )}
+                      {pharmacy.archived_at ? (
+                        <button className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800" type="button" onClick={() => pharmacyAction(pharmacy.id, "restore")}>
+                          Restore
+                        </button>
+                      ) : (
+                        <button className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800" type="button" onClick={() => pharmacyAction(pharmacy.id, "archive")}>
+                          Archive
+                        </button>
+                      )}
                       <button className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-800" type="button" onClick={() => setResetPharmacyId(pharmacy.id)}>
                         Reset password
                       </button>
+                      {isSuperAdmin(admin) ? (
+                        <button
+                          className="rounded-md border border-red-400 bg-red-50 px-3 py-2 text-sm font-bold text-red-800"
+                          type="button"
+                          onClick={() => {
+                            setDeletePharmacyId(pharmacy.id);
+                            setDeleteConfirmationCode("");
+                          }}
+                        >
+                          Delete Permanently
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                   {resetPharmacyId === pharmacy.id ? (
@@ -360,6 +445,29 @@ export function AdminPortal({
                       />
                       <button className="rounded-md bg-blue-700 px-3 py-2 text-sm font-bold text-white" type="submit">
                         Save password
+                      </button>
+                    </form>
+                  ) : null}
+                  {deletePharmacyId === pharmacy.id ? (
+                    <form className="mt-3 grid gap-2 rounded-md border border-red-200 bg-red-50 p-3 sm:grid-cols-[1fr_auto_auto]" onSubmit={deletePermanently}>
+                      <input
+                        className="rounded-md border border-red-200 px-3 py-2 text-base outline-none focus:border-red-600"
+                        placeholder="Type pharmacy login code"
+                        value={deleteConfirmationCode}
+                        onChange={(event) => setDeleteConfirmationCode(event.target.value)}
+                      />
+                      <button className="rounded-md bg-red-700 px-3 py-2 text-sm font-bold text-white disabled:bg-slate-300" disabled={isLoading} type="submit">
+                        Confirm Delete
+                      </button>
+                      <button
+                        className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800"
+                        type="button"
+                        onClick={() => {
+                          setDeletePharmacyId("");
+                          setDeleteConfirmationCode("");
+                        }}
+                      >
+                        Cancel
                       </button>
                     </form>
                   ) : null}

@@ -53,6 +53,9 @@ export async function POST(request: Request) {
     if (!pharmacy) {
       return NextResponse.json({ error: "Pharmacy login is not linked to a pharmacy." }, { status: 404 });
     }
+    if (pharmacy.archived_at) {
+      return NextResponse.json({ error: "This pharmacy has been archived. Please contact PharmaStock support." }, { status: 403 });
+    }
 
     const accessStatus = getPharmacyAccessStatus({
       plan: pharmacy.plan || "TRIAL",
