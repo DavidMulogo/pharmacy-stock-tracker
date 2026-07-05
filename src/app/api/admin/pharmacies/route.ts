@@ -11,6 +11,16 @@ type PharmacyInsert = Database["public"]["Tables"]["pharmacies"]["Insert"];
 type PharmacyUpdate = Database["public"]["Tables"]["pharmacies"]["Update"];
 type PharmacyAccessInsert = Database["public"]["Tables"]["pharmacy_access"]["Insert"];
 type PharmacyUserInsert = Database["public"]["Tables"]["pharmacy_users"]["Insert"];
+type AdminCreateStep =
+  | "precheck_code"
+  | "insert_pharmacy"
+  | "insert_pharmacy_access"
+  | "insert_owner_user"
+  | "revalidate_admin"
+  | "rollback_pharmacy_users"
+  | "rollback_pharmacy_access"
+  | "rollback_pharmacy_settings"
+  | "rollback_pharmacies";
 
 const plans: PharmacyPlan[] = ["TRIAL", "BASIC", "PRO", "ENTERPRISE"];
 const statuses: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDED"];
@@ -53,24 +63,43 @@ function isUniqueViolation(error: unknown) {
   return supabaseError?.code === "23505" || String(supabaseError?.message || "").toLowerCase().includes("duplicate key");
 }
 
+function serializeOriginalError(error: unknown) {
+  const supabaseError = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown } | null | undefined;
+
+  return {
+    code: supabaseError?.code,
+    message: supabaseError?.message || (error instanceof Error ? error.message : undefined),
+    details: supabaseError?.details,
+    hint: supabaseError?.hint,
+  };
+}
+
 async function rollbackPharmacyCreation(supabase: ReturnType<typeof getSupabaseAdmin>, pharmacyId: string) {
   console.error("Rolling back failed pharmacy creation", { pharmacy_id: pharmacyId });
 
-  const rollbackSteps = [
+  const rollbackSteps: Array<{
+    label: string;
+    failedStep: AdminCreateStep;
+    run: () => PromiseLike<{ error: unknown }>;
+  }> = [
     {
       label: "pharmacy_users",
+      failedStep: "rollback_pharmacy_users",
       run: () => supabase.from("pharmacy_users").delete().eq("pharmacy_id", pharmacyId),
     },
     {
       label: "pharmacy_access",
+      failedStep: "rollback_pharmacy_access",
       run: () => supabase.from("pharmacy_access").delete().eq("pharmacy_id", pharmacyId),
     },
     {
       label: "pharmacy_settings",
+      failedStep: "rollback_pharmacy_settings",
       run: () => supabase.from("pharmacy_settings").delete().eq("pharmacy_id", pharmacyId),
     },
     {
       label: "pharmacies",
+      failedStep: "rollback_pharmacies",
       run: () => supabase.from("pharmacies").delete().eq("id", pharmacyId),
     },
   ];
@@ -80,8 +109,11 @@ async function rollbackPharmacyCreation(supabase: ReturnType<typeof getSupabaseA
     const result = await step.run();
     if (result.error) {
       console.error(`FAILED rollback at ${step.label}`, result.error);
+      return { failedStep: step.failedStep, error: result.error };
     }
   }
+
+  return null;
 }
 
 export async function GET() {
@@ -117,6 +149,7 @@ export async function POST(request: Request) {
 
   const supabase = getSupabaseAdmin();
   let createdPharmacyId: string | null = null;
+  let failedStep: AdminCreateStep = "precheck_code";
 
   try {
     const body = await request.json();
@@ -130,6 +163,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Complete pharmacy, owner, phone, code, and password." }, { status: 400 });
     }
 
+    failedStep = "precheck_code";
     console.log("Checking pharmacy_code uniqueness...");
     const existingCodeResult = await supabase.from("pharmacy_access").select("id").ilike("pharmacy_code", pharmacyCode).limit(1);
     if (existingCodeResult.error) {
@@ -149,6 +183,7 @@ export async function POST(request: Request) {
       trial_ends_at: optionalDate(body.trial_ends_at),
       subscription_ends_at: optionalDate(body.subscription_ends_at),
     };
+    failedStep = "insert_pharmacy";
     console.log("Creating pharmacy...");
     console.info("[api/admin/pharmacies:POST] database operation: pharmacies insert", {
       pharmacy_name: payload.pharmacy_name,
@@ -174,6 +209,7 @@ export async function POST(request: Request) {
       password,
       password_hash: passwordHash,
     };
+    failedStep = "insert_pharmacy_access";
     console.log("Creating pharmacy_access...");
     console.info("[api/admin/pharmacies:POST] database operation: pharmacy_access insert", {
       pharmacy_id: accessPayload.pharmacy_id,
@@ -186,7 +222,18 @@ export async function POST(request: Request) {
     if (accessResult.error) {
       console.error("FAILED at pharmacy_access", accessResult.error);
       if (isUniqueViolation(accessResult.error)) {
-        await rollbackPharmacyCreation(supabase, createdPharmacyId);
+        const rollbackFailure = await rollbackPharmacyCreation(supabase, createdPharmacyId);
+        if (rollbackFailure) {
+          return NextResponse.json(
+            {
+              error: "Unable to create pharmacy. No changes were saved.",
+              failedStep: rollbackFailure.failedStep,
+              originalError: serializeOriginalError(accessResult.error),
+              rollbackError: serializeOriginalError(rollbackFailure.error),
+            },
+            { status: 500 },
+          );
+        }
         return NextResponse.json({ error: duplicateCodeMessage }, { status: 400 });
       }
       throw accessResult.error;
@@ -200,6 +247,7 @@ export async function POST(request: Request) {
       role: "OWNER",
       active: true,
     };
+    failedStep = "insert_owner_user";
     console.log("Creating pharmacy_users...");
     console.info("[api/admin/pharmacies:POST] database operation: pharmacy_users insert", {
       pharmacy_id: userPayload.pharmacy_id,
@@ -216,17 +264,34 @@ export async function POST(request: Request) {
       throw userResult.error;
     }
 
+    failedStep = "revalidate_admin";
     revalidatePath("/admin");
     return NextResponse.json({ pharmacy: normalizePharmacyRow(pharmacyResult.data) }, { status: 201 });
   } catch (error) {
+    const originalError = serializeOriginalError(error);
     if (createdPharmacyId) {
-      await rollbackPharmacyCreation(supabase, createdPharmacyId);
+      const rollbackFailure = await rollbackPharmacyCreation(supabase, createdPharmacyId);
+      if (rollbackFailure) {
+        return NextResponse.json(
+          {
+            error: "Unable to create pharmacy. No changes were saved.",
+            failedStep: rollbackFailure.failedStep,
+            originalError,
+            rollbackError: serializeOriginalError(rollbackFailure.error),
+          },
+          { status: 500 },
+        );
+      }
     }
 
-    return errorResponse(
-      error,
-      "Admin pharmacy creation failed:",
-      "Unable to create pharmacy. No changes were saved. Please try again.",
+    logServerError("Admin pharmacy creation failed:", error);
+    return NextResponse.json(
+      {
+        error: "Unable to create pharmacy. No changes were saved.",
+        failedStep,
+        originalError,
+      },
+      { status: 500 },
     );
   }
 }
