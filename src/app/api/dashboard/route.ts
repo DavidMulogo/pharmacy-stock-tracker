@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     }
 
-    const data = await getDashboardData(session.pharmacy.id);
+    const data = await getDashboardData(session.pharmacy.id, { includeFinancials: session.role !== "TECHNICIAN" });
     return NextResponse.json({ data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load pharmacy data.";

@@ -389,52 +389,92 @@ export function PharmacyApp({
     () => new Set(dashboardData.batches.map((batch) => getImportBatchKey(batch.product_id, batch.batch_number, batch.expiry_date))),
     [dashboardData.batches],
   );
+  const canViewFinancials = activeUser?.role === "OWNER" || activeUser?.role === "PHARMACIST";
   const kpiCards = useMemo(
     () => [
       {
         label: "Total Products",
         value: String(dashboardData.stats.total_products),
         detail: "Products in catalog",
-        target: "products" as Tab,
+        onClick: () => setActiveTab("products" as Tab),
         tone: "slate" as const,
       },
       {
         label: "Low Stock Items",
         value: String(dashboardData.stats.low_stock_items),
         detail: "At or below reorder level",
-        target: "products" as Tab,
+        onClick: () => setActiveTab("products" as Tab),
         tone: "yellow" as const,
       },
       {
         label: "Out of Stock Items",
         value: String(dashboardData.stats.out_of_stock_items),
         detail: "Available stock is zero",
-        target: "products" as Tab,
+        onClick: () => setActiveTab("products" as Tab),
         tone: "rose" as const,
       },
       {
         label: "Expiring Soon Batches",
         value: String(dashboardData.stats.expiring_soon_batches),
         detail: "Within 30 days",
-        target: "expiry" as Tab,
+        onClick: () => setActiveTab("expiry" as Tab),
         tone: "orange" as const,
       },
       {
         label: "Total Inventory Value",
         value: formatTZS(dashboardData.stats.total_inventory_value),
         detail: "Available stock at unit cost",
-        target: "products" as Tab,
+        onClick: () => setActiveTab("products" as Tab),
         tone: "emerald" as const,
       },
       {
         label: "Today's Sales",
         value: formatTZS(dashboardData.stats.todays_sales),
         detail: "Sales recorded today",
-        target: "sales" as Tab,
+        onClick: () => setActiveTab("sales" as Tab),
         tone: "blue" as const,
       },
+      {
+        label: "This Month's Sales",
+        value: formatTZS(dashboardData.stats.month_sales),
+        detail: "Month-to-date revenue",
+        onClick: () => setActiveTab("sales" as Tab),
+        tone: "blue" as const,
+      },
+      ...(canViewFinancials
+        ? [
+            {
+              label: "Today's Gross Profit",
+              value: formatTZS(dashboardData.stats.todays_gross_profit),
+              detail: "Sales less unit cost",
+              onClick: () => setActiveTab("sales" as Tab),
+              tone: "emerald" as const,
+            },
+            {
+              label: "This Month's Gross Profit",
+              value: formatTZS(dashboardData.stats.month_gross_profit),
+              detail: "Month-to-date gross profit",
+              onClick: () => setActiveTab("sales" as Tab),
+              tone: "emerald" as const,
+            },
+            {
+              label: "This Month's Expenses",
+              value: formatTZS(dashboardData.stats.month_expenses),
+              detail: "Operating costs this month",
+              onClick: () => router.push("/expenses"),
+              tone: "rose" as const,
+            },
+            {
+              label: "This Month's Net Profit",
+              value: formatTZS(dashboardData.stats.month_net_profit),
+              detail: "Gross profit less expenses",
+              onClick: () => router.push("/expenses"),
+              tone: "slate" as const,
+            },
+          ]
+        : []),
     ],
-    [dashboardData.stats],
+    [canViewFinancials, dashboardData.stats, router],
   );
   const stockBatchDuplicate =
     batchProduct && batchNumber.trim() && isValidIsoDate(expiryDate)
@@ -465,6 +505,12 @@ export function PharmacyApp({
           expiring_soon_batches: 0,
           total_inventory_value: 0,
           todays_sales: 0,
+          month_sales: 0,
+          todays_gross_profit: 0,
+          month_gross_profit: 0,
+          month_expenses: 0,
+          month_net_profit: 0,
+          best_selling_products: [],
         },
         products: [],
         batches: [],
@@ -979,6 +1025,11 @@ export function PharmacyApp({
                     <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/settings">
                       Settings
                     </Link>
+                    {canViewFinancials ? (
+                      <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/expenses">
+                        Expenses
+                      </Link>
+                    ) : null}
                     {activeUser?.role === "OWNER" ? (
                       <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/staff">
                         Staff
@@ -1117,7 +1168,7 @@ export function PharmacyApp({
                   value={card.value}
                   detail={card.detail}
                   tone={card.tone}
-                  onClick={() => setActiveTab(card.target)}
+                  onClick={card.onClick}
                 />
               ))}
             </div>
@@ -1127,6 +1178,55 @@ export function PharmacyApp({
             ) : null}
 
             <div className="grid gap-4 lg:grid-cols-2">
+              <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-bold">Best-Selling Products</h3>
+                  <button type="button" onClick={() => setActiveTab("sales")} className="text-sm font-bold text-emerald-700">
+                    Sales
+                  </button>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {dashboardData.stats.best_selling_products.length ? (
+                    dashboardData.stats.best_selling_products.map((product) => (
+                      <div key={product.product_id} className="flex items-center justify-between gap-3 rounded-md border border-slate-200 px-3 py-2">
+                        <div>
+                          <p className="font-semibold">{product.product_name}</p>
+                          <p className="text-sm text-slate-600">{product.units_sold} units sold this month</p>
+                        </div>
+                        <p className="text-sm font-black text-slate-950">{formatTZS(product.total_sale)}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <EmptyState text="No sales recorded this month." />
+                  )}
+                </div>
+              </article>
+
+              {canViewFinancials ? (
+                <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-bold">Profit Snapshot</h3>
+                    <Link href="/expenses" className="text-sm font-bold text-emerald-700">
+                      Expenses
+                    </Link>
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+                      <p className="text-xs font-bold uppercase text-emerald-700">This month gross profit</p>
+                      <p className="mt-1 text-xl font-black text-emerald-950">{formatTZS(dashboardData.stats.month_gross_profit)}</p>
+                    </div>
+                    <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2">
+                      <p className="text-xs font-bold uppercase text-rose-700">This month expenses</p>
+                      <p className="mt-1 text-xl font-black text-rose-950">{formatTZS(dashboardData.stats.month_expenses)}</p>
+                    </div>
+                    <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-xs font-bold uppercase text-slate-600">This month net profit</p>
+                      <p className="mt-1 text-xl font-black text-slate-950">{formatTZS(dashboardData.stats.month_net_profit)}</p>
+                    </div>
+                  </div>
+                </article>
+              ) : null}
+
               <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="font-bold">Stock Attention</h3>

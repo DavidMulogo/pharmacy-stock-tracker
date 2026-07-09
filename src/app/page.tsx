@@ -10,7 +10,7 @@ export default async function Home() {
   const debugPharmacies = isDebugMode ? await getPharmacies() : [];
   const pharmacies = session ? [session.pharmacy, ...debugPharmacies.filter((pharmacy) => pharmacy.id !== session.pharmacy.id)] : debugPharmacies;
   const initialPharmacyId = session?.pharmacy.id || (isDebugMode ? pharmacies[0]?.id || "" : "");
-  const data = await getDashboardData(initialPharmacyId);
+  const data = await getDashboardData(initialPharmacyId, { includeFinancials: session?.role !== "TECHNICIAN" });
 
   return (
     <PharmacyApp

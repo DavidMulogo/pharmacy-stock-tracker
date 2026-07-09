@@ -6,6 +6,7 @@ export type SellType = "UNIT" | "PACK";
 export type PharmacyPlan = "TRIAL" | "BASIC" | "PRO" | "ENTERPRISE";
 export type PharmacyStatus = "ACTIVE" | "TRIAL" | "EXPIRED" | "SUSPENDED";
 export type PharmacyUserRole = "OWNER" | "PHARMACIST" | "TECHNICIAN";
+export type ExpenseCategory = "Rent" | "Salary" | "Electricity" | "Water" | "Internet" | "Transport" | "Repairs" | "Supplies" | "Other";
 
 export type Pharmacy = {
   id: string;
@@ -146,6 +147,25 @@ export type SaleWithProduct = Sale & {
   product: Product;
 };
 
+export type Expense = {
+  id: string;
+  pharmacy_id: string;
+  expense_date: string;
+  category: ExpenseCategory;
+  description: string;
+  amount: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BestSellingProduct = {
+  product_id: string;
+  product_name: string;
+  units_sold: number;
+  total_sale: number;
+};
+
 export type DashboardStats = {
   total_products: number;
   low_stock_items: number;
@@ -153,6 +173,12 @@ export type DashboardStats = {
   expiring_soon_batches: number;
   total_inventory_value: number;
   todays_sales: number;
+  month_sales: number;
+  todays_gross_profit: number;
+  month_gross_profit: number;
+  month_expenses: number;
+  month_net_profit: number;
+  best_selling_products: BestSellingProduct[];
 };
 
 export type DashboardData = {
