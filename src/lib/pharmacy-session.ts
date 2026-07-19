@@ -24,7 +24,7 @@ function normalizePharmacy(pharmacy: PharmacyRow): Pharmacy {
     status: pharmacy.status || "TRIAL",
     trial_ends_at: pharmacy.trial_ends_at,
     subscription_ends_at: pharmacy.subscription_ends_at,
-    archived_at: pharmacy.archived_at,
+    archived_at: pharmacy.archived_at ?? null,
     created_at: pharmacy.created_at,
   };
 }

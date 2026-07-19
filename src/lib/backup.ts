@@ -72,8 +72,13 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function normalizeJsonSafe(value: unknown) {
+  const serialized = JSON.stringify(value);
+  return serialized === undefined ? null : JSON.parse(serialized);
+}
+
 export function calculateBackupChecksum(payload: BackupPayload) {
-  return createHash("sha256").update(stableStringify(payload)).digest("hex");
+  return createHash("sha256").update(stableStringify(normalizeJsonSafe(payload))).digest("hex");
 }
 
 function recordCount(value: unknown) {
