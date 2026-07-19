@@ -11,6 +11,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - Expiry screen showing only expired and expiring-soon batches.
 - Sales history with sale detail pages.
 - Business analytics and an expense ledger with role-aware financial visibility.
+- Reports for sales, inventory, expiry, price overrides, expenses/profit, and staff activity with CSV export.
 - Owner-only activity logs for important staff and operational actions.
 - Supabase SQL migration with generated columns and views for stock, expiry, and sales calculations.
 
@@ -77,3 +78,13 @@ Expiry statuses:
 - `OK` otherwise
 
 All product stock, expiry, and sales totals are fetched from Supabase on the server. After a sale or stock addition, the affected pages are revalidated and the dashboard refreshes with current database values.
+
+## Reports
+
+The `/reports` page is protected by the pharmacy staff session. The server derives `pharmacy_id` from the authenticated session for every report API request.
+
+- `OWNER`: all reports, including staff activity.
+- `PHARMACIST`: sales, inventory, expiry, price overrides, and expenses/profit.
+- `TECHNICIAN`: inventory and expiry only.
+
+CSV export logs a `REPORT_EXPORTED` activity event. Viewing reports and changing filters are not logged.

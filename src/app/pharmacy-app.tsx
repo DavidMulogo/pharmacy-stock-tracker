@@ -268,7 +268,6 @@ export function PharmacyApp({
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [activeUser, setActiveUser] = useState<PharmacyUser | null>(initialUser);
-  const [subscriptionWarning, setSubscriptionWarning] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isCreatingPharmacy, setIsCreatingPharmacy] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
@@ -321,7 +320,9 @@ export function PharmacyApp({
     });
   }, [dashboardData.products, productSearch, productStockStatus]);
 
-  const selectedProduct = dashboardData.products.find((product) => product.id === selectedProductId);
+  const selectedProduct =
+    dashboardData.products.find((product) => product.id === selectedProductId && hasPriceForSellType(product, preferredSellType)) ||
+    dashboardData.products.find((product) => hasPriceForSellType(product, preferredSellType));
   const batchProduct = dashboardData.products.find((product) => product.id === batchProductId) || dashboardData.products[0];
   const sellType: SellType = selectedProduct ? getProductSellType(selectedProduct, preferredSellType) : preferredSellType;
   const saleQuantity = Number(quantity);
@@ -490,10 +491,7 @@ export function PharmacyApp({
     stockBatchDuplicate;
   const saveStockDisabled = isSavingStock || !activePharmacyId || stockFormInvalid;
   const activePharmacy = pharmacies.find((pharmacy) => pharmacy.id === activePharmacyId) || null;
-
-  useEffect(() => {
-    setSubscriptionWarning(activePharmacy ? getPharmacyExpiryWarning(activePharmacy) : null);
-  }, [activePharmacy]);
+  const subscriptionWarning = activePharmacy ? getPharmacyExpiryWarning(activePharmacy) : null;
 
   async function loadPharmacyData(pharmacyId: string) {
     if (!pharmacyId) {
@@ -685,17 +683,6 @@ export function PharmacyApp({
 
     return () => window.clearTimeout(timeoutId);
   }, [toast]);
-
-  useEffect(() => {
-    const selectedStillValid =
-      selectedProductId &&
-      dashboardData.products.some((product) => product.id === selectedProductId && hasPriceForSellType(product, preferredSellType));
-
-    if (selectedStillValid) return;
-
-    const firstSellableProduct = dashboardData.products.find((product) => hasPriceForSellType(product, preferredSellType));
-    setSelectedProductId(firstSellableProduct?.id || "");
-  }, [dashboardData.products, preferredSellType, selectedProductId]);
 
   async function submitSale(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1024,6 +1011,9 @@ export function PharmacyApp({
                   <div className="grid grid-cols-2 gap-2 sm:flex">
                     <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/settings">
                       Settings
+                    </Link>
+                    <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/reports">
+                      Reports
                     </Link>
                     {canViewFinancials ? (
                       <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/expenses">

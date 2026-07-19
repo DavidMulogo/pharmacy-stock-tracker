@@ -7,7 +7,7 @@ export type PharmacyPlan = "TRIAL" | "BASIC" | "PRO" | "ENTERPRISE";
 export type PharmacyStatus = "ACTIVE" | "TRIAL" | "EXPIRED" | "SUSPENDED";
 export type PharmacyUserRole = "OWNER" | "PHARMACIST" | "TECHNICIAN";
 export type ExpenseCategory = "Rent" | "Salary" | "Electricity" | "Water" | "Internet" | "Transport" | "Repairs" | "Supplies" | "Other";
-export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "STOCK_ADDED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET";
+export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "STOCK_ADDED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET" | "REPORT_EXPORTED";
 
 export type Pharmacy = {
   id: string;

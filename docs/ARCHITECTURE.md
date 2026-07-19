@@ -34,6 +34,18 @@ Subscription access is checked on login and existing session validation. The sys
 
 Each pharmacy has one `pharmacy_settings` row containing business information, branding, inventory rules, sales rules, and localization. Settings APIs derive pharmacy ownership from the authenticated session.
 
+## Reports
+
+The `/reports` area is a protected pharmacy staff surface. Report APIs authenticate through the pharmacy session helper, derive `pharmacy_id` from the validated session, and enforce report permissions server-side.
+
+Report access by role:
+
+- `OWNER`: sales, inventory, expiry, price overrides, expenses/profit, and staff activity
+- `PHARMACIST`: sales, inventory, expiry, price overrides, and expenses/profit
+- `TECHNICIAN`: inventory and expiry only
+
+CSV export is intentionally audited with `REPORT_EXPORTED`; ordinary report views and filter changes are not logged.
+
 ## Database Structure Overview
 
 - `admin_users`: SaaS owner/admin accounts
@@ -49,6 +61,7 @@ Each pharmacy has one `pharmacy_settings` row containing business information, b
 - `activity_logs`: immutable pharmacy-scoped audit trail with actor snapshots
 - `product_stock_summary`: stock aggregation view
 - `batch_expiry_summary`: expiry aggregation view
+- Reports are query-backed from the existing pharmacy-owned tables and views; no supplier or purchase report tables exist yet.
 
 ## Tenant Isolation Rules
 

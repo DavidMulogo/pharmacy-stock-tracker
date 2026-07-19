@@ -14,13 +14,14 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 - Inventory, stock batches, sales, expiry tracking, and CSV import/export
 - Pharmacy archive, restore, and permanent delete controls
 - Business analytics with expenses, gross profit, net profit, and best-selling products
+- Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity exports
 - Owner-only activity log for staff, sales, stock, imports, expenses, settings, and login events
 
 ## Next Phases
 
-### Reports
+### Advanced Reports
 
-Add exportable sales, inventory, expiry, purchase, valuation, override, and staff reports with date filtering and pharmacy-level scoping.
+Expand Reports v1 with supplier and purchase reports after supplier and purchasing modules exist, plus scheduled report delivery and deeper valuation options.
 
 ### Backup
 

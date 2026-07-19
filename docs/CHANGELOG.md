@@ -4,17 +4,21 @@
 
 ### Added
 
+- Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity reports
+- CSV export from each permitted report
 - Business analytics with sales, gross profit, expenses, net profit, and best-selling products
 - Expense ledger for owners and pharmacists
 - Tenant-scoped activity log migration and audit helper
 - Owner-only activity viewer with action, staff, and date filters
 - Audit events for login/logout, sales, stock receipts, CSV imports, expenses, settings, and staff management
+- `REPORT_EXPORTED` audit action for explicit report exports
 
 ### Security
 
 - Activity actor and pharmacy identity are derived from authenticated server sessions
 - Technicians remain blocked from expenses and net-profit information
 - Activity logs are restricted to pharmacy owners
+- Report APIs enforce role permissions server-side and derive pharmacy scope from the authenticated session
 
 ## v0.6.0-alpha
 

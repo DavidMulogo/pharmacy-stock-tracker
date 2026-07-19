@@ -3,7 +3,7 @@ import { getActivityLogs } from "@/lib/activity-log";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 import type { ActivityLogAction } from "@/lib/types";
 
-const activityActions: ActivityLogAction[] = ["LOGIN", "LOGOUT", "SALE_CREATED", "STOCK_ADDED", "PRODUCTS_IMPORTED", "STOCK_IMPORTED", "EXPENSE_CREATED", "SETTINGS_UPDATED", "STAFF_CREATED", "STAFF_UPDATED", "STAFF_DEACTIVATED", "STAFF_REACTIVATED", "STAFF_PASSWORD_RESET"];
+const activityActions: ActivityLogAction[] = ["LOGIN", "LOGOUT", "SALE_CREATED", "STOCK_ADDED", "PRODUCTS_IMPORTED", "STOCK_IMPORTED", "EXPENSE_CREATED", "SETTINGS_UPDATED", "STAFF_CREATED", "STAFF_UPDATED", "STAFF_DEACTIVATED", "STAFF_REACTIVATED", "STAFF_PASSWORD_RESET", "REPORT_EXPORTED"];
 
 function activityAction(value: string | null): ActivityLogAction | undefined {
   return activityActions.includes(value as ActivityLogAction) ? (value as ActivityLogAction) : undefined;
