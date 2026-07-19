@@ -6,12 +6,15 @@
 
 - Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity reports
 - CSV export from each permitted report
+- Owner-only pharmacy backup export as a JSON file
+- Backup validation with format, schema version, pharmacy identity, dataset, record count, and checksum checks
 - Business analytics with sales, gross profit, expenses, net profit, and best-selling products
 - Expense ledger for owners and pharmacists
 - Tenant-scoped activity log migration and audit helper
 - Owner-only activity viewer with action, staff, and date filters
 - Audit events for login/logout, sales, stock receipts, CSV imports, expenses, settings, and staff management
 - `REPORT_EXPORTED` audit action for explicit report exports
+- `BACKUP_EXPORTED` and `BACKUP_VALIDATED` audit actions for successful explicit backup actions
 
 ### Security
 
@@ -19,6 +22,11 @@
 - Technicians remain blocked from expenses and net-profit information
 - Activity logs are restricted to pharmacy owners
 - Report APIs enforce role permissions server-side and derive pharmacy scope from the authenticated session
+- Backup APIs are owner-only, derive pharmacy scope from the authenticated session, and exclude passwords, hashes, sessions, cookies, admin users, and credentials
+
+### Not Included
+
+- Backup restore is not implemented yet
 
 ## v0.6.0-alpha
 

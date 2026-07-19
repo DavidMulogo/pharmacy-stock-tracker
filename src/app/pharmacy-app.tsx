@@ -1025,6 +1025,9 @@ export function PharmacyApp({
                         <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/activity">
                           Activity
                         </Link>
+                        <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/backup">
+                          Backup
+                        </Link>
                         <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/staff">
                           Staff
                         </Link>

@@ -12,6 +12,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - Sales history with sale detail pages.
 - Business analytics and an expense ledger with role-aware financial visibility.
 - Reports for sales, inventory, expiry, price overrides, expenses/profit, and staff activity with CSV export.
+- Owner-only backup export and backup validation for pharmacy data.
 - Owner-only activity logs for important staff and operational actions.
 - Supabase SQL migration with generated columns and views for stock, expiry, and sales calculations.
 
@@ -88,3 +89,11 @@ The `/reports` page is protected by the pharmacy staff session. The server deriv
 - `TECHNICIAN`: inventory and expiry only.
 
 CSV export logs a `REPORT_EXPORTED` activity event. Viewing reports and changing filters are not logged.
+
+## Backup
+
+The `/backup` page is available to pharmacy `OWNER` accounts only. Backup export is generated server-side from the authenticated pharmacy session; client-supplied `pharmacy_id` values are never accepted.
+
+The backup JSON includes pharmacy profile, pharmacy settings, products, inventory batches, sales, expenses, staff metadata, and activity logs. It excludes password hashes, plain-text passwords, session tokens, cookies, admin users, and admin credentials.
+
+Each backup includes a deterministic SHA-256 checksum. The validation endpoint checks format, schema version, pharmacy identity, required datasets, record counts, and checksum. Restore is not implemented yet.

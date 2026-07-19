@@ -46,6 +46,16 @@ Report access by role:
 
 CSV export is intentionally audited with `REPORT_EXPORTED`; ordinary report views and filter changes are not logged.
 
+## Backup
+
+The `/backup` area is restricted to pharmacy `OWNER` accounts. Backup APIs authenticate through the pharmacy session helper, derive `pharmacy_id` and actor identity from the session, and never accept tenant identifiers from the client.
+
+Backup export is generated server-side as one JSON file. Included datasets are pharmacy profile, pharmacy settings, products, inventory batches, sales, expenses, staff metadata, and activity logs. Excluded data includes password hashes, plain-text passwords, session tokens, cookies, admin users, admin credentials, and pharmacy access credentials.
+
+Each backup has `format: "pharmastock-backup"`, `schema_version: 1`, record counts, and a deterministic SHA-256 checksum over the payload. Validation checks format, schema version, pharmacy identity, required datasets, record counts, and checksum without restoring data. Restore is intentionally not implemented yet.
+
+Successful explicit backup exports log `BACKUP_EXPORTED`. Successful validations log `BACKUP_VALIDATED`. Activity metadata stores only high-level counts and checksum status, never the full backup payload.
+
 ## Database Structure Overview
 
 - `admin_users`: SaaS owner/admin accounts
@@ -62,6 +72,7 @@ CSV export is intentionally audited with `REPORT_EXPORTED`; ordinary report view
 - `product_stock_summary`: stock aggregation view
 - `batch_expiry_summary`: expiry aggregation view
 - Reports are query-backed from the existing pharmacy-owned tables and views; no supplier or purchase report tables exist yet.
+- Backup export is query-backed from existing pharmacy-owned tables and does not require separate backup tables.
 
 ## Tenant Isolation Rules
 

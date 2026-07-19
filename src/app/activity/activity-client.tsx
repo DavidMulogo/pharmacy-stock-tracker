@@ -19,6 +19,8 @@ const actionLabels: Record<ActivityLogAction, string> = {
   STAFF_REACTIVATED: "Staff reactivated",
   STAFF_PASSWORD_RESET: "Password reset",
   REPORT_EXPORTED: "Report exported",
+  BACKUP_EXPORTED: "Backup exported",
+  BACKUP_VALIDATED: "Backup validated",
 };
 
 export function ActivityClient({ initialLogs }: { initialLogs: ActivityLog[] }) {
