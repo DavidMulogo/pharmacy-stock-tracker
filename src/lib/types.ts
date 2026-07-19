@@ -7,7 +7,9 @@ export type PharmacyPlan = "TRIAL" | "BASIC" | "PRO" | "ENTERPRISE";
 export type PharmacyStatus = "ACTIVE" | "TRIAL" | "EXPIRED" | "SUSPENDED";
 export type PharmacyUserRole = "OWNER" | "PHARMACIST" | "TECHNICIAN";
 export type ExpenseCategory = "Rent" | "Salary" | "Electricity" | "Water" | "Internet" | "Transport" | "Repairs" | "Supplies" | "Other";
-export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "STOCK_ADDED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET" | "REPORT_EXPORTED" | "BACKUP_EXPORTED" | "BACKUP_VALIDATED";
+export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "STOCK_ADDED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET" | "REPORT_EXPORTED" | "BACKUP_EXPORTED" | "BACKUP_VALIDATED" | "ONBOARDING_STARTED" | "ONBOARDING_STEP_REVIEWED" | "ONBOARDING_COMPLETED";
+
+export type OnboardingStepId = "profile" | "business_rules" | "staff" | "products" | "opening_stock" | "subscription";
 
 export type Pharmacy = {
   id: string;
@@ -20,6 +22,39 @@ export type Pharmacy = {
   subscription_ends_at: string | null;
   archived_at: string | null;
   created_at: string;
+  onboarding?: OnboardingProgressSummary | null;
+};
+
+export type PharmacyOnboarding = {
+  id: string;
+  pharmacy_id: string;
+  started_at: string;
+  profile_reviewed_at: string | null;
+  business_rules_reviewed_at: string | null;
+  staff_reviewed_at: string | null;
+  products_reviewed_at: string | null;
+  opening_stock_reviewed_at: string | null;
+  subscription_reviewed_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OnboardingProgressSummary = {
+  percent: number;
+  completed: boolean;
+  completed_at: string | null;
+  product_count: number;
+  inventory_batch_count: number;
+  reviewed_required_steps: number;
+  required_steps: number;
+};
+
+export type OnboardingProgress = OnboardingProgressSummary & {
+  onboarding: PharmacyOnboarding;
+  can_complete: boolean;
+  missing_requirements: string[];
+  staff_count: number;
 };
 
 export type PharmacyAccess = {

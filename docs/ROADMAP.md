@@ -18,6 +18,7 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 - Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity exports
 - Owner-only backup export with checksum validation
 - Admin Restore v1 with merge-only non-destructive backup recovery
+- Onboarding v1 with guided profile, rules, staff, products, stock, and subscription readiness
 - Owner-only activity log for staff, sales, stock, imports, expenses, settings, and login events
 
 ## Next Phases
@@ -32,7 +33,7 @@ Expand Admin Restore v1 with richer conflict review, scheduled exports, and admi
 
 ### Onboarding
 
-Create guided setup for new pharmacies, including settings, staff accounts, first product import, stock import, and subscription activation.
+Expand Onboarding v1 with richer import templates, guided first-sale checks, sample products, and admin-side onboarding nudges.
 
 ### Notifications
 

@@ -14,6 +14,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - Reports for sales, inventory, expiry, price overrides, expenses/profit, and staff activity with CSV export.
 - Owner-only backup export and backup validation for pharmacy data.
 - Admin-only merge restore for validated pharmacy backups.
+- Owner-only onboarding checklist for new pharmacies.
 - Owner-only activity logs for important staff and operational actions.
 - Supabase SQL migration with generated columns and views for stock, expiry, and sales calculations.
 
@@ -112,6 +113,19 @@ The `/reports` page is protected by the pharmacy staff session. The server deriv
 - `TECHNICIAN`: inventory and expiry only.
 
 CSV export logs a `REPORT_EXPORTED` activity event. Viewing reports and changing filters are not logged.
+
+## Onboarding
+
+The `/onboarding` page is available to pharmacy `OWNER` accounts only. It helps a new pharmacy review profile details, business rules, staff options, product setup, opening stock, and subscription readiness without blocking existing daily operations.
+
+Completion is calculated server-side from the authenticated pharmacy session. The app never accepts a client-supplied `pharmacy_id` or client completion flag. Required completion items are:
+
+- Profile/settings reviewed
+- Business rules reviewed
+- At least one product
+- At least one inventory batch
+
+Staff setup remains optional for solo pharmacies. Subscription values are read-only for pharmacy users and remain managed by PharmaStock Admin. Until completion, Owners see a setup-progress banner in the main POS with a Continue Setup button.
 
 ## Backup
 

@@ -21,6 +21,9 @@ const actionLabels: Record<ActivityLogAction, string> = {
   REPORT_EXPORTED: "Report exported",
   BACKUP_EXPORTED: "Backup exported",
   BACKUP_VALIDATED: "Backup validated",
+  ONBOARDING_STARTED: "Onboarding started",
+  ONBOARDING_STEP_REVIEWED: "Onboarding step reviewed",
+  ONBOARDING_COMPLETED: "Onboarding completed",
 };
 
 export function ActivityClient({ initialLogs }: { initialLogs: ActivityLog[] }) {

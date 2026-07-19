@@ -9,7 +9,8 @@
     "lint": "eslint",
     "verify:backup-checksum": "node scripts/verify-backup-checksum.mjs",
     "verify:admin-restore": "node scripts/verify-admin-restore.mjs",
-    "verify:admin-security": "node scripts/verify-admin-security.mjs"
+    "verify:admin-security": "node scripts/verify-admin-security.mjs",
+    "verify:onboarding": "node scripts/verify-onboarding.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

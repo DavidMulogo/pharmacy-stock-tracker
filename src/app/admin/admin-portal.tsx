@@ -638,6 +638,11 @@ export function AdminPortal({
                         {pharmacy.plan} / {pharmacy.status}
                       </p>
                       {pharmacy.archived_at ? <p className="mt-1 text-xs font-bold uppercase text-rose-700">Archived</p> : null}
+                      {pharmacy.onboarding ? (
+                        <p className={`mt-2 w-fit rounded-full border px-2.5 py-1 text-xs font-black uppercase ${pharmacy.onboarding.completed ? "border-emerald-200 bg-emerald-100 text-emerald-800" : "border-blue-200 bg-blue-100 text-blue-800"}`}>
+                          Setup {pharmacy.onboarding.completed ? "complete" : `${pharmacy.onboarding.percent}%`}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold" type="button" onClick={() => editPharmacy(pharmacy)}>

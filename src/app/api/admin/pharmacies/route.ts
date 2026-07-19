@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-session";
 import { normalizePharmacyRow } from "@/lib/data";
+import { getOnboardingSummary } from "@/lib/onboarding";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import type { PharmacyPlan, PharmacyStatus } from "@/lib/types";
@@ -103,6 +104,11 @@ async function rollbackPharmacyCreation(supabase: SupabaseAdminClient, pharmacyI
       run: () => supabase.from("pharmacy_settings").delete().eq("pharmacy_id", pharmacyId),
     },
     {
+      label: "pharmacy_onboarding",
+      failedStep: "rollback_pharmacy_settings",
+      run: () => supabase.from("pharmacy_onboarding").delete().eq("pharmacy_id", pharmacyId),
+    },
+    {
       label: "pharmacies",
       failedStep: "rollback_pharmacies",
       run: () => supabase.from("pharmacies").delete().eq("id", pharmacyId),
@@ -176,6 +182,7 @@ async function deletePharmacyPermanently(supabase: SupabaseAdminClient, pharmacy
   await deleteStep("pharmacy_users", () => supabase.from("pharmacy_users").delete().eq("pharmacy_id", pharmacyId));
   await deleteStep("pharmacy_access", () => supabase.from("pharmacy_access").delete().eq("pharmacy_id", pharmacyId));
   await deleteStep("pharmacy_settings", () => supabase.from("pharmacy_settings").delete().eq("pharmacy_id", pharmacyId));
+  await deleteStep("pharmacy_onboarding", () => supabase.from("pharmacy_onboarding").delete().eq("pharmacy_id", pharmacyId));
   await deleteStep("pharmacies", () => supabase.from("pharmacies").delete().eq("id", pharmacyId));
 }
 
@@ -192,7 +199,17 @@ export async function GET(request: Request) {
 
     if (result.error) throw result.error;
 
-    return NextResponse.json({ pharmacies: (result.data || []).map(normalizePharmacyRow) }, { status: 200 });
+    const pharmacies = await Promise.all(
+      (result.data || []).map(async (pharmacy) => {
+        const normalized = normalizePharmacyRow(pharmacy);
+        return {
+          ...normalized,
+          onboarding: await getOnboardingSummary(normalized.id),
+        };
+      }),
+    );
+
+    return NextResponse.json({ pharmacies }, { status: 200 });
   } catch (error) {
     return errorResponse(error, "Admin pharmacies load failed:", "Unable to load pharmacies.");
   }

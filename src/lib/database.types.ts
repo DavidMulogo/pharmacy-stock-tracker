@@ -268,6 +268,46 @@ export type Database = {
           },
         ];
       };
+      pharmacy_onboarding: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          started_at: string;
+          profile_reviewed_at: string | null;
+          business_rules_reviewed_at: string | null;
+          staff_reviewed_at: string | null;
+          products_reviewed_at: string | null;
+          opening_stock_reviewed_at: string | null;
+          subscription_reviewed_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          started_at?: string;
+          profile_reviewed_at?: string | null;
+          business_rules_reviewed_at?: string | null;
+          staff_reviewed_at?: string | null;
+          products_reviewed_at?: string | null;
+          opening_stock_reviewed_at?: string | null;
+          subscription_reviewed_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["pharmacy_onboarding"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_onboarding_pharmacy_id_fkey";
+            columns: ["pharmacy_id"];
+            isOneToOne: true;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       products: {
         Row: {
           id: string;

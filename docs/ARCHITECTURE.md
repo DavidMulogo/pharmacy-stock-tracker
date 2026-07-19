@@ -36,6 +36,12 @@ Subscription access is checked on login and existing session validation. The sys
 
 Each pharmacy has one `pharmacy_settings` row containing business information, branding, inventory rules, sales rules, and localization. Settings APIs derive pharmacy ownership from the authenticated session.
 
+## Onboarding
+
+Each pharmacy can have one `pharmacy_onboarding` row. It stores when setup steps were reviewed and when onboarding was completed. Operational readiness is never trusted from the client: product and opening-stock requirements are computed from tenant-scoped `products` and `inventory_batches` counts.
+
+The `/onboarding` page and `/api/onboarding` are OWNER-only and derive pharmacy and actor identity from the pharmacy session. Existing pharmacies are not blocked from selling or stock work; incomplete setup appears as a persistent guidance banner for Owners. Admin pharmacy lists show computed onboarding progress, but admin users cannot falsely mark product or stock requirements complete.
+
 ## Reports
 
 The `/reports` area is a protected pharmacy staff surface. Report APIs authenticate through the pharmacy session helper, derive `pharmacy_id` from the validated session, and enforce report permissions server-side.
@@ -71,6 +77,7 @@ The actual restore write uses the `restore_pharmastock_backup_v1` PostgreSQL RPC
 - `pharmacy_users`: individual pharmacy staff accounts
 - `pharmacy_sessions`: authenticated pharmacy staff sessions
 - `pharmacy_settings`: one-to-one pharmacy configuration
+- `pharmacy_onboarding`: tenant-scoped setup review and completion timestamps
 - `products`: pharmacy-scoped product catalog
 - `inventory_batches`: pharmacy-scoped stock receiving batches
 - `sales`: pharmacy-scoped sales history
@@ -92,3 +99,4 @@ The actual restore write uses the `restore_pharmastock_backup_v1` PostgreSQL RPC
 - Archived pharmacies cannot log in and existing archived-pharmacy sessions are invalidated.
 - Permanent deletion removes pharmacy-owned records by `pharmacy_id` before deleting the pharmacy row.
 - Activity records derive pharmacy and actor identity from authenticated server sessions and are visible only to the pharmacy owner.
+- Onboarding completion derives required operational checks from server-side tenant data, not client flags.

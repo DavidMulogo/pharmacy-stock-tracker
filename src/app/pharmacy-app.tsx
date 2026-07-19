@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
 import { resolveDefaultPrice } from "@/lib/pricing";
 import { getPharmacyExpiryWarning } from "@/lib/subscription";
-import type { DashboardData, ExpiryStatus, OverrideFlag, Pharmacy, PharmacyUser, ProductWithStock, SellType, StockStatus } from "@/lib/types";
+import type { DashboardData, ExpiryStatus, OnboardingProgressSummary, OverrideFlag, Pharmacy, PharmacyUser, ProductWithStock, SellType, StockStatus } from "@/lib/types";
 
 type Tab = "dashboard" | "sell" | "products" | "stock" | "expiry" | "sales" | "csv";
 type Toast = {
@@ -245,12 +245,14 @@ export function PharmacyApp({
   initialPharmacies,
   initialPharmacyId,
   initialUser,
+  initialOnboarding,
   isDebugMode,
 }: {
   initialData: DashboardData;
   initialPharmacies: Pharmacy[];
   initialPharmacyId: string;
   initialUser: PharmacyUser | null;
+  initialOnboarding: OnboardingProgressSummary | null;
   isDebugMode: boolean;
 }) {
   const router = useRouter();
@@ -391,6 +393,7 @@ export function PharmacyApp({
     [dashboardData.batches],
   );
   const canViewFinancials = activeUser?.role === "OWNER" || activeUser?.role === "PHARMACIST";
+  const showOnboardingBanner = activeUser?.role === "OWNER" && initialOnboarding && !initialOnboarding.completed;
   const kpiCards = useMemo(
     () => [
       {
@@ -1031,6 +1034,9 @@ export function PharmacyApp({
                         <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/staff">
                           Staff
                         </Link>
+                        <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/onboarding">
+                          Setup
+                        </Link>
                       </>
                     ) : null}
                     <button
@@ -1048,6 +1054,21 @@ export function PharmacyApp({
                 <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900">
                   {subscriptionWarning}
                 </p>
+              ) : null}
+              {showOnboardingBanner ? (
+                <div className="mt-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-black text-blue-950">Setup incomplete: {initialOnboarding.percent}% ready</p>
+                      <p className="mt-1 text-sm font-semibold text-blue-900">
+                        Review profile and business rules, then add one product and one stock batch.
+                      </p>
+                    </div>
+                    <Link className="rounded-md bg-blue-700 px-4 py-3 text-center text-sm font-bold text-white" href="/onboarding">
+                      Continue Setup
+                    </Link>
+                  </div>
+                </div>
               ) : null}
               {pharmacyMessage ? <p className="mt-2 text-sm font-semibold text-rose-700">{pharmacyMessage}</p> : null}
             </section>
