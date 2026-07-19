@@ -180,18 +180,12 @@ async function deletePharmacyPermanently(supabase: SupabaseAdminClient, pharmacy
 }
 
 export async function GET(request: Request) {
-  console.info("[api/admin/pharmacies:GET] authenticating admin request");
   const admin = await requireAdminSession("api/admin/pharmacies GET");
-  if (admin instanceof NextResponse) {
-    console.warn("[api/admin/pharmacies:GET] admin authentication failed; returning debug 401");
-    return admin;
-  }
-  console.info("[api/admin/pharmacies:GET] admin authentication succeeded", { username: admin.username, role: admin.role });
+  if (admin instanceof NextResponse) return admin;
 
   try {
     const supabase = getSupabaseAdmin();
     const showArchived = new URL(request.url).searchParams.get("archived") === "1";
-    console.info("[api/admin/pharmacies:GET] database operation: pharmacies select all ordered by created_at desc", { showArchived });
     let query = supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
     if (!showArchived) query = query.is("archived_at", null);
     const result = await query;
@@ -205,13 +199,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  console.info("[api/admin/pharmacies:POST] authenticating admin request");
   const admin = await requireAdminSession("api/admin/pharmacies POST");
-  if (admin instanceof NextResponse) {
-    console.warn("[api/admin/pharmacies:POST] admin authentication failed; returning debug 401");
-    return admin;
-  }
-  console.info("[api/admin/pharmacies:POST] admin authentication succeeded", { username: admin.username, role: admin.role });
+  if (admin instanceof NextResponse) return admin;
 
   const supabase = getSupabaseAdmin();
   let createdPharmacyId: string | null = null;
@@ -230,7 +219,6 @@ export async function POST(request: Request) {
     }
 
     failedStep = "precheck_code";
-    console.log("Checking pharmacy_code uniqueness...");
     const existingCodeResult = await supabase.from("pharmacy_access").select("id").ilike("pharmacy_code", pharmacyCode).limit(1);
     if (existingCodeResult.error) {
       console.error("FAILED at pharmacy_access uniqueness check", existingCodeResult.error);
@@ -250,8 +238,7 @@ export async function POST(request: Request) {
       subscription_ends_at: optionalDate(body.subscription_ends_at),
     };
     failedStep = "insert_pharmacy";
-    console.log("Creating pharmacy...");
-    console.info("[api/admin/pharmacies:POST] database operation: pharmacies insert", {
+    console.info("[api/admin/pharmacies:POST] creating pharmacy", {
       pharmacy_name: payload.pharmacy_name,
       owner_name: payload.owner_name,
       phone: payload.phone,
@@ -276,8 +263,7 @@ export async function POST(request: Request) {
       password_hash: passwordHash,
     };
     failedStep = "insert_pharmacy_access";
-    console.log("Creating pharmacy_access...");
-    console.info("[api/admin/pharmacies:POST] database operation: pharmacy_access insert", {
+    console.info("[api/admin/pharmacies:POST] creating pharmacy_access", {
       pharmacy_id: accessPayload.pharmacy_id,
       pharmacy_code: accessPayload.pharmacy_code,
       has_password: Boolean(accessPayload.password),
@@ -307,8 +293,7 @@ export async function POST(request: Request) {
       active: true,
     };
     failedStep = "insert_owner_user";
-    console.log("Creating pharmacy_users...");
-    console.info("[api/admin/pharmacies:POST] database operation: pharmacy_users insert", {
+    console.info("[api/admin/pharmacies:POST] creating pharmacy_users", {
       pharmacy_id: userPayload.pharmacy_id,
       full_name: userPayload.full_name,
       username: userPayload.username,
@@ -342,13 +327,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  console.info("[api/admin/pharmacies:PATCH] authenticating admin request");
   const admin = await requireAdminSession("api/admin/pharmacies PATCH");
-  if (admin instanceof NextResponse) {
-    console.warn("[api/admin/pharmacies:PATCH] admin authentication failed; returning debug 401");
-    return admin;
-  }
-  console.info("[api/admin/pharmacies:PATCH] admin authentication succeeded", { username: admin.username, role: admin.role });
+  if (admin instanceof NextResponse) return admin;
 
   try {
     const body = await request.json();

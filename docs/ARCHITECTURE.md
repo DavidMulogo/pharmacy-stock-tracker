@@ -24,7 +24,9 @@ Staff accounts live in `pharmacy_users` and belong to one pharmacy. Roles includ
 
 Pharmacy sessions are stored in `pharmacy_sessions` and mirrored by HttpOnly cookies. Server helpers validate the cookie, session expiry, linked pharmacy, active staff user, and subscription access before returning authenticated pharmacy context.
 
-Admin sessions use a signed cookie and validate against active `admin_users` records.
+Admin sessions use a signed cookie and validate against active `admin_users` records. The cookie includes `session_version`; changing an admin password increments the database version so existing cookies are rejected on the next admin request. Production requires an explicit `ADMIN_SESSION_SECRET`.
+
+Admin login protection is stored on `admin_users` through `failed_login_attempts` and `locked_until`. Five failed attempts lock the account for 15 minutes. Successful login resets the counters. Admin bootstrap is one-time only, token-protected, and reads all bootstrap identity and password values from server-only environment variables.
 
 ## Subscription Enforcement
 

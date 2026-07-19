@@ -37,6 +37,7 @@ npm install
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+ADMIN_SESSION_SECRET=generate-a-long-random-secret
 ```
 
 6. Start the app:
@@ -46,6 +47,27 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+## Admin Security
+
+Admin accounts live in `admin_users` and use bcrypt password hashes. The `/admin` portal includes Change Password, requires strong passwords, locks accounts after repeated failed logins, and invalidates old admin cookies after password changes.
+
+Set a strong `ADMIN_SESSION_SECRET` before deployment. Production does not allow the development fallback. Generate one with a command such as:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
+
+To create the first admin, set these server-only variables temporarily, call `POST /api/admin/bootstrap` with the matching token in the `x-admin-bootstrap-token` header or JSON body, then remove the bootstrap variables from the deployment:
+
+```bash
+ADMIN_BOOTSTRAP_TOKEN=one-time-bootstrap-token
+ADMIN_BOOTSTRAP_USERNAME=your-admin-username
+ADMIN_BOOTSTRAP_FULL_NAME="Your Admin Name"
+ADMIN_BOOTSTRAP_PASSWORD="A-strong-temporary-password-123!"
+```
+
+If your deployment ever used the old public default admin password, log in and rotate it immediately from `/admin`, then remove all bootstrap variables after the first admin exists.
 
 ## Database Logic
 

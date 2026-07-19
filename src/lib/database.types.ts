@@ -13,6 +13,9 @@ export type Database = {
           full_name: string | null;
           role: string;
           active: boolean;
+          session_version: number;
+          failed_login_attempts: number;
+          locked_until: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -23,6 +26,9 @@ export type Database = {
           full_name?: string | null;
           role?: string;
           active?: boolean;
+          session_version?: number;
+          failed_login_attempts?: number;
+          locked_until?: string | null;
           created_at?: string;
           updated_at?: string;
         };

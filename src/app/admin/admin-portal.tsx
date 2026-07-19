@@ -118,6 +118,9 @@ export function AdminPortal({
   const [restoreFileName, setRestoreFileName] = useState("");
   const [restorePreview, setRestorePreview] = useState<RestorePreview | null>(null);
   const [restoreConfirmation, setRestoreConfirmation] = useState("");
+  const [currentAdminPassword, setCurrentAdminPassword] = useState("");
+  const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -182,6 +185,40 @@ export function AdminPortal({
     setIsAuthenticated(false);
     setAdmin(null);
     setPharmacies([]);
+  }
+
+  async function submitAdminPasswordChange(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/admin/change-password", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_password: currentAdminPassword,
+          new_password: newAdminPassword,
+          confirm_password: confirmAdminPassword,
+        }),
+      });
+      const result = (await response.json()) as AdminApiResponse;
+
+      if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to change password."));
+
+      setCurrentAdminPassword("");
+      setNewAdminPassword("");
+      setConfirmAdminPassword("");
+      setIsAuthenticated(false);
+      setAdmin(null);
+      setPharmacies([]);
+      setMessage(result.message || "Password changed. Log in again with the new password.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to change password.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   function editPharmacy(pharmacy: Pharmacy) {
@@ -446,6 +483,20 @@ export function AdminPortal({
         </div>
 
         {message ? <p className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">{message}</p> : null}
+
+        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-bold">Change Admin Password</h2>
+          <form className="mt-4 grid gap-3 sm:grid-cols-3" onSubmit={submitAdminPasswordChange}>
+            <Input label="Current password" value={currentAdminPassword} onChange={setCurrentAdminPassword} type="password" />
+            <Input label="New password" value={newAdminPassword} onChange={setNewAdminPassword} type="password" />
+            <Input label="Confirm new password" value={confirmAdminPassword} onChange={setConfirmAdminPassword} type="password" />
+            <div className="sm:col-span-3">
+              <button className="rounded-md bg-slate-900 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-300" disabled={isLoading} type="submit">
+                Change Password
+              </button>
+            </div>
+          </form>
+        </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-bold">{form.id ? "Edit Pharmacy" : "Create Pharmacy"}</h2>

@@ -4,6 +4,7 @@
 
 ### Added
 
+- Admin Security v1 with Change Password, stronger admin password policy, account lockout, session-version invalidation, secure one-time bootstrap, and admin login/logout/password audit events
 - Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity reports
 - CSV export from each permitted report
 - Owner-only pharmacy backup export as a JSON file
@@ -20,6 +21,9 @@
 
 ### Security
 
+- Admin bootstrap no longer contains public default credentials and requires server-only bootstrap environment variables
+- Admin session cookies are invalidated after password changes by `admin_users.session_version`
+- Admin login failures lock accounts after repeated attempts without exposing username enumeration details
 - Activity actor and pharmacy identity are derived from authenticated server sessions
 - Technicians remain blocked from expenses and net-profit information
 - Activity logs are restricted to pharmacy owners

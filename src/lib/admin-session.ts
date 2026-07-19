@@ -7,7 +7,11 @@ export const adminSessionCookieName = "admin_session";
 const adminSessionMaxAgeSeconds = 60 * 60 * 8;
 
 function getAdminSecret() {
-  return process.env.ADMIN_SESSION_SECRET || "pharmastock-admin-session-development-secret";
+  if (process.env.ADMIN_SESSION_SECRET) return process.env.ADMIN_SESSION_SECRET;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("ADMIN_SESSION_SECRET is required in production.");
+  }
+  return "pharmastock-admin-session-development-secret";
 }
 
 function sign(payload: string) {
@@ -20,12 +24,23 @@ function isSafeEqual(left: string, right: string) {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-export function createAdminSessionValue({ username, fullName, role }: { username: string; fullName: string | null; role: string }) {
+export function createAdminSessionValue({
+  username,
+  fullName,
+  role,
+  sessionVersion,
+}: {
+  username: string;
+  fullName: string | null;
+  role: string;
+  sessionVersion: number;
+}) {
   const payload = Buffer.from(
     JSON.stringify({
       username,
       fullName,
       role,
+      sessionVersion,
       expiresAt: Date.now() + adminSessionMaxAgeSeconds * 1000,
     }),
   ).toString("base64url");
@@ -58,6 +73,7 @@ export type AdminSession = {
   username: string;
   fullName: string | null;
   role: string;
+  sessionVersion: number;
 };
 
 type AdminAuthFailure = {
@@ -75,12 +91,7 @@ type AdminAuthResult =
       failure: AdminAuthFailure;
     };
 
-function logAdminAuth(context: string, message: string, details?: Record<string, unknown>) {
-  console.info(`[admin-auth:${context}] ${message}`, details || {});
-}
-
-function failAdminAuth(context: string, step: string, error: string, details?: Record<string, unknown>): AdminAuthResult {
-  console.warn(`[admin-auth:${context}] return failure`, { step, error, ...(details || {}) });
+function failAdminAuth(_context: string, step: string, error: string): AdminAuthResult {
   return {
     admin: null,
     failure: { step, error },
@@ -90,21 +101,16 @@ function failAdminAuth(context: string, step: string, error: string, details?: R
 async function getAdminAuthResult(context = "admin"): Promise<AdminAuthResult> {
   const cookieStore = await cookies();
   const value = cookieStore.get(adminSessionCookieName)?.value || "";
-  logAdminAuth(context, "cookie check", { cookieName: adminSessionCookieName, exists: Boolean(value) });
 
   const [payload, signature] = value.split(".");
 
   if (!payload || !signature) {
-    return failAdminAuth(context, "cookie", "missing or malformed admin_session cookie", {
-      hasPayload: Boolean(payload),
-      hasSignature: Boolean(signature),
-    });
+    return failAdminAuth(context, "cookie", "missing or malformed admin session cookie");
   }
 
   try {
     const expectedSignature = sign(payload);
     const verified = isSafeEqual(expectedSignature, signature);
-    logAdminAuth(context, "jwt_verify", { succeeds: verified });
 
     if (!verified) {
       return failAdminAuth(context, "jwt_verify", "invalid signature");
@@ -118,6 +124,7 @@ async function getAdminAuthResult(context = "admin"): Promise<AdminAuthResult> {
     username?: string;
     fullName?: string | null;
     role?: string;
+    sessionVersion?: number;
     expiresAt?: number;
   };
 
@@ -126,6 +133,7 @@ async function getAdminAuthResult(context = "admin"): Promise<AdminAuthResult> {
       username?: string;
       fullName?: string | null;
       role?: string;
+      sessionVersion?: number;
       expiresAt?: number;
     };
   } catch (error) {
@@ -133,13 +141,8 @@ async function getAdminAuthResult(context = "admin"): Promise<AdminAuthResult> {
     return failAdminAuth(context, "payload", message);
   }
 
-  logAdminAuth(context, "payload decode", {
-    username: session.username || null,
-    hasExpiresAt: Boolean(session.expiresAt),
-    expired: session.expiresAt ? session.expiresAt < Date.now() : null,
-  });
-
   if (!session.username) return failAdminAuth(context, "payload", "username missing");
+  if (!session.sessionVersion) return failAdminAuth(context, "payload", "sessionVersion missing");
   if (!session.expiresAt) return failAdminAuth(context, "payload", "expiresAt missing");
   if (session.expiresAt < Date.now()) return failAdminAuth(context, "payload", "session expired");
 
@@ -147,27 +150,23 @@ async function getAdminAuthResult(context = "admin"): Promise<AdminAuthResult> {
     const supabase = getSupabaseAdmin();
     const adminResult = await supabase
       .from("admin_users")
-      .select("username, full_name, role, active")
+      .select("username, full_name, role, active, session_version")
       .eq("username", session.username)
       .maybeSingle();
-
-    logAdminAuth(context, "admin_users lookup", {
-      succeeds: !adminResult.error,
-      found: Boolean(adminResult.data),
-      active: adminResult.data?.active ?? null,
-      error: adminResult.error?.message || null,
-    });
 
     if (adminResult.error) return failAdminAuth(context, "admin_lookup", adminResult.error.message);
     if (!adminResult.data) return failAdminAuth(context, "admin_lookup", "admin not found");
     if (!adminResult.data.active) return failAdminAuth(context, "admin_lookup", "active=false");
+    if (adminResult.data.session_version !== session.sessionVersion) {
+      return failAdminAuth(context, "admin_lookup", "session_version mismatch");
+    }
 
     const admin = {
       username: adminResult.data.username,
       fullName: adminResult.data.full_name || null,
       role: adminResult.data.role || "SUPER_ADMIN",
+      sessionVersion: adminResult.data.session_version,
     };
-    logAdminAuth(context, "return success", { username: admin.username, role: admin.role });
 
     return {
       admin,
@@ -188,6 +187,5 @@ export async function requireAdminSession(context = "requireAdminSession"): Prom
   const result = await getAdminAuthResult(context);
   if (result.admin) return result.admin;
 
-  console.warn(`[admin-auth:${context}] return 401 response`, result.failure);
-  return NextResponse.json(result.failure, { status: 401 });
+  return NextResponse.json({ error: "Admin authentication required." }, { status: 401 });
 }
