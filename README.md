@@ -10,6 +10,8 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - Add Stock screen for recording inventory batches.
 - Expiry screen showing only expired and expiring-soon batches.
 - Sales history with sale detail pages.
+- Business analytics and an expense ledger with role-aware financial visibility.
+- Owner-only activity logs for important staff and operational actions.
 - Supabase SQL migration with generated columns and views for stock, expiry, and sales calculations.
 
 ## Setup
@@ -22,7 +24,7 @@ npm install
 
 2. Create a Supabase project.
 
-3. Run the migration in `supabase/migrations/001_pharmacy_stock.sql` using the Supabase SQL editor or CLI.
+3. Run the SQL migrations in `supabase/migrations` in numeric order using the Supabase SQL editor or CLI.
 
 4. Load seed data from `supabase/seed.sql`.
 

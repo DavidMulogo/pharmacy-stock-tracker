@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
+import { recordActivity } from "@/lib/activity-log";
 
 type BatchInsert = Database["public"]["Tables"]["inventory_batches"]["Insert"];
 
@@ -99,6 +100,16 @@ export async function POST(request: Request) {
       }
       throw result.error;
     }
+    await recordActivity(
+      { pharmacyId, userId: session.user.id, name: session.user.full_name, role: session.role },
+      {
+        action: "STOCK_ADDED",
+        entityType: "inventory_batch",
+        entityId: result.data.id,
+        description: `Added ${packsReceived} pack${packsReceived === 1 ? "" : "s"} of batch ${batchNumber}.`,
+        metadata: { product_id: productId, batch_number: batchNumber, expiry_date: expiryDate, packs_received: packsReceived },
+      },
+    );
     revalidatePath("/");
     revalidatePath(`/products/${productId}`);
     return NextResponse.json({ batch: result.data }, { status: 201 });

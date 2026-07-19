@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 import { getPharmacySettings, updatePharmacySettings } from "@/lib/pharmacy-settings";
 import type { Database } from "@/lib/database.types";
+import { recordActivity } from "@/lib/activity-log";
 
 type PharmacySettingsUpdate = Database["public"]["Tables"]["pharmacy_settings"]["Update"];
 
@@ -72,6 +73,15 @@ export async function PATCH(request: Request) {
     };
 
     const settings = await updatePharmacySettings(session.pharmacy.id, update);
+    await recordActivity(
+      { pharmacyId: session.pharmacy.id, userId: session.user.id, name: session.user.full_name, role: session.role },
+      {
+        action: "SETTINGS_UPDATED",
+        entityType: "pharmacy_settings",
+        entityId: settings.id,
+        description: "Updated pharmacy settings.",
+      },
+    );
     revalidatePath("/settings");
     return NextResponse.json({ settings }, { status: 200 });
   } catch (error) {

@@ -1,4 +1,4 @@
-import type { ExpenseCategory, ExpiryStatus, OverrideFlag, PharmacyPlan, PharmacyStatus, PharmacyUserRole, SellingMode, SellType, StockStatus } from "@/lib/types";
+import type { ActivityLogAction, ExpenseCategory, ExpiryStatus, OverrideFlag, PharmacyPlan, PharmacyStatus, PharmacyUserRole, SellingMode, SellType, StockStatus } from "@/lib/types";
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -375,6 +375,51 @@ export type Database = {
           {
             foreignKeyName: "expenses_created_by_fkey";
             columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "pharmacy_users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      activity_logs: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          actor_user_id: string | null;
+          actor_name: string;
+          actor_role: PharmacyUserRole;
+          action: ActivityLogAction;
+          entity_type: string;
+          entity_id: string | null;
+          description: string;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          actor_user_id?: string | null;
+          actor_name: string;
+          actor_role: PharmacyUserRole;
+          action: ActivityLogAction;
+          entity_type: string;
+          entity_id?: string | null;
+          description: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["activity_logs"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_pharmacy_id_fkey";
+            columns: ["pharmacy_id"];
+            isOneToOne: false;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "activity_logs_actor_user_id_fkey";
+            columns: ["actor_user_id"];
             isOneToOne: false;
             referencedRelation: "pharmacy_users";
             referencedColumns: ["id"];

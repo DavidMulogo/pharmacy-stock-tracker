@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.0-alpha
+
+### Added
+
+- Business analytics with sales, gross profit, expenses, net profit, and best-selling products
+- Expense ledger for owners and pharmacists
+- Tenant-scoped activity log migration and audit helper
+- Owner-only activity viewer with action, staff, and date filters
+- Audit events for login/logout, sales, stock receipts, CSV imports, expenses, settings, and staff management
+
+### Security
+
+- Activity actor and pharmacy identity are derived from authenticated server sessions
+- Technicians remain blocked from expenses and net-profit information
+- Activity logs are restricted to pharmacy owners
+
 ## v0.6.0-alpha
 
 ### Added

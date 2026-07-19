@@ -13,16 +13,10 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 - Pharmacy settings
 - Inventory, stock batches, sales, expiry tracking, and CSV import/export
 - Pharmacy archive, restore, and permanent delete controls
+- Business analytics with expenses, gross profit, net profit, and best-selling products
+- Owner-only activity log for staff, sales, stock, imports, expenses, settings, and login events
 
 ## Next Phases
-
-### Activity Log
-
-Track important actions by admin and pharmacy staff, including stock changes, sales, settings updates, staff changes, login events, and destructive admin actions.
-
-### Dashboard Analytics
-
-Improve dashboard insights with sales trends, fast-moving products, low-stock risk, expiry risk, inventory valuation, and staff activity summaries.
 
 ### Reports
 

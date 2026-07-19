@@ -6,7 +6,7 @@ PharmaStock is a Next.js, TypeScript, Tailwind CSS, and Supabase application. It
 
 ## SaaS Multi-Tenant Model
 
-The `pharmacies` table is the tenant root. Pharmacy-owned records include products, inventory batches, sales, pharmacy users, sessions, settings, and access credentials. Application queries must derive the active pharmacy from an authenticated session rather than trusting client-supplied tenant ids.
+The `pharmacies` table is the tenant root. Pharmacy-owned records include products, inventory batches, sales, expenses, activity logs, pharmacy users, sessions, settings, and access credentials. Application queries must derive the active pharmacy from an authenticated session rather than trusting client-supplied tenant ids.
 
 ## Admin Portal
 
@@ -45,6 +45,8 @@ Each pharmacy has one `pharmacy_settings` row containing business information, b
 - `products`: pharmacy-scoped product catalog
 - `inventory_batches`: pharmacy-scoped stock receiving batches
 - `sales`: pharmacy-scoped sales history
+- `expenses`: pharmacy-scoped operating expenses
+- `activity_logs`: immutable pharmacy-scoped audit trail with actor snapshots
 - `product_stock_summary`: stock aggregation view
 - `batch_expiry_summary`: expiry aggregation view
 
@@ -57,3 +59,4 @@ Each pharmacy has one `pharmacy_settings` row containing business information, b
 - Default pharmacy lists exclude archived pharmacies.
 - Archived pharmacies cannot log in and existing archived-pharmacy sessions are invalidated.
 - Permanent deletion removes pharmacy-owned records by `pharmacy_id` before deleting the pharmacy row.
+- Activity records derive pharmacy and actor identity from authenticated server sessions and are visible only to the pharmacy owner.

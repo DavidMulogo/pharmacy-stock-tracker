@@ -5,6 +5,7 @@ import { authenticatePharmacyFromSessionCookie, normalizePharmacyUser } from "@/
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import type { PharmacyUserRole } from "@/lib/types";
+import { recordActivity } from "@/lib/activity-log";
 
 type PharmacyUserInsert = Database["public"]["Tables"]["pharmacy_users"]["Insert"];
 type PharmacyUserUpdate = Database["public"]["Tables"]["pharmacy_users"]["Update"];
@@ -80,6 +81,17 @@ export async function POST(request: Request) {
 
     if (result.error) throw result.error;
 
+    await recordActivity(
+      { pharmacyId: auth.session.pharmacy.id, userId: auth.session.user.id, name: auth.session.user.full_name, role: auth.session.role },
+      {
+        action: "STAFF_CREATED",
+        entityType: "pharmacy_user",
+        entityId: result.data.id,
+        description: `Created staff account for ${result.data.full_name}.`,
+        metadata: { username: result.data.username, role: result.data.role },
+      },
+    );
+
     revalidatePath("/staff");
     return NextResponse.json({ user: normalizePharmacyUser(result.data) }, { status: 201 });
   } catch (error) {
@@ -121,6 +133,15 @@ export async function PATCH(request: Request) {
         .single();
 
       if (result.error) throw result.error;
+      await recordActivity(
+        { pharmacyId: auth.session.pharmacy.id, userId: auth.session.user.id, name: auth.session.user.full_name, role: auth.session.role },
+        {
+          action: "STAFF_PASSWORD_RESET",
+          entityType: "pharmacy_user",
+          entityId: result.data.id,
+          description: `Reset the password for ${result.data.full_name}.`,
+        },
+      );
       return NextResponse.json({ user: normalizePharmacyUser(result.data) }, { status: 200 });
     }
 
@@ -149,6 +170,18 @@ export async function PATCH(request: Request) {
       .single();
 
     if (result.error) throw result.error;
+
+    const activityAction = action === "deactivate" ? "STAFF_DEACTIVATED" : action === "reactivate" ? "STAFF_REACTIVATED" : "STAFF_UPDATED";
+    await recordActivity(
+      { pharmacyId: auth.session.pharmacy.id, userId: auth.session.user.id, name: auth.session.user.full_name, role: auth.session.role },
+      {
+        action: activityAction,
+        entityType: "pharmacy_user",
+        entityId: result.data.id,
+        description: `${action === "deactivate" ? "Deactivated" : action === "reactivate" ? "Reactivated" : "Updated"} staff account for ${result.data.full_name}.`,
+        metadata: { username: result.data.username, role: result.data.role, active: result.data.active },
+      },
+    );
 
     revalidatePath("/staff");
     return NextResponse.json({ user: normalizePharmacyUser(result.data) }, { status: 200 });

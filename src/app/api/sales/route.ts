@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import { resolveDefaultPrice } from "@/lib/pricing";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
+import { recordActivity } from "@/lib/activity-log";
 
 type SaleInsert = Database["public"]["Tables"]["sales"]["Insert"];
 const sellTypes = ["UNIT", "PACK"] as const;
@@ -102,6 +103,16 @@ export async function POST(request: Request) {
       .single();
 
     if (saleResult.error) throw saleResult.error;
+    await recordActivity(
+      { pharmacyId, userId: session.user.id, name: session.user.full_name, role: session.role },
+      {
+        action: "SALE_CREATED",
+        entityType: "sale",
+        entityId: saleResult.data.id,
+        description: `Recorded a ${sellType.toLowerCase()} sale of ${quantityEntered}.`,
+        metadata: { product_id: productId, units_sold: unitsSold, total_sale: saleResult.data.total_sale, price_overridden: overridePrice !== null },
+      },
+    );
     revalidatePath("/");
     revalidatePath(`/products/${productId}`);
     return NextResponse.json({ sale: saleResult.data }, { status: 201 });

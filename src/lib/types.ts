@@ -7,6 +7,7 @@ export type PharmacyPlan = "TRIAL" | "BASIC" | "PRO" | "ENTERPRISE";
 export type PharmacyStatus = "ACTIVE" | "TRIAL" | "EXPIRED" | "SUSPENDED";
 export type PharmacyUserRole = "OWNER" | "PHARMACIST" | "TECHNICIAN";
 export type ExpenseCategory = "Rent" | "Salary" | "Electricity" | "Water" | "Internet" | "Transport" | "Repairs" | "Supplies" | "Other";
+export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "STOCK_ADDED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET";
 
 export type Pharmacy = {
   id: string;
@@ -157,6 +158,20 @@ export type Expense = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type ActivityLog = {
+  id: string;
+  pharmacy_id: string;
+  actor_user_id: string | null;
+  actor_name: string;
+  actor_role: PharmacyUserRole;
+  action: ActivityLogAction;
+  entity_type: string;
+  entity_id: string | null;
+  description: string;
+  metadata: import("@/lib/database.types").Json;
+  created_at: string;
 };
 
 export type BestSellingProduct = {

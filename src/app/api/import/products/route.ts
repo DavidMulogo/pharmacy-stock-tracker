@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
+import { recordActivity } from "@/lib/activity-log";
 
 type ProductInsert = Database["public"]["Tables"]["products"]["Insert"];
 
@@ -107,8 +108,14 @@ export async function POST(request: Request) {
 
     if (result.error) throw result.error;
 
+    const imported = result.data?.length || 0;
+    await recordActivity(
+      { pharmacyId, userId: session.user.id, name: session.user.full_name, role: session.role },
+      { action: "PRODUCTS_IMPORTED", entityType: "product_import", description: `Imported ${imported} product${imported === 1 ? "" : "s"}.`, metadata: { imported } },
+    );
+
     revalidatePath("/");
-    return NextResponse.json({ imported: result.data?.length || 0 }, { status: 201 });
+    return NextResponse.json({ imported }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to import products.";
     return NextResponse.json({ error: message }, { status: 500 });

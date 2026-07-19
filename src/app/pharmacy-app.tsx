@@ -1031,9 +1031,14 @@ export function PharmacyApp({
                       </Link>
                     ) : null}
                     {activeUser?.role === "OWNER" ? (
-                      <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/staff">
-                        Staff
-                      </Link>
+                      <>
+                        <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/activity">
+                          Activity
+                        </Link>
+                        <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/staff">
+                          Staff
+                        </Link>
+                      </>
                     ) : null}
                     <button
                       type="button"
@@ -1924,4 +1929,3 @@ function Input({
 function EmptyState({ text }: { text: string }) {
   return <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center font-semibold text-slate-600">{text}</div>;
 }
-

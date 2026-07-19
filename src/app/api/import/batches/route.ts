@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
+import { recordActivity } from "@/lib/activity-log";
 
 type BatchInsert = Database["public"]["Tables"]["inventory_batches"]["Insert"];
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
@@ -149,8 +150,14 @@ export async function POST(request: Request) {
       throw result.error;
     }
 
+    const imported = result.data?.length || 0;
+    await recordActivity(
+      { pharmacyId, userId: session.user.id, name: session.user.full_name, role: session.role },
+      { action: "STOCK_IMPORTED", entityType: "inventory_import", description: `Imported ${imported} inventory batch${imported === 1 ? "" : "es"}.`, metadata: { imported } },
+    );
+
     revalidatePath("/");
-    return NextResponse.json({ imported: result.data?.length || 0 }, { status: 201 });
+    return NextResponse.json({ imported }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to import inventory batches.";
     return NextResponse.json({ error: message }, { status: 500 });

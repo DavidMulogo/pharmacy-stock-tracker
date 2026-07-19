@@ -5,6 +5,7 @@ import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import type { ExpenseCategory } from "@/lib/types";
+import { recordActivity } from "@/lib/activity-log";
 
 type ExpenseInsert = Database["public"]["Tables"]["expenses"]["Insert"];
 
@@ -87,6 +88,17 @@ export async function POST(request: Request) {
     const result = await supabase.from("expenses").insert(payload).select("*").single();
 
     if (result.error) throw result.error;
+
+    await recordActivity(
+      { pharmacyId: auth.session.pharmacy.id, userId: auth.session.user.id, name: auth.session.user.full_name, role: auth.session.role },
+      {
+        action: "EXPENSE_CREATED",
+        entityType: "expense",
+        entityId: result.data.id,
+        description: `Added a ${category.toLowerCase()} expense.`,
+        metadata: { expense_date: expenseDate, category, amount },
+      },
+    );
 
     revalidatePath("/");
     revalidatePath("/expenses");

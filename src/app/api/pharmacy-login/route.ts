@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getPharmacySessionCookieOptions, pharmacySessionCookieName, pharmacySessionMaxAgeSeconds } from "@/lib/pharmacy-session";
 import { getPharmacyAccessMessage, getPharmacyAccessStatus } from "@/lib/subscription";
 import type { Database } from "@/lib/database.types";
+import { recordActivity } from "@/lib/activity-log";
 
 type PharmacyRow = Database["public"]["Tables"]["pharmacies"]["Row"];
 type PharmacyAccessRow = Database["public"]["Tables"]["pharmacy_access"]["Row"] & {
@@ -100,6 +101,10 @@ export async function POST(request: Request) {
     if (sessionResult.error) throw sessionResult.error;
 
     await supabase.from("pharmacy_users").update({ last_login_at: new Date().toISOString() }).eq("id", user.id);
+    await recordActivity(
+      { pharmacyId: pharmacy.id, userId: user.id, name: user.full_name, role: user.role },
+      { action: "LOGIN", entityType: "pharmacy_session", entityId: sessionResult.data.id, description: "Signed in to PharmaStock." },
+    );
 
     const response = NextResponse.json({ pharmacy, user, session: { expires_at: expiresAt.toISOString(), role: user.role } }, { status: 200 });
     response.cookies.set(pharmacySessionCookieName, sessionToken, getPharmacySessionCookieOptions(expiresAt));
