@@ -93,6 +93,14 @@ function isReviewed(progress: OnboardingProgress, step: OnboardingStepId) {
   return Boolean(progress.onboarding[key]);
 }
 
+function requirementText(requirement: string) {
+  if (requirement === "pharmacy profile") return "Review the pharmacy profile.";
+  if (requirement === "business rules") return "Review business rules.";
+  if (requirement === "one product") return "Add at least one product.";
+  if (requirement === "one stock batch") return "Add at least one opening stock batch.";
+  return requirement;
+}
+
 export function OnboardingClient({
   initialPharmacy,
   initialSettings,
@@ -408,7 +416,7 @@ export function OnboardingClient({
         <section className="sticky bottom-0 rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
           {progress.missing_requirements.length ? (
             <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900">
-              {progress.missing_requirements.map((item) => <p key={item}>{item}</p>)}
+              {progress.missing_requirements.map((item) => <p key={item}>{requirementText(item)}</p>)}
             </div>
           ) : null}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

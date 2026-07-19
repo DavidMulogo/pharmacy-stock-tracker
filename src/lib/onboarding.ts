@@ -106,6 +106,12 @@ export function summarizeOnboarding(
   ];
   const reviewedRequiredSteps = requiredChecks.filter(Boolean).length;
   const completed = Boolean(onboarding.completed_at);
+  const missingRequirements: string[] = [];
+
+  if (!onboarding.profile_reviewed_at) missingRequirements.push("pharmacy profile");
+  if (!onboarding.business_rules_reviewed_at) missingRequirements.push("business rules");
+  if (counts.productCount <= 0) missingRequirements.push("one product");
+  if (counts.inventoryBatchCount <= 0) missingRequirements.push("one stock batch");
 
   return {
     percent: completed ? 100 : Math.round((reviewedRequiredSteps / requiredChecks.length) * 100),
@@ -115,6 +121,7 @@ export function summarizeOnboarding(
     inventory_batch_count: counts.inventoryBatchCount,
     reviewed_required_steps: reviewedRequiredSteps,
     required_steps: requiredChecks.length,
+    missing_requirements: completed ? [] : missingRequirements,
   };
 }
 
@@ -122,19 +129,12 @@ export async function getOnboardingProgress(pharmacyId: string, actor?: Activity
   const onboarding = await getOrCreateOnboardingRow(pharmacyId, actor);
   const counts = await getTenantCounts(pharmacyId);
   const summary = summarizeOnboarding(onboarding, counts);
-  const missingRequirements: string[] = [];
-
-  if (!onboarding.profile_reviewed_at) missingRequirements.push("Review the pharmacy profile.");
-  if (!onboarding.business_rules_reviewed_at) missingRequirements.push("Review business rules.");
-  if (counts.productCount <= 0) missingRequirements.push("Add at least one product.");
-  if (counts.inventoryBatchCount <= 0) missingRequirements.push("Add at least one opening stock batch.");
 
   return {
     ...summary,
     onboarding,
     staff_count: counts.staffCount,
-    can_complete: missingRequirements.length === 0,
-    missing_requirements: missingRequirements,
+    can_complete: summary.missing_requirements.length === 0,
   };
 }
 

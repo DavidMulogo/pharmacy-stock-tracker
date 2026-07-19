@@ -169,6 +169,28 @@ function getImportBatchKey(productId: string, batchNumber: string, expiryDate: s
   return `${productId}::${batchNumber.trim().toLowerCase()}::${expiryDate}`;
 }
 
+function joinReadable(items: string[]) {
+  if (items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items.at(-1)}`;
+}
+
+function getOnboardingBannerMessage(onboarding: OnboardingProgressSummary) {
+  const missing = onboarding.missing_requirements;
+  if (missing.length === 0) return "Finish the final setup review.";
+
+  const reviewItems = missing.filter((item) => item === "pharmacy profile" || item === "business rules");
+  const addItems = missing.filter((item) => item === "one product" || item === "one stock batch");
+  const clauses: string[] = [];
+
+  if (reviewItems.length > 0) clauses.push(`Review the ${joinReadable(reviewItems)}`);
+  if (addItems.length > 0) clauses.push(`add ${joinReadable(addItems)}`);
+
+  const sentence = clauses.length === 2 ? `${clauses[0]}, then ${clauses[1]}` : joinReadable(clauses);
+  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}.`;
+}
+
 function validateImportRows(
   kind: ImportKind,
   rows: CsvRow[],
@@ -1061,7 +1083,7 @@ export function PharmacyApp({
                     <div>
                       <p className="text-sm font-black text-blue-950">Setup incomplete: {initialOnboarding.percent}% ready</p>
                       <p className="mt-1 text-sm font-semibold text-blue-900">
-                        Review profile and business rules, then add one product and one stock batch.
+                        {getOnboardingBannerMessage(initialOnboarding)}
                       </p>
                     </div>
                     <Link className="rounded-md bg-blue-700 px-4 py-3 text-center text-sm font-bold text-white" href="/onboarding">

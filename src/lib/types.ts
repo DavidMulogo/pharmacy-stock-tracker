@@ -48,12 +48,12 @@ export type OnboardingProgressSummary = {
   inventory_batch_count: number;
   reviewed_required_steps: number;
   required_steps: number;
+  missing_requirements: string[];
 };
 
 export type OnboardingProgress = OnboardingProgressSummary & {
   onboarding: PharmacyOnboarding;
   can_complete: boolean;
-  missing_requirements: string[];
   staff_count: number;
 };
 
