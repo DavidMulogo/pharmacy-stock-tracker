@@ -8,6 +8,8 @@
 - CSV export from each permitted report
 - Owner-only pharmacy backup export as a JSON file
 - Backup validation with format, schema version, pharmacy identity, dataset, record count, and checksum checks
+- Admin Restore v1 for merge-only backup recovery
+- Admin restore audit log table and `BACKUP_RESTORED` admin action
 - Business analytics with sales, gross profit, expenses, net profit, and best-selling products
 - Expense ledger for owners and pharmacists
 - Tenant-scoped activity log migration and audit helper
@@ -23,10 +25,13 @@
 - Activity logs are restricted to pharmacy owners
 - Report APIs enforce role permissions server-side and derive pharmacy scope from the authenticated session
 - Backup APIs are owner-only, derive pharmacy scope from the authenticated session, and exclude passwords, hashes, sessions, cookies, admin users, and credentials
+- Admin restore authenticates with admin sessions, verifies selected pharmacy against backup pharmacy id, and restores only missing settings, products, batches, sales, and expenses
+- Admin restore excludes staff accounts, historical activity logs, sessions, passwords, hashes, cookies, access credentials, admin users, and admin credentials
+- Restore writes run through a service-role-only PostgreSQL RPC for atomic rollback on failure
 
 ### Not Included
 
-- Backup restore is not implemented yet
+- Destructive restore, overwrite restore, staff restore, activity log restore, and supplier/purchase restore are not implemented
 
 ## v0.6.0-alpha
 

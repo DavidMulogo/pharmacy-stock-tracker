@@ -40,7 +40,46 @@ type AdminApiResponse = {
   pharmacies?: Pharmacy[];
 };
 
+type RestoreCounts = Record<string, number>;
+type RestorePreview = {
+  validation: {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    checksum: {
+      expected: string | null;
+      actual: string | null;
+      matches: boolean;
+    };
+    pharmacy: {
+      id: string | null;
+      pharmacy_name: string | null;
+    };
+    record_counts: RestoreCounts;
+  };
+  target_pharmacy: Pharmacy;
+  confirmation_label: string;
+  checksum: string | null;
+  can_restore: boolean;
+  missing_counts: RestoreCounts;
+  skipped_counts: RestoreCounts;
+  unsupported_counts: Record<string, number>;
+};
+type RestoreApiResponse = {
+  error?: string | { message?: string };
+  message?: string;
+  preview?: RestorePreview;
+  restored?: {
+    restored_counts: RestoreCounts;
+    skipped_counts: RestoreCounts;
+  };
+};
+
 function getAdminResponseMessage(data: AdminApiResponse, fallback: string) {
+  return typeof data.error === "string" ? data.error : data.error?.message || data.message || fallback;
+}
+
+function getRestoreResponseMessage(data: RestoreApiResponse, fallback: string) {
   return typeof data.error === "string" ? data.error : data.error?.message || data.message || fallback;
 }
 
@@ -74,6 +113,11 @@ export function AdminPortal({
   const [showArchived, setShowArchived] = useState(false);
   const [deletePharmacyId, setDeletePharmacyId] = useState("");
   const [deleteConfirmationCode, setDeleteConfirmationCode] = useState("");
+  const [restorePharmacyId, setRestorePharmacyId] = useState("");
+  const [restoreBackup, setRestoreBackup] = useState<unknown>(null);
+  const [restoreFileName, setRestoreFileName] = useState("");
+  const [restorePreview, setRestorePreview] = useState<RestorePreview | null>(null);
+  const [restoreConfirmation, setRestoreConfirmation] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -288,6 +332,74 @@ export function AdminPortal({
     }
   }
 
+  async function loadRestoreFile(file: File | null) {
+    setRestorePreview(null);
+    setRestoreConfirmation("");
+    setRestoreBackup(null);
+    setRestoreFileName(file?.name || "");
+    setMessage("");
+
+    if (!file) return;
+
+    try {
+      setRestoreBackup(JSON.parse(await file.text()));
+    } catch {
+      setMessage("Upload a readable PharmaStock backup JSON file.");
+    }
+  }
+
+  async function dryRunRestore(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setRestorePreview(null);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/admin/restore", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "dry-run", pharmacy_id: restorePharmacyId, backup: restoreBackup }),
+      });
+      const result = (await response.json()) as RestoreApiResponse;
+
+      if (!response.ok) throw new Error(getRestoreResponseMessage(result, "Unable to preview restore."));
+
+      setRestorePreview(result.preview || null);
+      setMessage(result.preview?.can_restore ? "Dry run complete. Review the preview before restoring." : "Dry run found validation errors.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to preview restore.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function executeRestore() {
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/admin/restore", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "restore", pharmacy_id: restorePharmacyId, backup: restoreBackup, confirmation: restoreConfirmation }),
+      });
+      const result = (await response.json()) as RestoreApiResponse;
+
+      if (!response.ok) throw new Error(getRestoreResponseMessage(result, "Unable to restore backup."));
+
+      setMessage(result.message || "Backup restored.");
+      setRestoreConfirmation("");
+      setRestorePreview(null);
+      await loadPharmacies();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to restore backup.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   if (!isAuthenticated) {
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-950">
@@ -358,6 +470,87 @@ export function AdminPortal({
               ) : null}
             </div>
           </form>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-bold">Restore Pharmacy Backup</h2>
+            <p className="text-sm font-semibold text-slate-600">
+              Merge-only restore for missing records. Existing records are skipped, and staff, sessions, credentials, and activity history are not restored.
+            </p>
+          </div>
+          <form className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto]" onSubmit={dryRunRestore}>
+            <Select
+              label="Target pharmacy"
+              value={restorePharmacyId}
+              options={["", ...pharmacies.map((pharmacy) => pharmacy.id)]}
+              onChange={(value) => {
+                setRestorePharmacyId(value);
+                setRestorePreview(null);
+                setRestoreConfirmation("");
+              }}
+              optionLabels={{
+                "": "Choose pharmacy",
+                ...Object.fromEntries(pharmacies.map((pharmacy) => [pharmacy.id, pharmacy.pharmacy_name])),
+              }}
+            />
+            <label className="block text-sm font-semibold">
+              Backup JSON
+              <input
+                accept="application/json,.json"
+                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base file:mr-3 file:rounded-md file:border-0 file:bg-emerald-700 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white"
+                onChange={(event) => void loadRestoreFile(event.target.files?.[0] || null)}
+                type="file"
+              />
+              {restoreFileName ? <span className="mt-1 block text-xs font-bold text-slate-500">{restoreFileName}</span> : null}
+            </label>
+            <button className="self-end rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-300" disabled={isLoading || !restorePharmacyId || !restoreBackup} type="submit">
+              Preview Restore
+            </button>
+          </form>
+          {restorePreview ? (
+            <div className="mt-4 grid gap-4">
+              <div className={`rounded-md border px-4 py-3 text-sm font-bold ${restorePreview.can_restore ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"}`}>
+                {restorePreview.can_restore ? "Backup is valid for the selected pharmacy." : "Backup cannot be restored until validation errors are fixed."}
+              </div>
+              <div className="grid gap-3 lg:grid-cols-3">
+                <RestoreCountPanel title="Will insert" counts={restorePreview.missing_counts} />
+                <RestoreCountPanel title="Will skip" counts={restorePreview.skipped_counts} />
+                <RestoreCountPanel title="Unsupported" counts={restorePreview.unsupported_counts} />
+              </div>
+              {restorePreview.validation.errors.length ? (
+                <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-900">
+                  {restorePreview.validation.errors.map((error) => <p key={error}>{error}</p>)}
+                </div>
+              ) : null}
+              {restorePreview.validation.warnings.length ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+                  {restorePreview.validation.warnings.map((warning) => <p key={warning}>{warning}</p>)}
+                </div>
+              ) : null}
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="text-sm font-bold text-slate-800">
+                  Type <span className="font-black text-slate-950">{restorePreview.confirmation_label}</span> to execute restore.
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    className="rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600"
+                    value={restoreConfirmation}
+                    onChange={(event) => setRestoreConfirmation(event.target.value)}
+                    placeholder="Exact confirmation"
+                  />
+                  <button
+                    className="rounded-md bg-red-700 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-300"
+                    disabled={isLoading || !restorePreview.can_restore || restoreConfirmation !== restorePreview.confirmation_label}
+                    type="button"
+                    onClick={executeRestore}
+                  >
+                    Execute Restore
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -492,6 +685,22 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone: strin
   );
 }
 
+function RestoreCountPanel({ title, counts }: { title: string; counts: Record<string, number> }) {
+  return (
+    <div className="rounded-md border border-slate-200 p-3">
+      <p className="text-sm font-black text-slate-950">{title}</p>
+      <div className="mt-2 grid gap-1 text-sm font-semibold text-slate-700">
+        {Object.entries(counts).map(([key, value]) => (
+          <div key={key} className="flex justify-between gap-3">
+            <span>{key.replaceAll("_", " ")}</span>
+            <span>{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Input({
   label,
   value,
@@ -521,11 +730,13 @@ function Select({
   value,
   options,
   onChange,
+  optionLabels = {},
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (value: string) => void;
+  optionLabels?: Record<string, string>;
 }) {
   return (
     <label className="block text-sm font-semibold">
@@ -537,7 +748,7 @@ function Select({
       >
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {optionLabels[option] || option}
           </option>
         ))}
       </select>

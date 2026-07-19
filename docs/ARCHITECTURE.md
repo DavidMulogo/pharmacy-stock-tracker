@@ -52,13 +52,18 @@ The `/backup` area is restricted to pharmacy `OWNER` accounts. Backup APIs authe
 
 Backup export is generated server-side as one JSON file. Included datasets are pharmacy profile, pharmacy settings, products, inventory batches, sales, expenses, staff metadata, and activity logs. Excluded data includes password hashes, plain-text passwords, session tokens, cookies, admin users, admin credentials, and pharmacy access credentials.
 
-Each backup has `format: "pharmastock-backup"`, `schema_version: 1`, record counts, and a deterministic SHA-256 checksum over the payload. Validation checks format, schema version, pharmacy identity, required datasets, record counts, and checksum without restoring data. Restore is intentionally not implemented yet.
+Each backup has `format: "pharmastock-backup"`, `schema_version: 1`, record counts, and a deterministic SHA-256 checksum over the payload. Validation checks format, schema version, pharmacy identity, required datasets, record counts, and checksum.
 
 Successful explicit backup exports log `BACKUP_EXPORTED`. Successful validations log `BACKUP_VALIDATED`. Activity metadata stores only high-level counts and checksum status, never the full backup payload.
+
+Admin Restore v1 lives inside `/admin` and uses the admin session helper, not pharmacy staff auth. The selected target pharmacy, backup pharmacy id, and existing database pharmacy must match. Restore is merge-only and non-destructive: it inserts missing pharmacy settings, products, inventory batches, sales, and expenses while skipping existing records. Staff metadata and historical pharmacy activity logs from backups are unsupported and are never restored. Sessions, cookies, pharmacy access credentials, password hashes, plain-text passwords, admin users, and admin credentials are never restored.
+
+The actual restore write uses the `restore_pharmastock_backup_v1` PostgreSQL RPC so inserts run atomically and roll back on failure. Execute permission is revoked from `anon` and `authenticated`; server code calls it with the service role. Admin restore attempts are recorded in `admin_activity_logs` with admin identity, target pharmacy, backup checksum, restored/skipped counts, success state, and error message, but never the uploaded payload.
 
 ## Database Structure Overview
 
 - `admin_users`: SaaS owner/admin accounts
+- `admin_activity_logs`: SaaS-owner audit trail for admin actions such as backup restore
 - `pharmacies`: tenant root and subscription state
 - `pharmacy_access`: pharmacy login code and legacy/shared access support
 - `pharmacy_users`: individual pharmacy staff accounts
@@ -73,6 +78,7 @@ Successful explicit backup exports log `BACKUP_EXPORTED`. Successful validations
 - `batch_expiry_summary`: expiry aggregation view
 - Reports are query-backed from the existing pharmacy-owned tables and views; no supplier or purchase report tables exist yet.
 - Backup export is query-backed from existing pharmacy-owned tables and does not require separate backup tables.
+- Admin restore is merge-only through `restore_pharmastock_backup_v1` and writes admin audit rows to `admin_activity_logs`.
 
 ## Tenant Isolation Rules
 

@@ -16,6 +16,7 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 - Business analytics with expenses, gross profit, net profit, and best-selling products
 - Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity exports
 - Owner-only backup export with checksum validation
+- Admin Restore v1 with merge-only non-destructive backup recovery
 - Owner-only activity log for staff, sales, stock, imports, expenses, settings, and login events
 
 ## Next Phases
@@ -26,7 +27,7 @@ Expand Reports v1 with supplier and purchase reports after supplier and purchasi
 
 ### Backup Restore
 
-Add database restore workflows, scheduled exports, and admin recovery tools. Backup export and validation exist in v1; restore is not implemented yet.
+Expand Admin Restore v1 with richer conflict review, scheduled exports, and admin recovery tooling. Current restore is merge-only and intentionally does not overwrite or delete existing data.
 
 ### Onboarding
 

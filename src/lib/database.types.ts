@@ -29,6 +29,46 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["admin_users"]["Insert"]>;
         Relationships: [];
       };
+      admin_activity_logs: {
+        Row: {
+          id: string;
+          admin_username: string;
+          admin_role: string;
+          action: string;
+          target_pharmacy_id: string | null;
+          target_pharmacy_name: string | null;
+          backup_checksum: string | null;
+          restored_counts: Json;
+          skipped_counts: Json;
+          success: boolean;
+          error_message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          admin_username: string;
+          admin_role: string;
+          action: string;
+          target_pharmacy_id?: string | null;
+          target_pharmacy_name?: string | null;
+          backup_checksum?: string | null;
+          restored_counts?: Json;
+          skipped_counts?: Json;
+          success?: boolean;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["admin_activity_logs"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "admin_activity_logs_target_pharmacy_id_fkey";
+            columns: ["target_pharmacy_id"];
+            isOneToOne: false;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       pharmacies: {
         Row: {
           id: string;
@@ -454,7 +494,16 @@ export type Database = {
         ];
       };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      restore_pharmastock_backup_v1: {
+        Args: {
+          p_target_pharmacy_id: string;
+          p_backup: Json;
+          p_fail_after?: string | null;
+        };
+        Returns: Json;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
