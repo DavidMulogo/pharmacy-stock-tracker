@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-session";
 import { normalizePharmacyRow } from "@/lib/data";
+import { getAdminNotificationSummary } from "@/lib/notifications";
 import { getOnboardingSummary } from "@/lib/onboarding";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
@@ -109,6 +110,11 @@ async function rollbackPharmacyCreation(supabase: SupabaseAdminClient, pharmacyI
       run: () => supabase.from("pharmacy_onboarding").delete().eq("pharmacy_id", pharmacyId),
     },
     {
+      label: "notifications",
+      failedStep: "rollback_pharmacy_settings",
+      run: () => supabase.from("notifications").delete().eq("pharmacy_id", pharmacyId),
+    },
+    {
       label: "pharmacies",
       failedStep: "rollback_pharmacies",
       run: () => supabase.from("pharmacies").delete().eq("id", pharmacyId),
@@ -183,6 +189,7 @@ async function deletePharmacyPermanently(supabase: SupabaseAdminClient, pharmacy
   await deleteStep("pharmacy_access", () => supabase.from("pharmacy_access").delete().eq("pharmacy_id", pharmacyId));
   await deleteStep("pharmacy_settings", () => supabase.from("pharmacy_settings").delete().eq("pharmacy_id", pharmacyId));
   await deleteStep("pharmacy_onboarding", () => supabase.from("pharmacy_onboarding").delete().eq("pharmacy_id", pharmacyId));
+  await deleteStep("notifications", () => supabase.from("notifications").delete().eq("pharmacy_id", pharmacyId));
   await deleteStep("pharmacies", () => supabase.from("pharmacies").delete().eq("id", pharmacyId));
 }
 
@@ -205,6 +212,7 @@ export async function GET(request: Request) {
         return {
           ...normalized,
           onboarding: await getOnboardingSummary(normalized.id),
+          notification_summary: getAdminNotificationSummary(normalized),
         };
       }),
     );

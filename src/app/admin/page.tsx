@@ -1,6 +1,7 @@
 import { AdminPortal } from "@/app/admin/admin-portal";
 import { authenticateAdminFromCookie } from "@/lib/admin-session";
 import { normalizePharmacyRow } from "@/lib/data";
+import { getAdminNotificationSummary } from "@/lib/notifications";
 import { getOnboardingSummary } from "@/lib/onboarding";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Metadata } from "next";
@@ -27,6 +28,7 @@ async function getAdminPharmacies(): Promise<Pharmacy[]> {
       return {
         ...normalized,
         onboarding: await getOnboardingSummary(normalized.id),
+        notification_summary: getAdminNotificationSummary(normalized),
       };
     }),
   );

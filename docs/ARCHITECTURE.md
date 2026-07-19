@@ -42,6 +42,12 @@ Each pharmacy can have one `pharmacy_onboarding` row. It stores when setup steps
 
 The `/onboarding` page and `/api/onboarding` are OWNER-only and derive pharmacy and actor identity from the pharmacy session. Existing pharmacies are not blocked from selling or stock work; incomplete setup appears as a persistent guidance banner for Owners. Admin pharmacy lists show computed onboarding progress, but admin users cannot falsely mark product or stock requirements complete.
 
+## Notifications
+
+Notifications are tenant-scoped rows in `notifications` with deterministic `pharmacy_id + dedupe_key` uniqueness. The server synchronizes alerts from real product stock, batch expiry, pharmacy settings, and subscription state. Conditions that remain active update `last_seen_at`; conditions that disappear are marked `RESOLVED`; returning conditions reactivate through the same dedupe key.
+
+Dashboard and notification page loads trigger sync in v1, and users can manually refresh from `/notifications`. There is no external scheduler, email, or SMS delivery yet. Notification APIs derive pharmacy and role from the session, validate notification ownership before marking read, and filter subscription alerts away from technicians server-side.
+
 ## Reports
 
 The `/reports` area is a protected pharmacy staff surface. Report APIs authenticate through the pharmacy session helper, derive `pharmacy_id` from the validated session, and enforce report permissions server-side.
@@ -78,6 +84,7 @@ The actual restore write uses the `restore_pharmastock_backup_v1` PostgreSQL RPC
 - `pharmacy_sessions`: authenticated pharmacy staff sessions
 - `pharmacy_settings`: one-to-one pharmacy configuration
 - `pharmacy_onboarding`: tenant-scoped setup review and completion timestamps
+- `notifications`: tenant-scoped in-app alert inbox with active, unread, and resolved states
 - `products`: pharmacy-scoped product catalog
 - `inventory_batches`: pharmacy-scoped stock receiving batches
 - `sales`: pharmacy-scoped sales history
@@ -100,3 +107,4 @@ The actual restore write uses the `restore_pharmastock_backup_v1` PostgreSQL RPC
 - Permanent deletion removes pharmacy-owned records by `pharmacy_id` before deleting the pharmacy row.
 - Activity records derive pharmacy and actor identity from authenticated server sessions and are visible only to the pharmacy owner.
 - Onboarding completion derives required operational checks from server-side tenant data, not client flags.
+- Notification generation and read actions derive tenant and role from authenticated sessions.

@@ -7,6 +7,9 @@ export type PharmacyPlan = "TRIAL" | "BASIC" | "PRO" | "ENTERPRISE";
 export type PharmacyStatus = "ACTIVE" | "TRIAL" | "EXPIRED" | "SUSPENDED";
 export type PharmacyUserRole = "OWNER" | "PHARMACIST" | "TECHNICIAN";
 export type ExpenseCategory = "Rent" | "Salary" | "Electricity" | "Water" | "Internet" | "Transport" | "Repairs" | "Supplies" | "Other";
+export type NotificationType = "LOW_STOCK" | "OUT_OF_STOCK" | "EXPIRING_SOON" | "EXPIRED_BATCH" | "TRIAL_EXPIRING" | "SUBSCRIPTION_EXPIRING" | "SUBSCRIPTION_EXPIRED";
+export type NotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
+export type NotificationStatus = "ACTIVE" | "RESOLVED";
 export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "STOCK_ADDED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET" | "REPORT_EXPORTED" | "BACKUP_EXPORTED" | "BACKUP_VALIDATED" | "ONBOARDING_STARTED" | "ONBOARDING_STEP_REVIEWED" | "ONBOARDING_COMPLETED";
 
 export type OnboardingStepId = "profile" | "business_rules" | "staff" | "products" | "opening_stock" | "subscription";
@@ -23,6 +26,42 @@ export type Pharmacy = {
   archived_at: string | null;
   created_at: string;
   onboarding?: OnboardingProgressSummary | null;
+  notification_summary?: AdminNotificationSummary | null;
+};
+
+export type Notification = {
+  id: string;
+  pharmacy_id: string;
+  type: NotificationType;
+  severity: NotificationSeverity;
+  title: string;
+  message: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  dedupe_key: string;
+  status: NotificationStatus;
+  first_seen_at: string;
+  last_seen_at: string;
+  read_at: string | null;
+  resolved_at: string | null;
+  metadata: import("@/lib/database.types").Json;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NotificationFilter = "all" | "unread" | "inventory" | "expiry" | "subscription" | "resolved";
+
+export type NotificationCounts = {
+  unread_active: number;
+  active: number;
+};
+
+export type AdminNotificationSummary = {
+  expired_subscription: boolean;
+  trial_ending_soon: boolean;
+  subscription_ending_soon: boolean;
+  suspended: boolean;
+  onboarding_incomplete: boolean;
 };
 
 export type PharmacyOnboarding = {

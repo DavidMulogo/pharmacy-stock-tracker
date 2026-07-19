@@ -643,6 +643,15 @@ export function AdminPortal({
                           Setup {pharmacy.onboarding.completed ? "complete" : `${pharmacy.onboarding.percent}%`}
                         </p>
                       ) : null}
+                      {pharmacy.notification_summary ? (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {pharmacy.notification_summary.expired_subscription ? <AdminAlertBadge label="Expired subscription" tone="rose" /> : null}
+                          {pharmacy.notification_summary.trial_ending_soon ? <AdminAlertBadge label="Trial ending soon" tone="amber" /> : null}
+                          {pharmacy.notification_summary.subscription_ending_soon ? <AdminAlertBadge label="Subscription ending soon" tone="amber" /> : null}
+                          {pharmacy.notification_summary.suspended ? <AdminAlertBadge label="Suspended" tone="rose" /> : null}
+                          {pharmacy.notification_summary.onboarding_incomplete ? <AdminAlertBadge label="Setup incomplete" tone="blue" /> : null}
+                        </div>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold" type="button" onClick={() => editPharmacy(pharmacy)}>
@@ -755,6 +764,16 @@ function RestoreCountPanel({ title, counts }: { title: string; counts: Record<st
       </div>
     </div>
   );
+}
+
+function AdminAlertBadge({ label, tone }: { label: string; tone: "amber" | "blue" | "rose" }) {
+  const classes = {
+    amber: "border-amber-200 bg-amber-50 text-amber-800",
+    blue: "border-blue-200 bg-blue-50 text-blue-800",
+    rose: "border-rose-200 bg-rose-50 text-rose-800",
+  } satisfies Record<typeof tone, string>;
+
+  return <span className={`rounded-full border px-2 py-1 text-xs font-black uppercase ${classes[tone]}`}>{label}</span>;
 }
 
 function Input({

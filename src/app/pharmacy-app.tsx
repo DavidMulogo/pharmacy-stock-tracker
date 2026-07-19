@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
 import { resolveDefaultPrice } from "@/lib/pricing";
 import { getPharmacyExpiryWarning } from "@/lib/subscription";
-import type { DashboardData, ExpiryStatus, OnboardingProgressSummary, OverrideFlag, Pharmacy, PharmacyUser, ProductWithStock, SellType, StockStatus } from "@/lib/types";
+import type { DashboardData, ExpiryStatus, NotificationCounts, OnboardingProgressSummary, OverrideFlag, Pharmacy, PharmacyUser, ProductWithStock, SellType, StockStatus } from "@/lib/types";
 
 type Tab = "dashboard" | "sell" | "products" | "stock" | "expiry" | "sales" | "csv";
 type Toast = {
@@ -268,6 +268,7 @@ export function PharmacyApp({
   initialPharmacyId,
   initialUser,
   initialOnboarding,
+  initialNotificationCounts,
   isDebugMode,
 }: {
   initialData: DashboardData;
@@ -275,6 +276,7 @@ export function PharmacyApp({
   initialPharmacyId: string;
   initialUser: PharmacyUser | null;
   initialOnboarding: OnboardingProgressSummary | null;
+  initialNotificationCounts: NotificationCounts | null;
   isDebugMode: boolean;
 }) {
   const router = useRouter();
@@ -1039,6 +1041,12 @@ export function PharmacyApp({
                     </Link>
                     <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/reports">
                       Reports
+                    </Link>
+                    <Link className="relative rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/notifications">
+                      Notifications
+                      {initialNotificationCounts?.unread_active ? (
+                        <span className="ml-2 rounded-full bg-rose-600 px-2 py-0.5 text-xs font-black text-white">{initialNotificationCounts.unread_active}</span>
+                      ) : null}
                     </Link>
                     {canViewFinancials ? (
                       <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/expenses">

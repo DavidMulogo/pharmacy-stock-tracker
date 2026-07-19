@@ -19,6 +19,7 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 - Owner-only backup export with checksum validation
 - Admin Restore v1 with merge-only non-destructive backup recovery
 - Onboarding v1 with guided profile, rules, staff, products, stock, and subscription readiness
+- In-app notifications for inventory, expiry, and subscription alerts
 - Owner-only activity log for staff, sales, stock, imports, expenses, settings, and login events
 
 ## Next Phases
@@ -37,7 +38,7 @@ Expand Onboarding v1 with richer import templates, guided first-sale checks, sam
 
 ### Notifications
 
-Add low-stock, expiry, subscription, trial, and staff/security notifications by in-app alerts first, then email/SMS later.
+Expand Notifications v1 with scheduled background sync, email/SMS delivery, staff/security notifications, quiet hours, and notification preferences.
 
 ### Mobile App
 

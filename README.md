@@ -15,6 +15,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - Owner-only backup export and backup validation for pharmacy data.
 - Admin-only merge restore for validated pharmacy backups.
 - Owner-only onboarding checklist for new pharmacies.
+- In-app notifications for stock, expiry, and subscription alerts.
 - Owner-only activity logs for important staff and operational actions.
 - Supabase SQL migration with generated columns and views for stock, expiry, and sales calculations.
 
@@ -126,6 +127,18 @@ Completion is calculated server-side from the authenticated pharmacy session. Th
 - At least one inventory batch
 
 Staff setup remains optional for solo pharmacies. Subscription values are read-only for pharmacy users and remain managed by PharmaStock Admin. Until completion, Owners see a setup-progress banner in the main POS with a Continue Setup button.
+
+## Notifications
+
+The `/notifications` page shows in-app alerts generated server-side from the authenticated pharmacy's own data. V1 covers low stock, out of stock, expiring soon batches, expired batches, trial ending soon, subscription ending soon, and subscription expired.
+
+Notifications sync when the dashboard or notifications page loads and when a user presses Refresh. Duplicate alerts are prevented with tenant-scoped deterministic keys, and resolved alerts are retained for history. Email, SMS, and scheduled background delivery are not implemented yet.
+
+Role access:
+
+- `OWNER`: all notifications
+- `PHARMACIST`: inventory, expiry, and subscription notifications
+- `TECHNICIAN`: inventory and expiry notifications only
 
 ## Backup
 

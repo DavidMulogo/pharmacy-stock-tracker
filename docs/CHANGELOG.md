@@ -5,6 +5,7 @@
 ### Added
 
 - Onboarding v1 with owner-only setup checklist, persistent setup banner, server-calculated progress, and admin onboarding visibility
+- In-App Notifications v1 with stock, expiry, subscription alerts, unread counts, filters, read actions, and admin summary badges
 - Admin Security v1 with Change Password, stronger admin password policy, account lockout, session-version invalidation, secure one-time bootstrap, and admin login/logout/password audit events
 - Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity reports
 - CSV export from each permitted report
@@ -25,6 +26,7 @@
 
 - Onboarding APIs are OWNER-only and derive pharmacy identity from the authenticated session
 - Onboarding completion rejects client-supplied completion flags and requires real tenant product and inventory-batch records
+- Notification APIs derive tenant and role from the authenticated session and prevent technicians from accessing subscription alerts
 - Admin bootstrap no longer contains public default credentials and requires server-only bootstrap environment variables
 - Admin session cookies are invalidated after password changes by `admin_users.session_version`
 - Admin login failures lock accounts after repeated attempts without exposing username enumeration details

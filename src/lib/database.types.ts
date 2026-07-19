@@ -1,4 +1,4 @@
-import type { ActivityLogAction, ExpenseCategory, ExpiryStatus, OverrideFlag, PharmacyPlan, PharmacyStatus, PharmacyUserRole, SellingMode, SellType, StockStatus } from "@/lib/types";
+import type { ActivityLogAction, ExpenseCategory, ExpiryStatus, NotificationSeverity, NotificationStatus, NotificationType, OverrideFlag, PharmacyPlan, PharmacyStatus, PharmacyUserRole, SellingMode, SellType, StockStatus } from "@/lib/types";
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -303,6 +303,56 @@ export type Database = {
             foreignKeyName: "pharmacy_onboarding_pharmacy_id_fkey";
             columns: ["pharmacy_id"];
             isOneToOne: true;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          type: NotificationType;
+          severity: NotificationSeverity;
+          title: string;
+          message: string;
+          entity_type: string | null;
+          entity_id: string | null;
+          dedupe_key: string;
+          status: NotificationStatus;
+          first_seen_at: string;
+          last_seen_at: string;
+          read_at: string | null;
+          resolved_at: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          type: NotificationType;
+          severity: NotificationSeverity;
+          title: string;
+          message: string;
+          entity_type?: string | null;
+          entity_id?: string | null;
+          dedupe_key: string;
+          status?: NotificationStatus;
+          first_seen_at?: string;
+          last_seen_at?: string;
+          read_at?: string | null;
+          resolved_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "notifications_pharmacy_id_fkey";
+            columns: ["pharmacy_id"];
+            isOneToOne: false;
             referencedRelation: "pharmacies";
             referencedColumns: ["id"];
           },
