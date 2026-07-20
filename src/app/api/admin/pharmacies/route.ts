@@ -312,7 +312,7 @@ export async function POST(request: Request) {
     const userPayload: PharmacyUserInsert = {
       pharmacy_id: createdPharmacyId,
       full_name: ownerName,
-      username: pharmacyCode,
+      username: "owner",
       password_hash: passwordHash,
       role: "OWNER",
       active: true,
