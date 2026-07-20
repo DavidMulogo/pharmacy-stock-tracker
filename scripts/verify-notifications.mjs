@@ -13,7 +13,7 @@ function daysUntil(date) {
 function generate({ pharmacy, products, batches, settings }) {
   const items = [];
   for (const product of products) {
-    const threshold = product.reorder_level || settings.low_stock_threshold;
+    const threshold = product.reorder_level ?? 0;
     if (product.available_stock <= 0) items.push({ type: "OUT_OF_STOCK", key: `OUT_OF_STOCK:${product.id}`, pharmacy_id: pharmacy.id });
     else if (product.available_stock <= threshold) items.push({ type: "LOW_STOCK", key: `LOW_STOCK:${product.id}`, pharmacy_id: pharmacy.id });
   }
@@ -49,13 +49,15 @@ sync(store, generate({
   settings,
   products: [
     { id: "p1", available_stock: 0, reorder_level: 2 },
-    { id: "p2", available_stock: 4, reorder_level: 0 },
+    { id: "p2", available_stock: 4, reorder_level: 5 },
+    { id: "p3", available_stock: 4, reorder_level: 0 },
   ],
   batches: [{ id: "b1", expiry_date: "2026-07-25" }],
 }));
 
 assert.equal(store.size, 4, "Low-stock, out-of-stock, expiry, and trial alerts appear");
-assert.equal(store.get("LOW_STOCK:p2").status, "ACTIVE", "Settings low-stock threshold is used");
+assert.equal(store.get("LOW_STOCK:p2").status, "ACTIVE", "Product reorder level is used for low-stock alerts");
+assert.equal(store.has("LOW_STOCK:p3"), false, "Pharmacy settings do not override product reorder level");
 assert.equal(store.get("EXPIRING_SOON:b1").status, "ACTIVE", "Expiry alerts follow configured warning days");
 
 sync(store, generate({

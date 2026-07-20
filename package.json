@@ -11,7 +11,9 @@
     "verify:admin-restore": "node scripts/verify-admin-restore.mjs",
     "verify:admin-security": "node scripts/verify-admin-security.mjs",
     "verify:onboarding": "node scripts/verify-onboarding.mjs",
-    "verify:notifications": "node scripts/verify-notifications.mjs"
+    "verify:notifications": "node scripts/verify-notifications.mjs",
+    "verify:expiry-warning": "node scripts/verify-expiry-warning.mjs",
+    "verify:reorder-level": "node scripts/verify-reorder-level.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

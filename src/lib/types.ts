@@ -260,6 +260,7 @@ export type DashboardStats = {
   low_stock_items: number;
   out_of_stock_items: number;
   expiring_soon_batches: number;
+  expiry_warning_days: number;
   total_inventory_value: number;
   todays_sales: number;
   month_sales: number;

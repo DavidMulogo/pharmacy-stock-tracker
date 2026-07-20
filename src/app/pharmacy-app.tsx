@@ -444,7 +444,7 @@ export function PharmacyApp({
       {
         label: "Expiring Soon Batches",
         value: String(dashboardData.stats.expiring_soon_batches),
-        detail: "Within 30 days",
+        detail: `Within ${dashboardData.stats.expiry_warning_days} days`,
         onClick: () => setActiveTab("expiry" as Tab),
         tone: "orange" as const,
       },
@@ -528,6 +528,7 @@ export function PharmacyApp({
           low_stock_items: 0,
           out_of_stock_items: 0,
           expiring_soon_batches: 0,
+          expiry_warning_days: 30,
           total_inventory_value: 0,
           todays_sales: 0,
           month_sales: 0,

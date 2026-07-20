@@ -154,7 +154,7 @@ export function canRoleSeeNotification(role: PharmacyUserRole, type: Notificatio
 export async function syncNotificationsForPharmacy(pharmacy: Pharmacy) {
   const supabase = getSupabaseAdmin();
   const settings = await getPharmacySettings(pharmacy.id, pharmacy.pharmacy_name);
-  const warningDays = Math.max(0, Math.floor(settings.expiry_warning_days || 30));
+  const warningDays = Number.isFinite(settings.expiry_warning_days) ? Math.max(0, Math.floor(settings.expiry_warning_days)) : 30;
   const [productsResult, batchesResult] = await Promise.all([
     supabase.from("product_stock_summary").select("*").eq("pharmacy_id", pharmacy.id),
     supabase.from("inventory_batches").select("*, product:products(product_name)").eq("pharmacy_id", pharmacy.id),
@@ -166,7 +166,7 @@ export async function syncNotificationsForPharmacy(pharmacy: Pharmacy) {
   const activeInputs: NotificationInsert[] = [];
   for (const product of (productsResult.data || []) as ProductStockRow[]) {
     const stock = numberValue(product.available_stock);
-    const reorderLevel = numberValue(product.reorder_level) || numberValue(settings.low_stock_threshold);
+    const reorderLevel = numberValue(product.reorder_level);
     if (stock <= 0) activeInputs.push(productNotification(product, "OUT_OF_STOCK", reorderLevel));
     else if (stock <= reorderLevel) activeInputs.push(productNotification(product, "LOW_STOCK", reorderLevel));
   }

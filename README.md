@@ -88,19 +88,21 @@ Sales use generated columns for:
 The `product_stock_summary` database view calculates available stock as:
 
 ```text
-sum(inventory_batches.total_units_received) - sum(sales.quantity_sold)
+sum(inventory_batches.total_units_received) - sum(sales.units_sold)
 ```
 
 Stock statuses:
 
 - `OUT OF STOCK` when available stock is `<= 0`
-- `LOW STOCK` when available stock is `<= reorder_level`
-- `OK` otherwise
+- `LOW STOCK` when available stock is `> 0` and `<= product.reorder_level`
+- `OK` when available stock is `> product.reorder_level`
 
-Expiry statuses:
+Available stock is always measured in the product's base unit. If a product's reorder level is missing, the database view treats it as `0`.
+
+Expiry statuses use each pharmacy's `expiry_warning_days` setting, falling back to 30 days only when the setting is missing:
 
 - `EXPIRED` when expiry date is before today
-- `EXPIRING SOON` when expiry date is within 30 days
+- `EXPIRING SOON` when expiry date is within the configured warning window
 - `OK` otherwise
 
 All product stock, expiry, and sales totals are fetched from Supabase on the server. After a sale or stock addition, the affected pages are revalidated and the dashboard refreshes with current database values.

@@ -32,6 +32,12 @@ function normalizeOptionalNumber(value: number | string | null) {
   return value == null ? null : Number(value);
 }
 
+function normalizeExpiryWarningDays(value: number | string | null | undefined) {
+  if (value == null) return 30;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : 30;
+}
+
 function normalizeProduct(product: ProductStockSummaryRow): ProductWithStock {
   const rawUnitPrice = normalizeOptionalNumber(product.default_unit_price);
   const rawPackPrice = normalizeOptionalNumber(product.default_pack_price);
@@ -131,6 +137,7 @@ function emptyDashboardData(): DashboardData {
       low_stock_items: 0,
       out_of_stock_items: 0,
       expiring_soon_batches: 0,
+      expiry_warning_days: 30,
       total_inventory_value: 0,
       todays_sales: 0,
       month_sales: 0,
@@ -161,6 +168,7 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     todaysSalesResult,
     monthSalesResult,
     monthExpensesResult,
+    settingsResult,
   ] = await Promise.all([
     supabase.from("products").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId),
     supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("stock_status", "LOW STOCK"),
@@ -172,6 +180,7 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     includeFinancials
       ? supabase.from("expenses").select("amount").eq("pharmacy_id", pharmacyId).gte("expense_date", month.startDate).lt("expense_date", month.endDate)
       : Promise.resolve({ data: [], error: null }),
+    supabase.from("pharmacy_settings").select("expiry_warning_days").eq("pharmacy_id", pharmacyId).maybeSingle(),
   ]);
 
   if (productsCountResult.error) throw productsCountResult.error;
@@ -182,6 +191,7 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
   if (todaysSalesResult.error) throw todaysSalesResult.error;
   if (monthSalesResult.error) throw monthSalesResult.error;
   if (monthExpensesResult.error) throw monthExpensesResult.error;
+  if (settingsResult.error) throw settingsResult.error;
 
   const costByProductId = new Map(
     (inventoryValueResult.data || []).map((product) => [
@@ -228,6 +238,7 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     low_stock_items: lowStockResult.count || 0,
     out_of_stock_items: outOfStockResult.count || 0,
     expiring_soon_batches: expiringSoonResult.count || 0,
+    expiry_warning_days: normalizeExpiryWarningDays(settingsResult.data?.expiry_warning_days),
     total_inventory_value: (inventoryValueResult.data || []).reduce(
       (total, product) => total + normalizeNumber(product.available_stock) * normalizeNumber(product.derived_unit_cost),
       0,
