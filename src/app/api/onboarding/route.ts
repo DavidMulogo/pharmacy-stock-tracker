@@ -120,7 +120,6 @@ export async function PATCH(request: Request) {
 
     if (action === "business_rules") {
       const update: PharmacySettingsUpdate = {
-        low_stock_threshold: Math.floor(nonNegativeNumber(body.low_stock_threshold, "Low stock threshold")),
         expiry_warning_days: Math.floor(nonNegativeNumber(body.expiry_warning_days, "Expiry warning days")),
         allow_price_override: booleanValue(body.allow_price_override),
         vat_percentage: percentage(body.vat_percentage, "VAT percentage"),

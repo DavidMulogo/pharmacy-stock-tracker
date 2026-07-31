@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getProductDetail } from "@/lib/data";
 import { formatDate, formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
+import { ReorderLevelForm } from "@/app/products/reorder-level-form";
 
 export const dynamic = "force-dynamic";
 
@@ -30,16 +31,25 @@ export default async function ProductDetail({
               <h1 className="text-2xl font-bold">{product.product_name}</h1>
               <p className="mt-1 text-slate-600">{product.generic_name} - {product.brand_name} - {product.dosage_form}</p>
             </div>
-            <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
-              {product.stock_status}
-            </span>
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              {product.stock_status ? (
+                <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
+                  {product.stock_status}
+                </span>
+              ) : null}
+              {!product.reorder_level_configured ? (
+                <span className="w-fit rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                  Reorder level not configured
+                </span>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Metric label="Available" value={`${product.available_stock} ${product.base_unit}`} />
             <Metric label="Received" value={String(product.total_received)} />
             <Metric label="Sold" value={String(product.total_sold)} />
-            <Metric label="Reorder" value={String(product.reorder_level)} />
+            <Metric label="Reorder" value={product.reorder_level == null ? "Not configured" : String(product.reorder_level)} />
             <Metric label="Pack type" value={product.pack_type} />
             <Metric label="Units/pack" value={String(product.units_per_pack)} />
             <Metric label="Selling mode" value={product.selling_mode} />
@@ -48,6 +58,7 @@ export default async function ProductDetail({
             <Metric label="Unit cost" value={product.derived_unit_cost == null ? "-" : formatTZS(product.derived_unit_cost)} />
             <Metric label="Created" value={formatDate(product.created_at)} />
           </div>
+          {!product.reorder_level_configured ? <ReorderLevelForm productId={product.id} initialReorderLevel={product.reorder_level} /> : null}
         </section>
 
         <section className="mt-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

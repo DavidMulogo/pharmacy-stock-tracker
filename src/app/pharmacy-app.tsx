@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
+import { ReorderLevelForm } from "@/app/products/reorder-level-form";
 import { resolveDefaultPrice } from "@/lib/pricing";
 import { getPharmacyExpiryWarning } from "@/lib/subscription";
 import type { DashboardData, ExpiryStatus, NotificationCounts, OnboardingProgressSummary, OverrideFlag, Pharmacy, PharmacyUser, ProductWithStock, SellType, StockStatus } from "@/lib/types";
@@ -14,6 +15,7 @@ type Toast = {
   type: "success" | "error";
 };
 type ImportKind = "products" | "batches";
+type ProductStockFilter = StockStatus | "ALL" | "REORDER_UNCONFIGURED";
 type CsvRow = Record<string, string>;
 type ImportPreview = {
   rows: CsvRow[];
@@ -215,7 +217,7 @@ function validateImportRows(
     const rowWarnings: string[] = [];
 
     for (const column of requiredColumns) {
-      if (kind === "products" && (column === "default_unit_price" || column === "default_pack_price")) continue;
+      if (kind === "products" && (column === "default_unit_price" || column === "default_pack_price" || column === "reorder_level")) continue;
       if (!String(row[column] ?? "").trim()) rowErrors.push(`Missing ${column}.`);
     }
 
@@ -223,7 +225,8 @@ function validateImportRows(
       const unitsPerPack = Number(row.units_per_pack);
       const defaultUnitPrice = String(row.default_unit_price || "").trim() === "" ? null : Number(row.default_unit_price);
       const defaultPackPrice = String(row.default_pack_price || "").trim() === "" ? null : Number(row.default_pack_price);
-      const reorderLevel = Number(row.reorder_level);
+      const reorderText = String(row.reorder_level ?? "").trim();
+      const reorderLevel = reorderText === "" ? null : Number(reorderText);
       const sellingMode = String(row.selling_mode || "").trim();
 
       if (!String(row.product_name || "").trim()) rowErrors.push("Missing product name.");
@@ -232,7 +235,7 @@ function validateImportRows(
       if (defaultUnitPrice === null && defaultPackPrice === null) rowErrors.push("At least one default price is required.");
       if (defaultUnitPrice !== null && (!Number.isFinite(defaultUnitPrice) || defaultUnitPrice < 0)) rowErrors.push("Default unit price cannot be negative.");
       if (defaultPackPrice !== null && (!Number.isFinite(defaultPackPrice) || defaultPackPrice < 0)) rowErrors.push("Default pack price cannot be negative.");
-      if (!Number.isInteger(reorderLevel) || reorderLevel < 0) rowErrors.push("Reorder level cannot be negative.");
+      if (reorderLevel !== null && (!Number.isInteger(reorderLevel) || reorderLevel < 0)) rowErrors.push("Reorder level must be a whole number zero or greater.");
     } else {
       const productName = String(row.product_name || "").trim();
       const packsReceived = Number(row.packs_received);
@@ -299,7 +302,7 @@ export function PharmacyApp({
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [query, setQuery] = useState("");
   const [productSearch, setProductSearch] = useState("");
-  const [productStockStatus, setProductStockStatus] = useState<StockStatus | "ALL">("ALL");
+  const [productStockStatus, setProductStockStatus] = useState<ProductStockFilter>("ALL");
   const [salesSearch, setSalesSearch] = useState("");
   const [salesDate, setSalesDate] = useState("");
   const [salesOverrideFlag, setSalesOverrideFlag] = useState<OverrideFlag | "ALL">("ALL");
@@ -340,7 +343,11 @@ export function PharmacyApp({
         !text ||
         product.product_name.toLowerCase().includes(text) ||
         product.generic_name.toLowerCase().includes(text);
-      const matchesStatus = productStockStatus === "ALL" || product.stock_status === productStockStatus;
+      const matchesStatus =
+        productStockStatus === "ALL" ||
+        (productStockStatus === "REORDER_UNCONFIGURED"
+          ? !product.reorder_level_configured
+          : product.stock_status === productStockStatus);
 
       return matchesText && matchesStatus;
     });
@@ -442,6 +449,16 @@ export function PharmacyApp({
         tone: "rose" as const,
       },
       {
+        label: "Reorder Levels Needed",
+        value: String(dashboardData.stats.reorder_level_unconfigured_items),
+        detail: "Configure product minimums",
+        onClick: () => {
+          setProductStockStatus("REORDER_UNCONFIGURED");
+          setActiveTab("products" as Tab);
+        },
+        tone: "slate" as const,
+      },
+      {
         label: "Expiring Soon Batches",
         value: String(dashboardData.stats.expiring_soon_batches),
         detail: `Within ${dashboardData.stats.expiry_warning_days} days`,
@@ -527,6 +544,7 @@ export function PharmacyApp({
           total_products: 0,
           low_stock_items: 0,
           out_of_stock_items: 0,
+          reorder_level_unconfigured_items: 0,
           expiring_soon_batches: 0,
           expiry_warning_days: 30,
           total_inventory_value: 0,
@@ -938,7 +956,7 @@ export function PharmacyApp({
             product.selling_mode,
             product.default_unit_price,
             product.default_pack_price,
-            product.reorder_level,
+            product.reorder_level ?? "",
           ]),
         ),
       );
@@ -948,15 +966,16 @@ export function PharmacyApp({
       downloadCsv(
         "stock-summary.csv",
         buildCsv(
-          ["product_name", "generic_name", "total_received", "total_sold", "available_stock", "reorder_level", "stock_status"],
+          ["product_name", "generic_name", "total_received", "total_sold", "available_stock", "reorder_level", "reorder_level_configured", "stock_status"],
           dashboardData.products.map((product) => [
             product.product_name,
             product.generic_name,
             product.total_received,
             product.total_sold,
             product.available_stock,
-            product.reorder_level,
-            product.stock_status,
+            product.reorder_level ?? "",
+            product.reorder_level_configured ? "Yes" : "No",
+            product.stock_status ?? "",
           ]),
         ),
       );
@@ -1295,7 +1314,7 @@ export function PharmacyApp({
                             <p className="font-semibold">{product.product_name}</p>
                             <p className="text-sm text-slate-600">{product.available_stock} {product.base_unit} available</p>
                           </div>
-                          <StatusBadge value={product.stock_status} />
+                          <ProductStockBadges product={product} />
                         </div>
                       ))
                   ) : (
@@ -1488,13 +1507,14 @@ export function PharmacyApp({
                 />
                 <select
                   value={productStockStatus}
-                  onChange={(event) => setProductStockStatus(event.target.value as StockStatus | "ALL")}
+                  onChange={(event) => setProductStockStatus(event.target.value as ProductStockFilter)}
                   className="w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600"
                 >
                   <option value="ALL">All stock statuses</option>
                   <option value="OK">OK</option>
                   <option value="LOW STOCK">Low stock</option>
                   <option value="OUT OF STOCK">Out of stock</option>
+                  <option value="REORDER_UNCONFIGURED">Reorder level not configured</option>
                 </select>
               </div>
               {dashboardData.products.length ? (
@@ -1513,15 +1533,18 @@ export function PharmacyApp({
                     <h2 className="font-bold">{product.product_name}</h2>
                     <p className="text-sm text-slate-600">{product.generic_name} - {product.brand_name} - {product.dosage_form}</p>
                   </div>
-                  <StatusBadge value={product.stock_status} />
+                  <ProductStockBadges product={product} />
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <Metric label="Available" value={String(product.available_stock)} />
                   <Metric label="Received" value={String(product.total_received)} />
                   <Metric label="Sold" value={String(product.total_sold)} />
                   <Metric label="Unit cost" value={product.derived_unit_cost == null ? "-" : formatTZS(product.derived_unit_cost)} />
-                  <Metric label="Reorder" value={String(product.reorder_level)} />
+                  <Metric label="Reorder" value={product.reorder_level == null ? "Not configured" : String(product.reorder_level)} />
                 </div>
+                {!product.reorder_level_configured ? (
+                  <ReorderLevelForm productId={product.id} initialReorderLevel={product.reorder_level} onSaved={() => loadPharmacyData(activePharmacyId)} />
+                ) : null}
                 <Link className="mt-4 inline-block text-sm font-bold text-emerald-700" href={`/products/${product.id}`}>
                   Product detail
                 </Link>
@@ -1920,7 +1943,7 @@ function ProductRow({
               PRICE MISSING
             </span>
           ) : null}
-          <StatusBadge value={product.stock_status} />
+          <ProductStockBadges product={product} />
         </div>
       </div>
       <p className="mt-2 text-sm text-slate-700">{product.available_stock} {product.base_unit} available</p>
@@ -1939,6 +1962,19 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function StatusBadge({ value }: { value: StatusBadgeValue }) {
   return <span className={STATUS_BADGE_CLASSES[value]}>{value}</span>;
+}
+
+function ProductStockBadges({ product }: { product: ProductWithStock }) {
+  return (
+    <div className="flex flex-col items-start gap-2 sm:items-end">
+      {product.stock_status ? <StatusBadge value={product.stock_status} /> : null}
+      {!product.reorder_level_configured ? (
+        <span className="w-fit rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+          Reorder level not configured
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 function Input({

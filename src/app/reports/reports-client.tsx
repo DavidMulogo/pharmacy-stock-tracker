@@ -21,8 +21,9 @@ type InventoryRow = {
   id: string;
   product: string;
   available_stock: number;
-  stock_status: StockStatus;
-  reorder_level: number;
+  stock_status: StockStatus | null;
+  reorder_level: number | null;
+  reorder_level_configured: boolean;
   unit_cost: number;
   inventory_value: number;
 };
@@ -63,7 +64,7 @@ type ActivityRow = {
 
 type ReportData =
   | { type: "sales"; summary: { total_sales: number; units_sold: number; transactions: number }; rows: SalesRow[] }
-  | { type: "inventory"; summary: { products: number; low_stock: number; out_of_stock: number; total_inventory_value: number }; rows: InventoryRow[] }
+  | { type: "inventory"; summary: { products: number; low_stock: number; out_of_stock: number; reorder_unconfigured: number; total_inventory_value: number }; rows: InventoryRow[] }
   | { type: "expiry"; summary: { batches: number; expired: number; expiring_soon: number }; rows: ExpiryRow[] }
   | { type: "overrides"; summary: { overrides: number; total_difference: number }; rows: OverrideRow[] }
   | { type: "profit"; summary: { total_sales: number; gross_profit: number; expenses: number; net_profit: number; expenses_by_category: Array<{ category: string; amount: number }> }; rows: ProfitRow[] }
@@ -114,8 +115,16 @@ function reportCsv(report: ReportData) {
   }
   if (report.type === "inventory") {
     return buildCsv(
-      ["Product", "Available Stock", "Stock Status", "Reorder Level", "Unit Cost", "Inventory Value"],
-      report.rows.map((row) => [row.product, row.available_stock, row.stock_status, row.reorder_level, row.unit_cost, row.inventory_value]),
+      ["Product", "Available Stock", "Stock Status", "Reorder Level", "Reorder Configured", "Unit Cost", "Inventory Value"],
+      report.rows.map((row) => [
+        row.product,
+        row.available_stock,
+        row.stock_status ?? "Not configured",
+        row.reorder_level ?? "",
+        row.reorder_level_configured ? "Yes" : "No",
+        row.unit_cost,
+        row.inventory_value,
+      ]),
     );
   }
   if (report.type === "expiry") {
@@ -312,6 +321,7 @@ function ReportSummary({ report }: { report: ReportData }) {
         <SummaryCard label="Products" value={String(report.summary.products)} />
         <SummaryCard label="Low stock" value={String(report.summary.low_stock)} />
         <SummaryCard label="Out of stock" value={String(report.summary.out_of_stock)} />
+        <SummaryCard label="Reorder not configured" value={String(report.summary.reorder_unconfigured)} />
         <SummaryCard label="Inventory value" value={formatTZS(report.summary.total_inventory_value)} />
       </section>
     );
@@ -415,8 +425,8 @@ function ReportRows({ report }: { report: ReportData }) {
       <tr key={row.id}>
         <Cell>{row.product}</Cell>
         <Cell>{row.available_stock}</Cell>
-        <Cell>{row.stock_status}</Cell>
-        <Cell>{row.reorder_level}</Cell>
+        <Cell>{row.stock_status ?? "Not configured"}</Cell>
+        <Cell>{row.reorder_level ?? "Not configured"}</Cell>
         <Cell>{formatTZS(row.unit_cost)}</Cell>
         <Cell>{formatTZS(row.inventory_value)}</Cell>
       </tr>

@@ -166,9 +166,9 @@ export async function syncNotificationsForPharmacy(pharmacy: Pharmacy) {
   const activeInputs: NotificationInsert[] = [];
   for (const product of (productsResult.data || []) as ProductStockRow[]) {
     const stock = numberValue(product.available_stock);
-    const reorderLevel = numberValue(product.reorder_level);
-    if (stock <= 0) activeInputs.push(productNotification(product, "OUT_OF_STOCK", reorderLevel));
-    else if (stock <= reorderLevel) activeInputs.push(productNotification(product, "LOW_STOCK", reorderLevel));
+    const reorderLevel = product.reorder_level == null ? null : numberValue(product.reorder_level);
+    if (stock <= 0) activeInputs.push(productNotification(product, "OUT_OF_STOCK", reorderLevel ?? 0));
+    else if (reorderLevel !== null && stock <= reorderLevel) activeInputs.push(productNotification(product, "LOW_STOCK", reorderLevel));
   }
 
   for (const batch of (batchesResult.data || []) as BatchRow[]) {

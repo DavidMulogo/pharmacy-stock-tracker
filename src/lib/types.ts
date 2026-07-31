@@ -141,7 +141,6 @@ export type PharmacySettings = {
   receipt_header: string;
   receipt_footer: string;
   receipt_prefix: string;
-  low_stock_threshold: number;
   expiry_warning_days: number;
   allow_negative_stock: boolean;
   allow_duplicate_batches: boolean;
@@ -168,7 +167,7 @@ export type Product = {
   selling_mode: SellingMode;
   default_unit_price: number | null;
   default_pack_price: number | null;
-  reorder_level: number;
+  reorder_level: number | null;
   created_at: string;
 };
 
@@ -209,7 +208,8 @@ export type ProductWithStock = Product & {
   total_sold: number;
   available_stock: number;
   derived_unit_cost: number | null;
-  stock_status: StockStatus;
+  reorder_level_configured: boolean;
+  stock_status: StockStatus | null;
 };
 
 export type BatchWithProduct = InventoryBatch & {
@@ -259,6 +259,7 @@ export type DashboardStats = {
   total_products: number;
   low_stock_items: number;
   out_of_stock_items: number;
+  reorder_level_unconfigured_items: number;
   expiring_soon_batches: number;
   expiry_warning_days: number;
   total_inventory_value: number;

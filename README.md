@@ -94,10 +94,11 @@ sum(inventory_batches.total_units_received) - sum(sales.units_sold)
 Stock statuses:
 
 - `OUT OF STOCK` when available stock is `<= 0`
-- `LOW STOCK` when available stock is `> 0` and `<= product.reorder_level`
-- `OK` when available stock is `> product.reorder_level`
+- `LOW STOCK` when available stock is `> 0`, `product.reorder_level` is configured, and available stock is `<= product.reorder_level`
+- `OK` when available stock is `> 0`, `product.reorder_level` is configured, and available stock is `> product.reorder_level`
+- no stock status when available stock is `> 0` and `product.reorder_level` is not configured
 
-Available stock is always measured in the product's base unit. If a product's reorder level is missing, the database view treats it as `0`.
+Available stock is always measured in the product's base unit. Missing reorder levels are shown separately as product configuration work, not as stock status.
 
 Expiry statuses use each pharmacy's `expiry_warning_days` setting, falling back to 30 days only when the setting is missing:
 

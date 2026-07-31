@@ -11,7 +11,7 @@ type ProfileForm = Pick<Pharmacy, "pharmacy_name" | "owner_name" | "phone"> &
   Pick<PharmacySettings, "address" | "region" | "district" | "email">;
 type BusinessForm = Pick<
   PharmacySettings,
-  "currency" | "timezone" | "low_stock_threshold" | "expiry_warning_days" | "allow_price_override" | "vat_percentage"
+  "currency" | "timezone" | "expiry_warning_days" | "allow_price_override" | "vat_percentage"
 >;
 type StaffForm = {
   full_name: string;
@@ -129,7 +129,6 @@ export function OnboardingClient({
   const [businessForm, setBusinessForm] = useState<BusinessForm>({
     currency: initialSettings.currency,
     timezone: initialSettings.timezone,
-    low_stock_threshold: initialSettings.low_stock_threshold,
     expiry_warning_days: initialSettings.expiry_warning_days,
     allow_price_override: initialSettings.allow_price_override,
     vat_percentage: initialSettings.vat_percentage,
@@ -328,13 +327,12 @@ export function OnboardingClient({
 
         <StepShell
           title="2. Business rules"
-          detail="Set the default stock warnings, price override behavior, VAT, currency, and timezone."
+          detail="Set expiry warnings, price override behavior, VAT, currency, and timezone."
           status={stepStatus("business_rules", isReviewed(progress, "business_rules"))}
         >
           <form className="grid gap-3 md:grid-cols-2" onSubmit={saveBusinessRules}>
             <Input label="Currency" value={businessForm.currency} onChange={(value) => setBusinessForm({ ...businessForm, currency: value })} />
             <Input label="Timezone" value={businessForm.timezone} onChange={(value) => setBusinessForm({ ...businessForm, timezone: value })} />
-            <Input label="Low-stock threshold" value={businessForm.low_stock_threshold} onChange={(value) => setBusinessForm({ ...businessForm, low_stock_threshold: Number(value) })} type="number" />
             <Input label="Expiry-warning days" value={businessForm.expiry_warning_days} onChange={(value) => setBusinessForm({ ...businessForm, expiry_warning_days: Number(value) })} type="number" />
             <Input label="VAT percentage" value={businessForm.vat_percentage} onChange={(value) => setBusinessForm({ ...businessForm, vat_percentage: Number(value) })} type="number" />
             <Toggle label="Allow price override" checked={businessForm.allow_price_override} onChange={(value) => setBusinessForm({ ...businessForm, allow_price_override: value })} />

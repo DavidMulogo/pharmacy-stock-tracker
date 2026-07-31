@@ -47,7 +47,7 @@ function normalizeProduct(product: ProductStockSummaryRow): ProductWithStock {
     default_selling_price: normalizeNumber(product.default_selling_price),
     default_unit_price: rawUnitPrice,
     default_pack_price: rawPackPrice,
-    reorder_level: normalizeNumber(product.reorder_level),
+    reorder_level: normalizeOptionalNumber(product.reorder_level),
     total_received: normalizeNumber(product.total_received),
     total_sold: normalizeNumber(product.total_sold),
     available_stock: normalizeNumber(product.available_stock),
@@ -136,6 +136,7 @@ function emptyDashboardData(): DashboardData {
       total_products: 0,
       low_stock_items: 0,
       out_of_stock_items: 0,
+      reorder_level_unconfigured_items: 0,
       expiring_soon_batches: 0,
       expiry_warning_days: 30,
       total_inventory_value: 0,
@@ -163,6 +164,7 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     productsCountResult,
     lowStockResult,
     outOfStockResult,
+    reorderUnconfiguredResult,
     expiringSoonResult,
     inventoryValueResult,
     todaysSalesResult,
@@ -173,6 +175,7 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     supabase.from("products").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId),
     supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("stock_status", "LOW STOCK"),
     supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("stock_status", "OUT OF STOCK"),
+    supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("reorder_level_configured", false),
     supabase.from("batch_expiry_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("expiry_status", "EXPIRING SOON"),
     supabase.from("product_stock_summary").select("id, product_name, available_stock, derived_unit_cost").eq("pharmacy_id", pharmacyId),
     supabase.from("sales").select("product_id, units_sold, total_sale").eq("pharmacy_id", pharmacyId).gte("created_at", today.start).lt("created_at", today.end),
@@ -186,6 +189,7 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
   if (productsCountResult.error) throw productsCountResult.error;
   if (lowStockResult.error) throw lowStockResult.error;
   if (outOfStockResult.error) throw outOfStockResult.error;
+  if (reorderUnconfiguredResult.error) throw reorderUnconfiguredResult.error;
   if (expiringSoonResult.error) throw expiringSoonResult.error;
   if (inventoryValueResult.error) throw inventoryValueResult.error;
   if (todaysSalesResult.error) throw todaysSalesResult.error;
@@ -237,6 +241,7 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     total_products: productsCountResult.count || 0,
     low_stock_items: lowStockResult.count || 0,
     out_of_stock_items: outOfStockResult.count || 0,
+    reorder_level_unconfigured_items: reorderUnconfiguredResult.count || 0,
     expiring_soon_batches: expiringSoonResult.count || 0,
     expiry_warning_days: normalizeExpiryWarningDays(settingsResult.data?.expiry_warning_days),
     total_inventory_value: (inventoryValueResult.data || []).reduce(

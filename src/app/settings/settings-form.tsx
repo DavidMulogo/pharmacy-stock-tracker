@@ -18,7 +18,6 @@ function toFormState(settings: PharmacySettings): SettingsFormState {
     receipt_header: settings.receipt_header,
     receipt_footer: settings.receipt_footer,
     receipt_prefix: settings.receipt_prefix,
-    low_stock_threshold: settings.low_stock_threshold,
     expiry_warning_days: settings.expiry_warning_days,
     allow_negative_stock: settings.allow_negative_stock,
     allow_duplicate_batches: settings.allow_duplicate_batches,
@@ -144,12 +143,6 @@ export function SettingsForm({ initialSettings }: { initialSettings: PharmacySet
       </Section>
 
       <Section title="Inventory Settings">
-        <Input
-          label="Low stock threshold"
-          value={form.low_stock_threshold}
-          onChange={(value) => update("low_stock_threshold", Number(value))}
-          type="number"
-        />
         <Input
           label="Expiry warning days"
           value={form.expiry_warning_days}

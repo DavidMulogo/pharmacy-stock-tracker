@@ -373,7 +373,7 @@ export type Database = {
           selling_mode: SellingMode;
           default_unit_price: number | null;
           default_pack_price: number | null;
-          reorder_level: number;
+          reorder_level: number | null;
           created_at: string;
         };
         Insert: {
@@ -390,7 +390,7 @@ export type Database = {
           selling_mode?: SellingMode;
           default_unit_price?: number | null;
           default_pack_price?: number | null;
-          reorder_level?: number;
+          reorder_level?: number | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
@@ -570,7 +570,8 @@ export type Database = {
           total_sold: number;
           available_stock: number;
           derived_unit_cost: number | null;
-          stock_status: StockStatus;
+          reorder_level_configured: boolean;
+          stock_status: StockStatus | null;
         };
         Relationships: [];
       };

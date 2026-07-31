@@ -61,7 +61,6 @@ export async function PATCH(request: Request) {
       receipt_header: text(body.receipt_header),
       receipt_footer: text(body.receipt_footer),
       receipt_prefix: text(body.receipt_prefix) || "RCP",
-      low_stock_threshold: Math.floor(nonNegativeNumber(body.low_stock_threshold, "Low stock threshold")),
       expiry_warning_days: Math.floor(nonNegativeNumber(body.expiry_warning_days, "Expiry warning days")),
       allow_negative_stock: booleanValue(body.allow_negative_stock),
       allow_duplicate_batches: booleanValue(body.allow_duplicate_batches),
