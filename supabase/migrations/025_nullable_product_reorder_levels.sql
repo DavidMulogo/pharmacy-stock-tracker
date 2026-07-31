@@ -68,13 +68,18 @@ select
   total_received::integer as total_received,
   total_sold::integer as total_sold,
   available_stock::integer as available_stock,
-  derived_unit_cost,
-  reorder_level is not null as reorder_level_configured,
+    derived_unit_cost,
   case
     when available_stock <= 0 then 'OUT OF STOCK'
-    when available_stock > 0 and reorder_level is not null and available_stock <= reorder_level then 'LOW STOCK'
-    when available_stock > 0 and reorder_level is not null and available_stock > reorder_level then 'OK'
+    when available_stock > 0
+      and reorder_level is not null
+      and available_stock <= reorder_level
+      then 'LOW STOCK'
+    when available_stock > 0
+      and reorder_level is not null
+      and available_stock > reorder_level
+      then 'OK'
     else null
-  end as stock_status
+  end as stock_status,
   reorder_level is not null as reorder_level_configured
 from stock;
