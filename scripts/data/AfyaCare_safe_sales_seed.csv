@@ -1,0 +1,26 @@
+﻿sold_at,product_name,batch_number,sell_type,quantity,expected_price,final_price,total_amount,override_reason,staff_username,notes
+2026-07-22 09:10:00,Levocetirizine Tablets 5 mg,AFY-2001,UNIT,10,600,600,6000,,owner,Allergy treatment
+2026-07-22 11:35:00,Mometasone Nasal Spray 50 mcg,AFY-2002,PACK,1,18000,18000,18000,,owner,Nasal allergy treatment
+2026-07-22 15:20:00,Artificial Tears Eye Drops 10 mL,AFY-2003,PACK,1,7000,7000,7000,,owner,Dry eye treatment
+2026-07-23 08:45:00,Probiotic Capsules,AFY-2006,UNIT,2,800,800,1600,,owner,Two capsules
+2026-07-23 12:15:00,Oral Glucose Gel 25 g,AFY-2007,PACK,2,4000,4000,8000,,owner,Two tubes
+2026-07-23 17:05:00,Zinc Oxide Cream 100 g,AFY-2008,PACK,1,6000,6000,6000,,owner,Skin care
+2026-07-24 09:30:00,Levocetirizine Tablets 5 mg,AFY-2001,UNIT,6,600,600,3600,,owner,Allergy treatment
+2026-07-24 13:10:00,Saline Nasal Spray 30 mL,AFY-2011,PACK,1,6500,6500,6500,,owner,Nasal care
+2026-07-24 18:00:00,Elastic Knee Support Medium,AFY-2009,PACK,1,15000,14000,14000,Customer discount,owner,Price override demo
+2026-07-25 08:20:00,Lactase Enzyme Tablets,AFY-2010,UNIT,4,1000,1000,4000,,owner,Unit sale
+2026-07-25 11:55:00,Azelastine Eye Drops 0.05% 10 mL,AFY-2005,PACK,1,12000,11000,11000,Promotional discount,owner,Price override demo
+2026-07-25 16:25:00,Nebulizer Mask Adult,AFY-2004,PACK,1,5000,5000,5000,,owner,Device sale
+2026-07-26 09:05:00,Artificial Tears Eye Drops 10 mL,AFY-2003,PACK,2,7000,7000,14000,,owner,Two bottles
+2026-07-26 12:40:00,Probiotic Capsules,AFY-2006,UNIT,2,800,800,1600,,owner,Two capsules
+2026-07-26 17:15:00,Mometasone Nasal Spray 50 mcg,AFY-2002,PACK,1,18000,18000,18000,,owner,Nasal allergy treatment
+2026-07-27 08:50:00,Levocetirizine Tablets 5 mg,AFY-2001,UNIT,10,600,550,5500,Bulk purchase discount,owner,Price override demo
+2026-07-27 13:25:00,Oral Glucose Gel 25 g,AFY-2007,PACK,1,4000,4000,4000,,owner,Single tube
+2026-07-27 18:10:00,Zinc Oxide Cream 100 g,AFY-2008,PACK,1,6000,6000,6000,,owner,Skin care
+2026-07-28 09:15:00,Lactase Enzyme Tablets,AFY-2010,UNIT,3,1000,1000,3000,,owner,Unit sale
+2026-07-28 12:05:00,Artificial Tears Eye Drops 10 mL,AFY-2003,PACK,1,7000,7000,7000,,owner,Eye care
+2026-07-28 16:40:00,Saline Nasal Spray 30 mL,AFY-2011,PACK,1,6500,6500,6500,,owner,Nasal care
+2026-07-29 08:35:00,Nebulizer Mask Adult,AFY-2004,PACK,1,5000,5000,5000,,owner,Device sale
+2026-07-29 14:20:00,Mometasone Nasal Spray 50 mcg,AFY-2002,PACK,1,18000,18000,18000,,owner,Expiring-soon batch demo
+2026-07-30 10:00:00,Levocetirizine Tablets 5 mg,AFY-2001,UNIT,4,600,600,2400,,owner,Allergy treatment
+2026-07-31 17:10:00,Artificial Tears Eye Drops 10 mL,AFY-2003,PACK,1,7000,7000,7000,,owner,Closing sale
