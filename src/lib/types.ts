@@ -269,6 +269,8 @@ export type DashboardStats = {
   month_gross_profit: number;
   month_expenses: number;
   month_net_profit: number;
+  todays_profit_incomplete_sales: number;
+  month_profit_incomplete_sales: number;
   best_selling_products: BestSellingProduct[];
 };
 

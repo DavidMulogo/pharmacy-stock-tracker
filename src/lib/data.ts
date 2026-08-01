@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import { resolvePackPrice, resolveUnitPrice } from "@/lib/pricing";
+import { summarizeExactGrossProfit } from "@/lib/cogs";
 import type { BatchWithProduct, DashboardData, DashboardStats, Expense, ExpiryStatus, Pharmacy, Product, ProductWithStock, SaleWithProduct } from "@/lib/types";
 
 const millisecondsPerDay = 86_400_000;
@@ -9,6 +10,7 @@ type PharmacyRow = Database["public"]["Tables"]["pharmacies"]["Row"];
 type ProductStockSummaryRow = Database["public"]["Views"]["product_stock_summary"]["Row"];
 type BatchExpirySummaryRow = Database["public"]["Views"]["batch_expiry_summary"]["Row"];
 type SaleRow = Database["public"]["Tables"]["sales"]["Row"];
+type SaleBatchAllocationRow = Database["public"]["Tables"]["sale_batch_allocations"]["Row"];
 type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
 type SaleWithProductRow = SaleRow & {
   product: ProductRow | ProductRow[] | null;
@@ -146,6 +148,8 @@ function emptyDashboardData(): DashboardData {
       month_gross_profit: 0,
       month_expenses: 0,
       month_net_profit: 0,
+      todays_profit_incomplete_sales: 0,
+      month_profit_incomplete_sales: 0,
       best_selling_products: [],
     },
     products: [],
@@ -178,8 +182,8 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("reorder_level_configured", false),
     supabase.from("batch_expiry_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("expiry_status", "EXPIRING SOON"),
     supabase.from("product_stock_summary").select("id, product_name, available_stock, derived_unit_cost").eq("pharmacy_id", pharmacyId),
-    supabase.from("sales").select("product_id, units_sold, total_sale").eq("pharmacy_id", pharmacyId).gte("created_at", today.start).lt("created_at", today.end),
-    supabase.from("sales").select("product_id, units_sold, total_sale").eq("pharmacy_id", pharmacyId).gte("created_at", month.start).lt("created_at", month.end),
+    supabase.from("sales").select("id, product_id, units_sold, total_sale").eq("pharmacy_id", pharmacyId).gte("created_at", today.start).lt("created_at", today.end),
+    supabase.from("sales").select("id, product_id, units_sold, total_sale").eq("pharmacy_id", pharmacyId).gte("created_at", month.start).lt("created_at", month.end),
     includeFinancials
       ? supabase.from("expenses").select("amount").eq("pharmacy_id", pharmacyId).gte("expense_date", month.startDate).lt("expense_date", month.endDate)
       : Promise.resolve({ data: [], error: null }),
@@ -206,15 +210,19 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
       },
     ]),
   );
-  const calculateGrossProfit = (sales: { product_id: string; units_sold: number | string | null; total_sale: number | string | null }[]) =>
-    includeFinancials
-      ? sales.reduce((total, sale) => {
-          const cost = costByProductId.get(sale.product_id)?.derived_unit_cost || 0;
-          return total + normalizeNumber(sale.total_sale) - normalizeNumber(sale.units_sold) * cost;
-        }, 0)
-      : 0;
   const todaysSales = todaysSalesResult.data || [];
   const monthSales = monthSalesResult.data || [];
+  const allocationSaleIds = Array.from(new Set([...todaysSales, ...monthSales].map((sale) => sale.id)));
+  let saleAllocations: SaleBatchAllocationRow[] = [];
+  if (includeFinancials && allocationSaleIds.length > 0) {
+    const allocationResult = await supabase
+      .from("sale_batch_allocations")
+      .select("sale_id, quantity, cost_of_goods_sold")
+      .eq("pharmacy_id", pharmacyId)
+      .in("sale_id", allocationSaleIds);
+    if (allocationResult.error) throw allocationResult.error;
+    saleAllocations = (allocationResult.data || []) as SaleBatchAllocationRow[];
+  }
   const bestSellingByProduct = new Map<string, { product_id: string; product_name: string; units_sold: number; total_sale: number }>();
 
   monthSales.forEach((sale) => {
@@ -231,8 +239,10 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     bestSellingByProduct.set(sale.product_id, current);
   });
 
-  const todaysGrossProfit = calculateGrossProfit(todaysSales);
-  const monthGrossProfit = calculateGrossProfit(monthSales);
+  const todaysProfit = includeFinancials ? summarizeExactGrossProfit(todaysSales, saleAllocations) : null;
+  const monthProfit = includeFinancials ? summarizeExactGrossProfit(monthSales, saleAllocations) : null;
+  const todaysGrossProfit = todaysProfit?.grossProfit || 0;
+  const monthGrossProfit = monthProfit?.grossProfit || 0;
   const monthExpenses = includeFinancials
     ? (monthExpensesResult.data || []).reduce((total, expense) => total + normalizeNumber(expense.amount), 0)
     : 0;
@@ -254,6 +264,8 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     month_gross_profit: monthGrossProfit,
     month_expenses: monthExpenses,
     month_net_profit: monthGrossProfit - monthExpenses,
+    todays_profit_incomplete_sales: todaysProfit?.incompleteSales || 0,
+    month_profit_incomplete_sales: monthProfit?.incompleteSales || 0,
     best_selling_products: Array.from(bestSellingByProduct.values())
       .sort((a, b) => b.units_sold - a.units_sold)
       .slice(0, 5),

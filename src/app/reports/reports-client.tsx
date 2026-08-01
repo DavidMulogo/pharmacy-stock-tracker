@@ -67,7 +67,7 @@ type ReportData =
   | { type: "inventory"; summary: { products: number; low_stock: number; out_of_stock: number; reorder_unconfigured: number; total_inventory_value: number }; rows: InventoryRow[] }
   | { type: "expiry"; summary: { batches: number; expired: number; expiring_soon: number }; rows: ExpiryRow[] }
   | { type: "overrides"; summary: { overrides: number; total_difference: number }; rows: OverrideRow[] }
-  | { type: "profit"; summary: { total_sales: number; gross_profit: number; expenses: number; net_profit: number; expenses_by_category: Array<{ category: string; amount: number }> }; rows: ProfitRow[] }
+  | { type: "profit"; summary: { total_sales: number; gross_profit: number; expenses: number; net_profit: number; incomplete_sales: number; expenses_by_category: Array<{ category: string; amount: number }> }; rows: ProfitRow[] }
   | { type: "activity"; summary: { activities: number; staff: number }; rows: ActivityRow[] };
 
 const reportLabels: Record<ReportType, string> = {
@@ -345,11 +345,12 @@ function ReportSummary({ report }: { report: ReportData }) {
   }
   if (report.type === "profit") {
     return (
-      <section className="grid gap-3 sm:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-5">
         <SummaryCard label="Sales" value={formatTZS(report.summary.total_sales)} />
         <SummaryCard label="Gross profit" value={formatTZS(report.summary.gross_profit)} />
         <SummaryCard label="Expenses" value={formatTZS(report.summary.expenses)} />
         <SummaryCard label="Net profit" value={formatTZS(report.summary.net_profit)} />
+        <SummaryCard label="Missing COGS" value={String(report.summary.incomplete_sales)} />
       </section>
     );
   }

@@ -1,6 +1,7 @@
 import { getActivityLogs } from "@/lib/activity-log";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
+import { summarizeExactGrossProfit } from "@/lib/cogs";
 import type { ExpiryStatus, OverrideFlag, PharmacyUserRole, SellType, StockStatus } from "@/lib/types";
 
 export type ReportType = "sales" | "inventory" | "expiry" | "overrides" | "profit" | "activity";
@@ -16,6 +17,7 @@ type SaleRow = Database["public"]["Tables"]["sales"]["Row"];
 type ProductStockSummaryRow = Database["public"]["Views"]["product_stock_summary"]["Row"];
 type BatchExpirySummaryRow = Database["public"]["Views"]["batch_expiry_summary"]["Row"];
 type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
+type SaleBatchAllocationRow = Database["public"]["Tables"]["sale_batch_allocations"]["Row"];
 type SaleWithProductRow = SaleRow & {
   product: Pick<ProductRow, "product_name"> | Pick<ProductRow, "product_name">[] | null;
 };
@@ -228,14 +230,13 @@ async function getOverrideReport(pharmacyId: string, filters: ReportFilters) {
 async function getExpenseProfitReport(pharmacyId: string, filters: ReportFilters) {
   const supabase = getSupabaseAdmin();
   const range = toDateRange(filters);
-  const [salesResult, productsResult, expensesResult] = await Promise.all([
+  const [salesResult, expensesResult] = await Promise.all([
     supabase
       .from("sales")
-      .select("product_id, units_sold, total_sale")
+      .select("id, product_id, units_sold, total_sale")
       .eq("pharmacy_id", pharmacyId)
       .gte("created_at", range.fromTimestamp)
       .lt("created_at", range.toTimestamp),
-    supabase.from("product_stock_summary").select("id, derived_unit_cost").eq("pharmacy_id", pharmacyId),
     supabase
       .from("expenses")
       .select("*")
@@ -246,13 +247,21 @@ async function getExpenseProfitReport(pharmacyId: string, filters: ReportFilters
   ]);
 
   if (salesResult.error) throw salesResult.error;
-  if (productsResult.error) throw productsResult.error;
   if (expensesResult.error) throw expensesResult.error;
 
-  const costByProductId = new Map(((productsResult.data || []) as ProductStockSummaryRow[]).map((product) => [product.id, normalizeNumber(product.derived_unit_cost)]));
   const sales = salesResult.data || [];
+  let saleAllocations: SaleBatchAllocationRow[] = [];
+  if (sales.length > 0) {
+    const allocationResult = await supabase
+      .from("sale_batch_allocations")
+      .select("sale_id, quantity, cost_of_goods_sold")
+      .eq("pharmacy_id", pharmacyId)
+      .in("sale_id", sales.map((sale) => sale.id));
+    if (allocationResult.error) throw allocationResult.error;
+    saleAllocations = (allocationResult.data || []) as SaleBatchAllocationRow[];
+  }
   const totalSales = sales.reduce((total, sale) => total + normalizeNumber(sale.total_sale), 0);
-  const grossProfit = sales.reduce((total, sale) => total + normalizeNumber(sale.total_sale) - normalizeNumber(sale.units_sold) * (costByProductId.get(sale.product_id) || 0), 0);
+  const profit = summarizeExactGrossProfit(sales, saleAllocations);
   const expenseRows = ((expensesResult.data || []) as ExpenseRow[]).map((expense) => ({
     id: expense.id,
     expense_date: expense.expense_date,
@@ -273,9 +282,10 @@ async function getExpenseProfitReport(pharmacyId: string, filters: ReportFilters
     filters: range,
     summary: {
       total_sales: totalSales,
-      gross_profit: grossProfit,
+      gross_profit: profit.grossProfit,
       expenses: totalExpenses,
-      net_profit: grossProfit - totalExpenses,
+      net_profit: profit.grossProfit - totalExpenses,
+      incomplete_sales: profit.incompleteSales,
       expenses_by_category: Array.from(expensesByCategory.entries()).map(([category, amount]) => ({ category, amount })),
     },
     rows: expenseRows,

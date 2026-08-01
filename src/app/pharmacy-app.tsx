@@ -491,14 +491,18 @@ export function PharmacyApp({
             {
               label: "Today's Gross Profit",
               value: formatTZS(dashboardData.stats.todays_gross_profit),
-              detail: "Sales less unit cost",
+              detail: dashboardData.stats.todays_profit_incomplete_sales
+                ? `${dashboardData.stats.todays_profit_incomplete_sales} sale(s) missing exact COGS`
+                : "Exact batch COGS",
               onClick: () => setActiveTab("sales" as Tab),
               tone: "emerald" as const,
             },
             {
               label: "This Month's Gross Profit",
               value: formatTZS(dashboardData.stats.month_gross_profit),
-              detail: "Month-to-date gross profit",
+              detail: dashboardData.stats.month_profit_incomplete_sales
+                ? `${dashboardData.stats.month_profit_incomplete_sales} sale(s) missing exact COGS`
+                : "Exact batch COGS",
               onClick: () => setActiveTab("sales" as Tab),
               tone: "emerald" as const,
             },
@@ -554,6 +558,8 @@ export function PharmacyApp({
           month_gross_profit: 0,
           month_expenses: 0,
           month_net_profit: 0,
+          todays_profit_incomplete_sales: 0,
+          month_profit_incomplete_sales: 0,
           best_selling_products: [],
         },
         products: [],
@@ -1283,6 +1289,11 @@ export function PharmacyApp({
                     <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
                       <p className="text-xs font-bold uppercase text-emerald-700">This month gross profit</p>
                       <p className="mt-1 text-xl font-black text-emerald-950">{formatTZS(dashboardData.stats.month_gross_profit)}</p>
+                      {dashboardData.stats.month_profit_incomplete_sales ? (
+                        <p className="mt-1 text-xs font-semibold text-amber-700">
+                          {dashboardData.stats.month_profit_incomplete_sales} sale(s) missing exact COGS.
+                        </p>
+                      ) : null}
                     </div>
                     <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2">
                       <p className="text-xs font-bold uppercase text-rose-700">This month expenses</p>

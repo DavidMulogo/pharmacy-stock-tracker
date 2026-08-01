@@ -476,6 +476,61 @@ export type Database = {
           },
         ];
       };
+      sale_batch_allocations: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          sale_id: string;
+          product_id: string;
+          inventory_batch_id: string;
+          quantity: number;
+          unit_cost_at_sale: number;
+          cost_of_goods_sold: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          sale_id: string;
+          product_id: string;
+          inventory_batch_id: string;
+          quantity: number;
+          unit_cost_at_sale: number;
+          cost_of_goods_sold: number;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["sale_batch_allocations"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "sale_batch_allocations_pharmacy_id_fkey";
+            columns: ["pharmacy_id"];
+            isOneToOne: false;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sale_batch_allocations_sale_id_fkey";
+            columns: ["sale_id"];
+            isOneToOne: false;
+            referencedRelation: "sales";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sale_batch_allocations_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sale_batch_allocations_inventory_batch_id_fkey";
+            columns: ["inventory_batch_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_batches";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       expenses: {
         Row: {
           id: string;

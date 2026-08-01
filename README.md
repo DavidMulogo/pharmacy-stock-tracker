@@ -152,3 +152,9 @@ The backup JSON includes pharmacy profile, pharmacy settings, products, inventor
 Each backup includes a deterministic SHA-256 checksum. The validation endpoint checks format, schema version, pharmacy identity, required datasets, record counts, and checksum.
 
 Admin Restore v1 is available inside `/admin`. It restores only missing records for the same pharmacy id and never deletes or overwrites existing data. It restores pharmacy settings when missing, products, inventory batches, sales, and expenses. It does not restore staff accounts, historical activity logs, sessions, passwords, password hashes, cookies, access credentials, admin users, or admin credentials.
+
+## Cost Of Goods Sold
+
+New sales allocate sold units to inventory batches using FEFO, then store immutable `sale_batch_allocations` rows with the batch unit cost at sale time and the resulting cost of goods sold. Dashboard and profit reports calculate exact gross profit from stored allocation COGS, not from current inventory value or product average cost.
+
+Historical sales that do not have allocation snapshots are not backfilled with fabricated costs. They remain in sales revenue totals, but exact gross profit excludes them and shows a missing COGS count so old profit is clearly marked as incomplete.

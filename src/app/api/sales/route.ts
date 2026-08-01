@@ -5,6 +5,7 @@ import type { Database } from "@/lib/database.types";
 import { resolveDefaultPrice } from "@/lib/pricing";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 import { recordActivity } from "@/lib/activity-log";
+import { allocateSaleBatches } from "@/lib/cogs";
 
 type SaleInsert = Database["public"]["Tables"]["sales"]["Insert"];
 const sellTypes = ["UNIT", "PACK"] as const;
@@ -83,6 +84,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Only ${availableStock} units are available.` }, { status: 409 });
     }
 
+    const allocationDrafts = await allocateSaleBatches(supabase, {
+      pharmacyId,
+      productId,
+      unitsSold,
+    });
+
     const salePayload: SaleInsert = {
       pharmacy_id: pharmacyId,
       product_id: productId,
@@ -103,6 +110,21 @@ export async function POST(request: Request) {
       .single();
 
     if (saleResult.error) throw saleResult.error;
+
+    const allocationResult = await supabase.from("sale_batch_allocations").insert(
+      allocationDrafts.map((allocation) => ({
+        ...allocation,
+        sale_id: saleResult.data.id,
+      })),
+    );
+
+    if (allocationResult.error) {
+      console.error("Sale batch allocation insert failed; rolling back sale.", allocationResult.error);
+      const rollback = await supabase.from("sales").delete().eq("id", saleResult.data.id).eq("pharmacy_id", pharmacyId);
+      if (rollback.error) console.error("Sale rollback failed after allocation failure.", rollback.error);
+      throw allocationResult.error;
+    }
+
     await recordActivity(
       { pharmacyId, userId: session.user.id, name: session.user.full_name, role: session.role },
       {
@@ -110,7 +132,19 @@ export async function POST(request: Request) {
         entityType: "sale",
         entityId: saleResult.data.id,
         description: `Recorded a ${sellType.toLowerCase()} sale of ${quantityEntered}.`,
-        metadata: { product_id: productId, units_sold: unitsSold, total_sale: saleResult.data.total_sale, price_overridden: overridePrice !== null },
+        metadata: {
+          product_id: productId,
+          units_sold: unitsSold,
+          total_sale: saleResult.data.total_sale,
+          price_overridden: overridePrice !== null,
+          cost_of_goods_sold: allocationDrafts.reduce((total, allocation) => total + Number(allocation.cost_of_goods_sold), 0),
+          batch_allocations: allocationDrafts.map((allocation) => ({
+            inventory_batch_id: allocation.inventory_batch_id,
+            quantity: allocation.quantity,
+            unit_cost_at_sale: allocation.unit_cost_at_sale,
+            cost_of_goods_sold: allocation.cost_of_goods_sold,
+          })),
+        },
       },
     );
     revalidatePath("/");
