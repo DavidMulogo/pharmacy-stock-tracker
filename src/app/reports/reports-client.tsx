@@ -110,8 +110,8 @@ function downloadCsv(filename: string, csv: string) {
 function reportCsv(report: ReportData) {
   if (report.type === "sales") {
     return buildCsv(
-      ["Product", "Sell Type", "Quantity", "Units Sold", "Price", "Total Sale", "Override Status", "Date"],
-      report.rows.map((row) => [row.product, row.sell_type, row.quantity_entered, row.units_sold, row.price, row.total_sale, row.override_status, formatDateTime(row.created_at)]),
+      ["Transaction", "Product", "Sell Type", "Quantity", "Units Sold", "Price", "Total Sale", "Override Status", "Date"],
+      report.rows.map((row) => [transactionReference(row), row.product, row.sell_type, row.quantity_entered, row.units_sold, row.price, row.total_sale, row.override_status, formatDateTime(row.created_at)]),
     );
   }
   if (report.type === "inventory") {
@@ -385,7 +385,7 @@ function ReportTable({ report }: { report: ReportData }) {
 function ReportHeader({ type }: { type: ReportData["type"] }) {
   const headers =
     type === "sales"
-      ? ["Product", "Sell Type", "Qty", "Units", "Price", "Total", "Override", "Date"]
+      ? ["Transaction", "Product", "Sell Type", "Qty", "Units", "Price", "Total", "Override", "Date"]
       : type === "inventory"
         ? ["Product", "Available", "Status", "Reorder", "Unit Cost", "Value"]
         : type === "expiry"
@@ -409,18 +409,32 @@ function ReportHeader({ type }: { type: ReportData["type"] }) {
 
 function ReportRows({ report }: { report: ReportData }) {
   if (report.type === "sales") {
-    return report.rows.map((row) => (
-      <tr key={row.id}>
-        <Cell>{row.product}</Cell>
-        <Cell>{row.sell_type}</Cell>
-        <Cell>{row.quantity_entered}</Cell>
-        <Cell>{row.units_sold}</Cell>
-        <Cell>{formatTZS(row.price)}</Cell>
-        <Cell>{formatTZS(row.total_sale)}</Cell>
-        <Cell>{row.override_status}</Cell>
-        <Cell>{formatDateTime(row.created_at)}</Cell>
-      </tr>
-    ));
+    const groupedRows = new Map<string, SalesRow[]>();
+    for (const row of report.rows) {
+      const key = row.transaction_id || row.id;
+      groupedRows.set(key, [...(groupedRows.get(key) || []), row]);
+    }
+
+    return [...groupedRows.values()].flatMap((rows) =>
+      rows.map((row, index) => (
+        <tr key={row.id} className={index === 0 ? "border-t-2 border-slate-300" : ""}>
+          {index === 0 ? (
+            <td rowSpan={rows.length} className="whitespace-nowrap bg-slate-50 px-4 py-3 align-top font-black text-slate-800">
+              <span className="block">{transactionReference(row)}</span>
+              <span className="mt-1 block text-xs font-semibold text-slate-500">{rows.length} item{rows.length === 1 ? "" : "s"}</span>
+            </td>
+          ) : null}
+          <Cell>{row.product}</Cell>
+          <Cell>{row.sell_type}</Cell>
+          <Cell>{row.quantity_entered}</Cell>
+          <Cell>{row.units_sold}</Cell>
+          <Cell>{formatTZS(row.price)}</Cell>
+          <Cell>{formatTZS(row.total_sale)}</Cell>
+          <Cell>{row.override_status}</Cell>
+          <Cell>{formatDateTime(row.created_at)}</Cell>
+        </tr>
+      )),
+    );
   }
   if (report.type === "inventory") {
     return report.rows.map((row) => (
@@ -477,6 +491,10 @@ function ReportRows({ report }: { report: ReportData }) {
       <Cell>{formatDateTime(row.created_at)}</Cell>
     </tr>
   ));
+}
+
+function transactionReference(row: SalesRow) {
+  return row.transaction_id ? `TXN-${row.transaction_id.slice(0, 8).toUpperCase()}` : `SALE-${row.id.slice(0, 8).toUpperCase()}`;
 }
 
 function Cell({ children }: { children: ReactNode }) {

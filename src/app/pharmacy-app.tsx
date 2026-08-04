@@ -7,7 +7,7 @@ import { formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
 import { ReorderLevelForm } from "@/app/products/reorder-level-form";
 import { resolveDefaultPrice } from "@/lib/pricing";
 import { getPharmacyExpiryWarning } from "@/lib/subscription";
-import type { DashboardData, ExpiryStatus, NotificationCounts, OnboardingProgressSummary, OverrideFlag, Pharmacy, PharmacyUser, ProductWithStock, SellType, StockStatus } from "@/lib/types";
+import type { DashboardData, ExpiryStatus, NotificationCounts, OnboardingProgressSummary, OverrideFlag, Pharmacy, PharmacyUser, ProductWithStock, SaleWithProduct, SellType, StockStatus } from "@/lib/types";
 
 type Tab = "dashboard" | "sell" | "products" | "stock" | "expiry" | "sales" | "csv";
 type Toast = {
@@ -35,6 +35,15 @@ type CartItem = {
   override_price: number | null;
   effective_price: number;
   total_sale: number;
+};
+type SaleGroup = {
+  key: string;
+  transactionId: string | null;
+  createdAt: string;
+  lines: SaleWithProduct[];
+  totalSale: number;
+  unitsSold: number;
+  hasOverride: boolean;
 };
 
 const tabs: { id: Tab; label: string }[] = [
@@ -440,17 +449,42 @@ export function PharmacyApp({
       })
       .sort((a, b) => a.expiry_date.localeCompare(b.expiry_date));
   }, [dashboardData.batches, expirySearch, expiryStatus]);
-  const filteredSales = useMemo(() => {
+  const groupedSales = useMemo(() => {
+    const groups = new Map<string, SaleGroup>();
+
+    for (const sale of dashboardData.sales) {
+      const key = sale.transaction_id || sale.id;
+      const existing = groups.get(key);
+
+      if (existing) {
+        existing.lines.push(sale);
+        existing.totalSale += sale.total_sale;
+        existing.unitsSold += sale.units_sold;
+        existing.hasOverride ||= sale.override_flag === "OVERRIDDEN";
+      } else {
+        groups.set(key, {
+          key,
+          transactionId: sale.transaction_id,
+          createdAt: sale.created_at,
+          lines: [sale],
+          totalSale: sale.total_sale,
+          unitsSold: sale.units_sold,
+          hasOverride: sale.override_flag === "OVERRIDDEN",
+        });
+      }
+    }
+
     const text = salesSearch.trim().toLowerCase();
-
-    return dashboardData.sales.filter((sale) => {
-      const matchesText = !text || sale.product.product_name.toLowerCase().includes(text);
-      const matchesDate = !salesDate || sale.created_at.slice(0, 10) === salesDate;
-      const matchesFlag = salesOverrideFlag === "ALL" || sale.override_flag === salesOverrideFlag;
-
-      return matchesText && matchesDate && matchesFlag;
-    });
+    return [...groups.values()].filter((transaction) =>
+      transaction.lines.some((sale) => {
+        const matchesText = !text || sale.product.product_name.toLowerCase().includes(text);
+        const matchesDate = !salesDate || sale.created_at.slice(0, 10) === salesDate;
+        const matchesFlag = salesOverrideFlag === "ALL" || sale.override_flag === salesOverrideFlag;
+        return matchesText && matchesDate && matchesFlag;
+      }),
+    );
   }, [dashboardData.sales, salesDate, salesOverrideFlag, salesSearch]);
+  const groupedSaleLineCount = groupedSales.reduce((total, transaction) => total + transaction.lines.length, 0);
   const productsByName = useMemo(
     () => new Map(dashboardData.products.map((product) => [product.product_name.toLowerCase(), product])),
     [dashboardData.products],
@@ -1995,36 +2029,51 @@ export function PharmacyApp({
                 </select>
               </div>
               {dashboardData.sales.length ? (
-                <p className="mt-3 text-sm font-semibold text-slate-600">{filteredSales.length} of {dashboardData.sales.length} sales</p>
+                <p className="mt-3 text-sm font-semibold text-slate-600">
+                  {groupedSales.length} transaction{groupedSales.length === 1 ? "" : "s"} · {groupedSaleLineCount} sale line{groupedSaleLineCount === 1 ? "" : "s"}
+                </p>
               ) : null}
             </div>
 
-            {dashboardData.sales.length > 0 && filteredSales.length === 0 ? (
+            {dashboardData.sales.length > 0 && groupedSales.length === 0 ? (
               <EmptyState text="No sales match the current search and filters." />
             ) : null}
 
-            {dashboardData.sales.length ? filteredSales.map((sale) => (
-              <article key={sale.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            {dashboardData.sales.length ? groupedSales.map((transaction) => (
+              <article key={transaction.key} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <h2 className="font-bold">{sale.product.product_name}</h2>
+                    <h2 className="font-bold">
+                      {transaction.transactionId ? `Transaction #${transaction.transactionId.slice(0, 8).toUpperCase()}` : "Legacy sale"}
+                    </h2>
                     <p className="text-sm text-slate-600">
-                      {formatDateTime(sale.created_at)} - {sale.quantity_entered} {sale.sell_type === "PACK" ? "pack" : "unit"}
+                      {formatDateTime(transaction.createdAt)} · {transaction.lines.length} item{transaction.lines.length === 1 ? "" : "s"}
                     </p>
                   </div>
-                  <StatusBadge value={sale.override_flag} />
+                  <StatusBadge value={transaction.hasOverride ? "OVERRIDDEN" : "NORMAL"} />
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Metric label="Sell type" value={sale.sell_type} />
-                  <Metric label="Units sold" value={String(sale.units_sold)} />
-                  <Metric label="Default" value={formatTZS(sale.default_price)} />
-                  <Metric label="Override" value={sale.override_price == null ? "-" : formatTZS(sale.override_price)} />
-                  <Metric label="Effective" value={formatTZS(sale.effective_price)} />
-                  <Metric label="Total" value={formatTZS(sale.total_sale)} />
+                <div className="mt-4 grid gap-2">
+                  {transaction.lines.map((sale) => (
+                    <div key={sale.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-bold">{sale.product.product_name}</p>
+                          <p className="text-sm text-slate-600">
+                            {sale.quantity_entered} {sale.sell_type === "PACK" ? "pack" : "unit"} · {sale.units_sold} units
+                          </p>
+                        </div>
+                        <p className="font-black">{formatTZS(sale.total_sale)}</p>
+                      </div>
+                      <Link className="mt-2 inline-block text-sm font-bold text-emerald-700" href={`/sales/${sale.id}`}>
+                        Line detail
+                      </Link>
+                    </div>
+                  ))}
                 </div>
-                <Link className="mt-4 inline-block text-sm font-bold text-emerald-700" href={`/sales/${sale.id}`}>
-                  Sale detail
-                </Link>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Metric label="Total units" value={String(transaction.unitsSold)} />
+                  <Metric label="Transaction total" value={formatTZS(transaction.totalSale)} />
+                </div>
               </article>
             )) : <EmptyState text="No sales recorded yet." />}
           </section>

@@ -26,6 +26,7 @@
 
 ### Improved
 
+- Sales history and sales reports now group cart lines by transaction while retaining line-level product details
 - Sell product results now appear only after typing, are limited to 20 visible matches, and require explicit medicine selection
 - Mobile, tablet, and desktop Add Stock product selection now uses a searchable product picker with multi-word matching, bounded results, and explicit selection
 - Add Stock starts without an assumed product and keeps Save Batch disabled until a product is explicitly selected
