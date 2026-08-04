@@ -24,7 +24,8 @@
 
 ### Improved
 
-- Mobile, tablet, and desktop Sell and Add Stock product selection now uses true searchable medicine pickers with multi-word matching, bounded results, and explicit selection
+- Mobile, tablet, and desktop Add Stock product selection now uses a searchable product picker with multi-word matching, bounded results, and explicit selection
+- Add Stock starts without an assumed product and keeps Save Batch disabled until a product is explicitly selected
 
 ### Security
 

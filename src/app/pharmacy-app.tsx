@@ -325,7 +325,6 @@ export function PharmacyApp({
   const [expirySearch, setExpirySearch] = useState("");
   const [expiryStatus, setExpiryStatus] = useState<ExpiryStatus | "ALL">("ALL");
   const [selectedProductId, setSelectedProductId] = useState("");
-  const [isSellProductPickerOpen, setIsSellProductPickerOpen] = useState(false);
   const [preferredSellType, setPreferredSellType] = useState<SellType>("UNIT");
   const [quantity, setQuantity] = useState("1");
   const [overridePrice, setOverridePrice] = useState("");
@@ -333,8 +332,8 @@ export function PharmacyApp({
   const [toast, setToast] = useState<Toast | null>(null);
   const [stockMessage, setStockMessage] = useState("");
   const [stockConfirmation, setStockConfirmation] = useState("");
-  const [batchProductId, setBatchProductId] = useState(initialData.products[0]?.id || "");
-  const [batchProductSearch, setBatchProductSearch] = useState(initialData.products[0]?.product_name || "");
+  const [batchProductId, setBatchProductId] = useState("");
+  const [batchProductSearch, setBatchProductSearch] = useState("");
   const [isBatchProductPickerOpen, setIsBatchProductPickerOpen] = useState(false);
   const [batchNumber, setBatchNumber] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
@@ -348,7 +347,11 @@ export function PharmacyApp({
   const [isImportingBatches, setIsImportingBatches] = useState(false);
 
   const filteredProducts = useMemo(() => {
-    return dashboardData.products.filter((product) => matchesProductSearch(product, query));
+    const text = query.trim().toLowerCase();
+    if (!text) return dashboardData.products;
+    return dashboardData.products.filter((product) =>
+      [product.product_name, product.generic_name, product.brand_name].some((value) => value.toLowerCase().includes(text)),
+    );
   }, [dashboardData.products, query]);
   const filteredProductList = useMemo(() => {
     const text = productSearch.trim().toLowerCase();
@@ -371,9 +374,9 @@ export function PharmacyApp({
     return dashboardData.products.filter((product) => matchesProductSearch(product, batchProductSearch));
   }, [batchProductSearch, dashboardData.products]);
 
-  const selectedProduct = dashboardData.products.find(
-    (product) => product.id === selectedProductId && hasPriceForSellType(product, preferredSellType),
-  );
+  const selectedProduct =
+    dashboardData.products.find((product) => product.id === selectedProductId && hasPriceForSellType(product, preferredSellType)) ||
+    dashboardData.products.find((product) => hasPriceForSellType(product, preferredSellType));
   const batchProduct = dashboardData.products.find((product) => product.id === batchProductId);
   const sellType: SellType = selectedProduct ? getProductSellType(selectedProduct, preferredSellType) : preferredSellType;
   const saleQuantity = Number(quantity);
@@ -549,6 +552,7 @@ export function PharmacyApp({
       : false;
   const stockFormInvalid =
     !batchProduct ||
+    !batchProductSearch.trim() ||
     !batchNumber.trim() ||
     !expiryDate ||
     expiryDateInvalid ||
@@ -604,8 +608,8 @@ export function PharmacyApp({
 
       setDashboardData(result.data as DashboardData);
       setSelectedProductId("");
-      setBatchProductId((result.data as DashboardData).products[0]?.id || "");
-      setBatchProductSearch((result.data as DashboardData).products[0]?.product_name || "");
+      setBatchProductId("");
+      setBatchProductSearch("");
       setIsBatchProductPickerOpen(false);
       setProductImport(null);
       setBatchImport(null);
@@ -875,6 +879,9 @@ export function PharmacyApp({
       }
 
       const confirmation = `Stock added for ${batchProduct.product_name}.`;
+      setBatchProductId("");
+      setBatchProductSearch("");
+      setIsBatchProductPickerOpen(false);
       setBatchNumber("");
       setExpiryDate("");
       setPacksReceived("");
@@ -1384,90 +1391,30 @@ export function PharmacyApp({
         {activeTab === "sell" ? (
           <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-lg font-bold">Find a medicine</h2>
-              <p className="mt-1 text-sm text-slate-600">Search by product, generic name, brand, strength, or dosage form.</p>
-              <div className="relative mt-4">
-                <label htmlFor="sell-product-search" className="sr-only">Search medicines</label>
-                <input
-                  id="sell-product-search"
-                  type="search"
-                  inputMode="search"
-                  autoComplete="off"
-                  enterKeyHint="search"
-                  value={query}
-                  onFocus={(event) => {
-                    setIsSellProductPickerOpen(true);
-                    if (selectedProduct) event.currentTarget.select();
-                  }}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setSelectedProductId("");
-                    setIsSellProductPickerOpen(true);
-                  }}
-                  placeholder="Type paracetamol, Panadol, 500 mg..."
-                  role="combobox"
-                  aria-autocomplete="list"
-                  aria-controls="sell-product-results"
-                  aria-expanded={isSellProductPickerOpen}
-                  className="w-full rounded-md border border-slate-300 px-4 py-3.5 pr-12 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                />
-                {query ? (
-                  <button
-                    type="button"
-                    aria-label="Clear medicine search"
-                    onClick={() => {
-                      setQuery("");
-                      setSelectedProductId("");
-                      setIsSellProductPickerOpen(true);
-                    }}
-                    className="absolute right-2 top-1/2 min-h-10 min-w-10 -translate-y-1/2 rounded-md text-xl font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                  >
-                    ×
-                  </button>
+              <h2 className="text-lg font-bold">Sell</h2>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search product, generic, or brand"
+                className="mt-4 w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600"
+              />
+              <div className="mt-4 grid gap-2">
+                {dashboardData.products.length === 0 ? (
+                  <EmptyState text="No products found. Add products in Supabase to start selling." />
                 ) : null}
+                {dashboardData.products.length > 0 && filteredProducts.length === 0 ? (
+                  <EmptyState text="No products match your search." />
+                ) : null}
+                {filteredProducts.map((product) => (
+                  <ProductRow
+                    key={product.id}
+                    product={product}
+                    sellType={getProductSellType(product, preferredSellType)}
+                    selected={product.id === selectedProduct?.id}
+                    onSelect={() => setSelectedProductId(product.id)}
+                  />
+                ))}
               </div>
-              {isSellProductPickerOpen ? (
-                <div id="sell-product-results" role="listbox" aria-label="Medicine search results" className="mt-3 grid max-h-[55vh] gap-2 overflow-y-auto overscroll-contain rounded-md border border-slate-200 bg-slate-50 p-2">
-                  {dashboardData.products.length === 0 ? (
-                    <EmptyState text="No products found. Add a product to start selling." />
-                  ) : null}
-                  {dashboardData.products.length > 0 && filteredProducts.length === 0 ? (
-                    <EmptyState text={`No medicine matches “${query.trim()}”. Try the generic or brand name.`} />
-                  ) : null}
-                  {filteredProducts.slice(0, 20).map((product) => (
-                    <ProductRow
-                      key={product.id}
-                      product={product}
-                      sellType={getProductSellType(product, preferredSellType)}
-                      selected={product.id === selectedProduct?.id}
-                      onSelect={() => {
-                        setSelectedProductId(product.id);
-                        setQuery(product.product_name);
-                        setIsSellProductPickerOpen(false);
-                        setSaleMessage("");
-                      }}
-                    />
-                  ))}
-                  {filteredProducts.length > 20 ? (
-                    <p className="px-2 py-1 text-center text-xs font-semibold text-slate-500">
-                      Showing 20 of {filteredProducts.length} matches. Type more letters to narrow the list.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-              {!isSellProductPickerOpen && selectedProduct ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuery("");
-                    setSelectedProductId("");
-                    setIsSellProductPickerOpen(true);
-                  }}
-                  className="mt-3 w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:border-emerald-500 hover:text-emerald-800"
-                >
-                  Choose a different medicine
-                </button>
-              ) : null}
             </section>
 
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -1579,9 +1526,7 @@ export function PharmacyApp({
                   </button>
                 </form>
               ) : (
-                <p className="mt-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-slate-600">
-                  Search for and select a medicine to prepare the sale.
-                </p>
+                <p className="mt-4 text-slate-600">Add a product in Supabase to start selling.</p>
               )}
             </section>
           </div>
@@ -2075,11 +2020,9 @@ function ProductRow({
   return (
     <button
       type="button"
-      role="option"
-      aria-selected={selected}
       disabled={priceMissing}
       onClick={onSelect}
-      className={`min-h-16 rounded-md border p-3 text-left transition ${
+      className={`rounded-md border p-3 text-left transition ${
         selected ? "border-emerald-600 bg-emerald-50" : "border-slate-200 bg-white hover:border-emerald-300"
       } disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-75`}
     >
