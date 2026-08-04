@@ -64,19 +64,25 @@ CSV export is intentionally audited with `REPORT_EXPORTED`; ordinary report view
 
 `sale_transactions` groups all line items from one customer checkout. Individual items remain in `sales`, linked by nullable `transaction_id` and ordered by `line_number`, so historical single-item sales and existing stock/report queries remain compatible.
 
-The authenticated `/api/sales` route accepts a bounded cart and calls the service-role-only `create_sale_transaction_v1` PostgreSQL RPC. The RPC derives all prices from tenant-owned products, validates selling modes and quantities, locks relevant inventory batches in a deterministic order, rechecks stock, inserts every sale line, allocates FEFO batches, and snapshots COGS. PostgreSQL rolls back the complete checkout if any line fails. Execute permission is revoked from `anon` and `authenticated`.
+The authenticated `/api/sales` route accepts a bounded cart and calls the service-role-only `create_sale_transaction_v2` PostgreSQL RPC. The RPC derives all prices from tenant-owned products, validates selling modes and quantities, locks relevant inventory batches in a deterministic order, rechecks adjustment-aware stock, inserts every sale line, allocates FEFO batches, and snapshots COGS. PostgreSQL rolls back the complete checkout if any line fails. Execute permission is revoked from `anon` and `authenticated`.
+
+## Inventory Adjustments
+
+`inventory_adjustments` stores immutable, tenant-scoped records for damaged, expired, supplier-returned, missing, internally used, and other stock reductions. Each reduction belongs to a specific inventory batch. Customer returns are recorded with a zero stock effect as quarantined stock and are never silently returned to sellable inventory.
+
+The authenticated `/api/inventory-adjustments` route derives pharmacy and staff identity from the session and calls the service-role-only `create_inventory_adjustment_v1` RPC. The RPC locks the selected batch, accounts for existing FEFO allocations and earlier adjustments, rejects excessive quantities, and inserts the record atomically. Product and batch stock views subtract reduction adjustments, and sale checkout rechecks those adjusted totals.
 
 ## Backup
 
 The `/backup` area is restricted to pharmacy `OWNER` accounts. Backup APIs authenticate through the pharmacy session helper, derive `pharmacy_id` and actor identity from the session, and never accept tenant identifiers from the client.
 
-Backup export is generated server-side as one JSON file. Included datasets are pharmacy profile, pharmacy settings, products, inventory batches, sales, expenses, staff metadata, and activity logs. Excluded data includes password hashes, plain-text passwords, session tokens, cookies, admin users, admin credentials, and pharmacy access credentials.
+Backup export is generated server-side as one JSON file. Included datasets are pharmacy profile, pharmacy settings, products, inventory batches, sales, expenses, inventory adjustments, staff metadata, and activity logs. Excluded data includes password hashes, plain-text passwords, session tokens, cookies, admin users, admin credentials, and pharmacy access credentials.
 
 Each backup has `format: "pharmastock-backup"`, `schema_version: 1`, record counts, and a deterministic SHA-256 checksum over the payload. Validation checks format, schema version, pharmacy identity, required datasets, record counts, and checksum.
 
 Successful explicit backup exports log `BACKUP_EXPORTED`. Successful validations log `BACKUP_VALIDATED`. Activity metadata stores only high-level counts and checksum status, never the full backup payload.
 
-Admin Restore v1 lives inside `/admin` and uses the admin session helper, not pharmacy staff auth. The selected target pharmacy, backup pharmacy id, and existing database pharmacy must match. Restore is merge-only and non-destructive: it inserts missing pharmacy settings, products, inventory batches, sales, and expenses while skipping existing records. Staff metadata and historical pharmacy activity logs from backups are unsupported and are never restored. Sessions, cookies, pharmacy access credentials, password hashes, plain-text passwords, admin users, and admin credentials are never restored.
+Admin Restore v1 lives inside `/admin` and uses the admin session helper, not pharmacy staff auth. The selected target pharmacy, backup pharmacy id, and existing database pharmacy must match. Restore is merge-only and non-destructive: it inserts missing pharmacy settings, products, inventory batches, sales, and expenses while skipping existing records. Staff metadata, historical pharmacy activity logs, and inventory adjustments from backups are displayed as unsupported and are never restored by v1. Sessions, cookies, pharmacy access credentials, password hashes, plain-text passwords, admin users, and admin credentials are never restored.
 
 The actual restore write uses the `restore_pharmastock_backup_v1` PostgreSQL RPC so inserts run atomically and roll back on failure. Execute permission is revoked from `anon` and `authenticated`; server code calls it with the service role. Admin restore attempts are recorded in `admin_activity_logs` with admin identity, target pharmacy, backup checksum, restored/skipped counts, success state, and error message, but never the uploaded payload.
 
@@ -93,6 +99,7 @@ The actual restore write uses the `restore_pharmastock_backup_v1` PostgreSQL RPC
 - `notifications`: tenant-scoped in-app alert inbox with active, unread, and resolved states
 - `products`: pharmacy-scoped product catalog
 - `inventory_batches`: pharmacy-scoped stock receiving batches
+- `inventory_adjustments`: immutable batch-scoped stock reductions and quarantined customer returns
 - `sale_transactions`: one customer checkout and its total
 - `sales`: pharmacy-scoped sales history
 - `sale_batch_allocations`: immutable sale-line FEFO and COGS snapshots

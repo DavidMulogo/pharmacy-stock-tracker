@@ -9,6 +9,7 @@ export type RestoreDatasetName = "pharmacy_settings" | "products" | "inventory_b
 export type RestoreCounts = Record<RestoreDatasetName, number> & {
   staff: number;
   activity_logs: number;
+  inventory_adjustments: number;
 };
 
 export type RestorePreview = {
@@ -22,6 +23,7 @@ export type RestorePreview = {
   unsupported_counts: {
     staff: number;
     activity_logs: number;
+    inventory_adjustments: number;
   };
 };
 
@@ -92,6 +94,7 @@ function zeroCounts(): RestoreCounts {
     expenses: 0,
     staff: 0,
     activity_logs: 0,
+    inventory_adjustments: 0,
   };
 }
 
@@ -136,10 +139,12 @@ export async function buildAdminRestorePreview(targetPharmacy: Pharmacy, confirm
   const unsupported_counts = {
     staff: countUnsupported(backup, "staff"),
     activity_logs: countUnsupported(backup, "activity_logs"),
+    inventory_adjustments: countUnsupported(backup, "inventory_adjustments"),
   };
 
   skipped_counts.staff = unsupported_counts.staff;
   skipped_counts.activity_logs = unsupported_counts.activity_logs;
+  skipped_counts.inventory_adjustments = unsupported_counts.inventory_adjustments;
 
   if (validation.errors.length === 0) {
     const settingsExistsResult = await getSupabaseAdmin()

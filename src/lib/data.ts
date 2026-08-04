@@ -2,7 +2,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import { resolvePackPrice, resolveUnitPrice } from "@/lib/pricing";
 import { summarizeExactGrossProfit } from "@/lib/cogs";
-import type { BatchWithProduct, DashboardData, DashboardStats, Expense, ExpiryStatus, Pharmacy, Product, ProductWithStock, SaleWithProduct } from "@/lib/types";
+import type { BatchWithProduct, DashboardData, DashboardStats, Expense, ExpiryStatus, InventoryAdjustmentWithDetails, Pharmacy, Product, ProductWithStock, SaleWithProduct } from "@/lib/types";
 
 const millisecondsPerDay = 86_400_000;
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
@@ -12,8 +12,14 @@ type BatchExpirySummaryRow = Database["public"]["Views"]["batch_expiry_summary"]
 type SaleRow = Database["public"]["Tables"]["sales"]["Row"];
 type SaleBatchAllocationRow = Database["public"]["Tables"]["sale_batch_allocations"]["Row"];
 type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
+type InventoryAdjustmentRow = Database["public"]["Tables"]["inventory_adjustments"]["Row"];
 type SaleWithProductRow = SaleRow & {
   product: ProductRow | ProductRow[] | null;
+};
+type AdjustmentWithDetailsRow = InventoryAdjustmentRow & {
+  product: ProductRow | ProductRow[] | null;
+  batch: Database["public"]["Tables"]["inventory_batches"]["Row"] | Database["public"]["Tables"]["inventory_batches"]["Row"][] | null;
+  creator: Pick<Database["public"]["Tables"]["pharmacy_users"]["Row"], "full_name"> | Pick<Database["public"]["Tables"]["pharmacy_users"]["Row"], "full_name">[] | null;
 };
 
 function getDaysToExpiry(expiryDate: string) {
@@ -52,6 +58,7 @@ function normalizeProduct(product: ProductStockSummaryRow): ProductWithStock {
     reorder_level: normalizeOptionalNumber(product.reorder_level),
     total_received: normalizeNumber(product.total_received),
     total_sold: normalizeNumber(product.total_sold),
+    total_adjusted: normalizeNumber(product.total_adjusted),
     available_stock: normalizeNumber(product.available_stock),
     derived_unit_cost: normalizeOptionalNumber(product.derived_unit_cost),
   };
@@ -156,6 +163,7 @@ function emptyDashboardData(): DashboardData {
     batches: [],
     expiringBatches: [],
     sales: [],
+    adjustments: [],
   };
 }
 
@@ -276,7 +284,7 @@ export async function getDashboardData(pharmacyId?: string, options: { includeFi
   if (!pharmacyId) return emptyDashboardData();
 
   const supabase = getSupabaseAdmin();
-  const [stats, productsResult, batchesResult, salesResult] = await Promise.all([
+  const [stats, productsResult, batchesResult, salesResult, adjustmentsResult] = await Promise.all([
     getDashboardStats(pharmacyId, options),
     supabase.from("product_stock_summary").select("*").eq("pharmacy_id", pharmacyId).order("product_name"),
     supabase.from("batch_expiry_summary").select("*").eq("pharmacy_id", pharmacyId).order("expiry_date", { ascending: true }),
@@ -285,11 +293,18 @@ export async function getDashboardData(pharmacyId?: string, options: { includeFi
       .select("*, product:products(*)")
       .eq("pharmacy_id", pharmacyId)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("inventory_adjustments")
+      .select("*, product:products(*), batch:inventory_batches(*), creator:pharmacy_users(full_name)")
+      .eq("pharmacy_id", pharmacyId)
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   if (productsResult.error) throw productsResult.error;
   if (batchesResult.error) throw batchesResult.error;
   if (salesResult.error) throw salesResult.error;
+  if (adjustmentsResult.error) throw adjustmentsResult.error;
 
   const products = (productsResult.data || []).map((product) => normalizeProduct(product));
   const productById = new Map<string, Product>(products.map((product) => [product.id, product]));
@@ -311,6 +326,7 @@ export async function getDashboardData(pharmacyId?: string, options: { includeFi
         total_units_received: normalizeNumber(batch.total_units_received),
         buying_price_per_pack: normalizeNumber(batch.buying_price_per_pack),
         derived_unit_cost: normalizeOptionalNumber(batch.derived_unit_cost),
+        available_stock: normalizeNumber(batch.available_stock),
         created_at: batch.created_at,
         product,
         expiry_status: batch.expiry_status as ExpiryStatus,
@@ -345,12 +361,34 @@ export async function getDashboardData(pharmacyId?: string, options: { includeFi
     };
   });
 
+  const adjustments = ((adjustmentsResult.data || []) as AdjustmentWithDetailsRow[]).map<InventoryAdjustmentWithDetails>((adjustment) => {
+    const product = Array.isArray(adjustment.product) ? adjustment.product[0] : adjustment.product;
+    const batch = Array.isArray(adjustment.batch) ? adjustment.batch[0] : adjustment.batch;
+    const creator = Array.isArray(adjustment.creator) ? adjustment.creator[0] : adjustment.creator;
+    return {
+      id: adjustment.id,
+      pharmacy_id: adjustment.pharmacy_id,
+      product_id: adjustment.product_id,
+      inventory_batch_id: adjustment.inventory_batch_id,
+      created_by: adjustment.created_by,
+      reason: adjustment.reason,
+      quantity: normalizeNumber(adjustment.quantity),
+      stock_effect: adjustment.stock_effect,
+      note: adjustment.note,
+      created_at: adjustment.created_at,
+      product: product as Product,
+      batch: batch || null,
+      staff_name: creator?.full_name || "Former staff member",
+    };
+  });
+
   return {
     stats,
     products,
     batches,
-    expiringBatches: batches.filter((batch) => batch.expiry_status !== "OK"),
+    expiringBatches: batches.filter((batch) => batch.expiry_status !== "OK" && batch.available_stock > 0),
     sales,
+    adjustments,
   };
 }
 

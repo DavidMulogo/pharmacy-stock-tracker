@@ -61,6 +61,7 @@ const payload = {
     expenses: 0,
     staff: 0,
     activity_logs: 0,
+    inventory_adjustments: 1,
   },
   datasets: {
     pharmacy_settings: null,
@@ -70,6 +71,7 @@ const payload = {
     expenses: [],
     staff: [],
     activity_logs: [],
+    inventory_adjustments: [{ id: "adjustment-1", product_id: "product-1", quantity: 2, reason: "DAMAGED" }],
   },
 };
 const backup = {

@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 
     const pharmacyId = session.pharmacy.id;
     const supabase = getSupabaseAdmin();
-    const transactionResult = await supabase.rpc("create_sale_transaction_v1", {
+    const transactionResult = await supabase.rpc("create_sale_transaction_v2", {
       p_pharmacy_id: pharmacyId,
       p_created_by: session.user.id,
       p_items: items,

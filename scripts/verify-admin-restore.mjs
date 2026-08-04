@@ -34,6 +34,7 @@ function makeBackup(pharmacyId = "pharmacy-1") {
       expenses: 1,
       staff: 1,
       activity_logs: 1,
+      inventory_adjustments: 1,
     },
     datasets: {
       pharmacy_settings: { id: "settings-1", pharmacy_id: pharmacyId, receipt_header: "Demo Pharmacy" },
@@ -46,6 +47,7 @@ function makeBackup(pharmacyId = "pharmacy-1") {
       expenses: [{ id: "expense-1", pharmacy_id: pharmacyId, created_by: "missing-staff" }],
       staff: [{ id: "staff-1", pharmacy_id: pharmacyId, username: "owner" }],
       activity_logs: [{ id: "activity-1", pharmacy_id: pharmacyId }],
+      inventory_adjustments: [{ id: "adjustment-1", pharmacy_id: pharmacyId, product_id: "product-2" }],
     },
   };
 
@@ -56,7 +58,7 @@ function validate(backup, targetPharmacyId) {
   const { checksum: expected, ...payload } = backup;
   const counts = backup.record_counts || {};
   const datasets = backup.datasets || {};
-  const required = ["pharmacy_settings", "products", "inventory_batches", "sales", "expenses", "staff", "activity_logs"];
+  const required = ["pharmacy_settings", "products", "inventory_batches", "sales", "expenses", "staff", "activity_logs", "inventory_adjustments"];
   const errors = [];
 
   if (backup.format !== backupFormat) errors.push("format");
@@ -75,7 +77,7 @@ function validate(backup, targetPharmacyId) {
 function restoreMergeOnly(database, backup, options = {}) {
   const next = structuredClone(database);
   const restored = { pharmacy_settings: 0, products: 0, inventory_batches: 0, sales: 0, expenses: 0 };
-  const skipped = { pharmacy_settings: 0, products: 0, inventory_batches: 0, sales: 0, expenses: 0, staff: backup.datasets.staff.length, activity_logs: backup.datasets.activity_logs.length };
+  const skipped = { pharmacy_settings: 0, products: 0, inventory_batches: 0, sales: 0, expenses: 0, staff: backup.datasets.staff.length, activity_logs: backup.datasets.activity_logs.length, inventory_adjustments: backup.datasets.inventory_adjustments.length };
 
   const insertMissing = (name, rows) => {
     for (const row of rows) {

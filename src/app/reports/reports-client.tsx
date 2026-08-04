@@ -22,6 +22,7 @@ type InventoryRow = {
   id: string;
   product: string;
   available_stock: number;
+  total_adjusted: number;
   stock_status: StockStatus | null;
   reorder_level: number | null;
   reorder_level_configured: boolean;
@@ -116,10 +117,11 @@ function reportCsv(report: ReportData) {
   }
   if (report.type === "inventory") {
     return buildCsv(
-      ["Product", "Available Stock", "Stock Status", "Reorder Level", "Reorder Configured", "Unit Cost", "Inventory Value"],
+      ["Product", "Available Stock", "Adjusted Units", "Stock Status", "Reorder Level", "Reorder Configured", "Unit Cost", "Inventory Value"],
       report.rows.map((row) => [
         row.product,
         row.available_stock,
+        row.total_adjusted,
         row.stock_status ?? "Not configured",
         row.reorder_level ?? "",
         row.reorder_level_configured ? "Yes" : "No",
@@ -387,7 +389,7 @@ function ReportHeader({ type }: { type: ReportData["type"] }) {
     type === "sales"
       ? ["Transaction", "Product", "Sell Type", "Qty", "Units", "Price", "Total", "Override", "Date"]
       : type === "inventory"
-        ? ["Product", "Available", "Status", "Reorder", "Unit Cost", "Value"]
+        ? ["Product", "Available", "Adjusted", "Status", "Reorder", "Unit Cost", "Value"]
         : type === "expiry"
           ? ["Product", "Batch", "Expiry", "Status", "Days", "Remaining"]
           : type === "overrides"
@@ -441,6 +443,7 @@ function ReportRows({ report }: { report: ReportData }) {
       <tr key={row.id}>
         <Cell>{row.product}</Cell>
         <Cell>{row.available_stock}</Cell>
+        <Cell>{row.total_adjusted}</Cell>
         <Cell>{row.stock_status ?? "Not configured"}</Cell>
         <Cell>{row.reorder_level ?? "Not configured"}</Cell>
         <Cell>{formatTZS(row.unit_cost)}</Cell>

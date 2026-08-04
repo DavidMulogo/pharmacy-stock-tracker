@@ -13,6 +13,7 @@ type InventoryBatchRow = Database["public"]["Tables"]["inventory_batches"]["Row"
 type SaleRow = Database["public"]["Tables"]["sales"]["Row"];
 type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
 type ActivityLogRow = Database["public"]["Tables"]["activity_logs"]["Row"];
+type InventoryAdjustmentRow = Database["public"]["Tables"]["inventory_adjustments"]["Row"];
 type PharmacyUserRow = Database["public"]["Tables"]["pharmacy_users"]["Row"];
 
 export type StaffMetadataBackup = Pick<PharmacyUserRow, "id" | "pharmacy_id" | "full_name" | "username" | "role" | "active" | "last_login_at" | "created_at" | "updated_at">;
@@ -25,6 +26,7 @@ export type BackupDatasets = {
   expenses: ExpenseRow[];
   staff: StaffMetadataBackup[];
   activity_logs: ActivityLogRow[];
+  inventory_adjustments: InventoryAdjustmentRow[];
 };
 
 export type BackupPayload = {
@@ -57,7 +59,7 @@ export type BackupValidationResult = {
   record_counts: Partial<Record<keyof BackupDatasets, number>>;
 };
 
-const datasetNames: Array<keyof BackupDatasets> = ["pharmacy_settings", "products", "inventory_batches", "sales", "expenses", "staff", "activity_logs"];
+const datasetNames: Array<keyof BackupDatasets> = ["pharmacy_settings", "products", "inventory_batches", "sales", "expenses", "staff", "activity_logs", "inventory_adjustments"];
 
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(",")}]`;
@@ -95,6 +97,7 @@ function buildRecordCounts(datasets: BackupDatasets): Record<keyof BackupDataset
     expenses: datasets.expenses.length,
     staff: datasets.staff.length,
     activity_logs: datasets.activity_logs.length,
+    inventory_adjustments: datasets.inventory_adjustments.length,
   };
 }
 
@@ -125,6 +128,7 @@ export async function buildPharmacyBackup(pharmacy: Pharmacy): Promise<BackupFil
     expensesResult,
     staffResult,
     activityResult,
+    adjustmentsResult,
   ] = await Promise.all([
     supabase.from("pharmacy_settings").select("*").eq("pharmacy_id", pharmacy.id).maybeSingle(),
     supabase.from("products").select("*").eq("pharmacy_id", pharmacy.id).order("product_name"),
@@ -137,6 +141,7 @@ export async function buildPharmacyBackup(pharmacy: Pharmacy): Promise<BackupFil
       .eq("pharmacy_id", pharmacy.id)
       .order("created_at", { ascending: true }),
     supabase.from("activity_logs").select("*").eq("pharmacy_id", pharmacy.id).order("created_at", { ascending: true }),
+    supabase.from("inventory_adjustments").select("*").eq("pharmacy_id", pharmacy.id).order("created_at", { ascending: true }),
   ]);
 
   if (settingsResult.error) throw settingsResult.error;
@@ -146,6 +151,7 @@ export async function buildPharmacyBackup(pharmacy: Pharmacy): Promise<BackupFil
   if (expensesResult.error) throw expensesResult.error;
   if (staffResult.error) throw staffResult.error;
   if (activityResult.error) throw activityResult.error;
+  if (adjustmentsResult.error) throw adjustmentsResult.error;
 
   const datasets: BackupDatasets = {
     pharmacy_settings: settingsResult.data,
@@ -155,6 +161,7 @@ export async function buildPharmacyBackup(pharmacy: Pharmacy): Promise<BackupFil
     expenses: expensesResult.data || [],
     staff: staffResult.data || [],
     activity_logs: activityResult.data || [],
+    inventory_adjustments: adjustmentsResult.data || [],
   };
   const payload: BackupPayload = {
     format: backupFormat,
@@ -221,6 +228,11 @@ export function validatePharmaStockBackup(input: unknown, expectedPharmacy: Pick
     errors.push("Backup datasets are missing.");
   } else {
     datasetNames.forEach((name) => {
+      if (!(name in datasets) && name === "inventory_adjustments") {
+        warnings.push("This older backup does not include inventory adjustments.");
+        record_counts[name] = 0;
+        return;
+      }
       if (!(name in datasets)) {
         errors.push(`Dataset ${name} is missing.`);
         return;
@@ -237,6 +249,7 @@ export function validatePharmaStockBackup(input: unknown, expectedPharmacy: Pick
     errors.push("Backup record counts are missing.");
   } else if (datasets) {
     datasetNames.forEach((name) => {
+      if (name === "inventory_adjustments" && !(name in datasets) && !(name in counts)) return;
       if (typeof counts[name] !== "number") {
         errors.push(`Record count for ${name} is missing.`);
       } else if (record_counts[name] !== counts[name]) {

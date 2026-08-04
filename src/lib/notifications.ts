@@ -14,9 +14,7 @@ import type {
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 type NotificationInsert = Database["public"]["Tables"]["notifications"]["Insert"];
 type ProductStockRow = Database["public"]["Views"]["product_stock_summary"]["Row"];
-type BatchRow = Database["public"]["Tables"]["inventory_batches"]["Row"] & {
-  product: { product_name: string } | { product_name: string }[] | null;
-};
+type BatchRow = Database["public"]["Views"]["batch_expiry_summary"]["Row"];
 
 const dayMs = 24 * 60 * 60 * 1000;
 
@@ -79,9 +77,7 @@ function productNotification(product: ProductStockRow, type: "LOW_STOCK" | "OUT_
   };
 }
 
-function batchNotification(batch: BatchRow, type: "EXPIRING_SOON" | "EXPIRED_BATCH", days: number): NotificationInsert {
-  const product = Array.isArray(batch.product) ? batch.product[0] : batch.product;
-  const productName = product?.product_name || "A product";
+function batchNotification(batch: BatchRow, type: "EXPIRING_SOON" | "EXPIRED_BATCH", days: number, productName: string): NotificationInsert {
   return {
     pharmacy_id: String(batch.pharmacy_id),
     type,
@@ -157,14 +153,16 @@ export async function syncNotificationsForPharmacy(pharmacy: Pharmacy) {
   const warningDays = Number.isFinite(settings.expiry_warning_days) ? Math.max(0, Math.floor(settings.expiry_warning_days)) : 30;
   const [productsResult, batchesResult] = await Promise.all([
     supabase.from("product_stock_summary").select("*").eq("pharmacy_id", pharmacy.id),
-    supabase.from("inventory_batches").select("*, product:products(product_name)").eq("pharmacy_id", pharmacy.id),
+    supabase.from("batch_expiry_summary").select("*").eq("pharmacy_id", pharmacy.id),
   ]);
 
   if (productsResult.error) throw productsResult.error;
   if (batchesResult.error) throw batchesResult.error;
 
   const activeInputs: NotificationInsert[] = [];
+  const productNames = new Map<string, string>();
   for (const product of (productsResult.data || []) as ProductStockRow[]) {
+    productNames.set(product.id, product.product_name);
     const stock = numberValue(product.available_stock);
     const reorderLevel = product.reorder_level == null ? null : numberValue(product.reorder_level);
     if (stock <= 0) activeInputs.push(productNotification(product, "OUT_OF_STOCK", reorderLevel ?? 0));
@@ -172,10 +170,12 @@ export async function syncNotificationsForPharmacy(pharmacy: Pharmacy) {
   }
 
   for (const batch of (batchesResult.data || []) as BatchRow[]) {
+    if (numberValue(batch.available_stock) <= 0) continue;
     const days = daysUntil(batch.expiry_date);
     if (days === null) continue;
-    if (days < 0) activeInputs.push(batchNotification(batch, "EXPIRED_BATCH", days));
-    else if (days <= warningDays) activeInputs.push(batchNotification(batch, "EXPIRING_SOON", days));
+    const productName = productNames.get(batch.product_id) || "A product";
+    if (days < 0) activeInputs.push(batchNotification(batch, "EXPIRED_BATCH", days, productName));
+    else if (days <= warningDays) activeInputs.push(batchNotification(batch, "EXPIRING_SOON", days, productName));
   }
 
   activeInputs.push(...subscriptionNotifications(pharmacy));

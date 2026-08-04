@@ -14,7 +14,8 @@
     "verify:notifications": "node scripts/verify-notifications.mjs",
     "verify:expiry-warning": "node scripts/verify-expiry-warning.mjs",
     "verify:reorder-level": "node scripts/verify-reorder-level.mjs",
-    "verify:sale-cart": "node scripts/verify-sale-cart.mjs"
+    "verify:sale-cart": "node scripts/verify-sale-cart.mjs",
+    "verify:inventory-adjustments": "node scripts/verify-inventory-adjustments.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

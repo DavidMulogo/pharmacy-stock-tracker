@@ -7,9 +7,9 @@ import { formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
 import { ReorderLevelForm } from "@/app/products/reorder-level-form";
 import { resolveDefaultPrice } from "@/lib/pricing";
 import { getPharmacyExpiryWarning } from "@/lib/subscription";
-import type { DashboardData, ExpiryStatus, NotificationCounts, OnboardingProgressSummary, OverrideFlag, Pharmacy, PharmacyUser, ProductWithStock, SaleWithProduct, SellType, StockStatus } from "@/lib/types";
+import type { DashboardData, ExpiryStatus, InventoryAdjustmentReason, NotificationCounts, OnboardingProgressSummary, OverrideFlag, Pharmacy, PharmacyUser, ProductWithStock, SaleWithProduct, SellType, StockStatus } from "@/lib/types";
 
-type Tab = "dashboard" | "sell" | "products" | "stock" | "expiry" | "sales" | "csv";
+type Tab = "dashboard" | "sell" | "products" | "stock" | "adjust" | "expiry" | "sales" | "csv";
 type Toast = {
   message: string;
   type: "success" | "error";
@@ -51,6 +51,7 @@ const tabs: { id: Tab; label: string }[] = [
   { id: "sell", label: "Sell" },
   { id: "products", label: "Products" },
   { id: "stock", label: "Add Stock" },
+  { id: "adjust", label: "Adjust Stock" },
   { id: "expiry", label: "Expiry" },
   { id: "sales", label: "Sales" },
   { id: "csv", label: "CSV" },
@@ -72,6 +73,15 @@ const PRODUCT_IMPORT_COLUMNS = [
 
 const BATCH_IMPORT_COLUMNS = ["product_name", "batch_number", "expiry_date", "packs_received", "buying_price_per_pack"] as const;
 const DUPLICATE_BATCH_MESSAGE = "This batch already exists for this product and expiry date.";
+const adjustmentReasons: Array<{ value: InventoryAdjustmentReason; label: string }> = [
+  { value: "DAMAGED", label: "Broken or damaged" },
+  { value: "EXPIRED", label: "Expired" },
+  { value: "CUSTOMER_RETURN", label: "Returned by customer (quarantine)" },
+  { value: "SUPPLIER_RETURN", label: "Returned to supplier" },
+  { value: "MISSING", label: "Missing / stock discrepancy" },
+  { value: "INTERNAL_USE", label: "Internal use" },
+  { value: "OTHER", label: "Other" },
+];
 
 type StatusBadgeValue = StockStatus | ExpiryStatus | OverrideFlag;
 
@@ -360,6 +370,15 @@ export function PharmacyApp({
   const [buyingPricePerPack, setBuyingPricePerPack] = useState("");
   const [isSavingSale, setIsSavingSale] = useState(false);
   const [isSavingStock, setIsSavingStock] = useState(false);
+  const [adjustmentProductSearch, setAdjustmentProductSearch] = useState("");
+  const [adjustmentProductId, setAdjustmentProductId] = useState("");
+  const [isAdjustmentPickerOpen, setIsAdjustmentPickerOpen] = useState(false);
+  const [adjustmentBatchId, setAdjustmentBatchId] = useState("");
+  const [adjustmentReason, setAdjustmentReason] = useState<InventoryAdjustmentReason>("DAMAGED");
+  const [adjustmentQuantity, setAdjustmentQuantity] = useState("");
+  const [adjustmentNote, setAdjustmentNote] = useState("");
+  const [adjustmentMessage, setAdjustmentMessage] = useState("");
+  const [isSavingAdjustment, setIsSavingAdjustment] = useState(false);
   const [productImport, setProductImport] = useState<ImportPreview | null>(null);
   const [batchImport, setBatchImport] = useState<ImportPreview | null>(null);
   const [isImportingProducts, setIsImportingProducts] = useState(false);
@@ -392,9 +411,23 @@ export function PharmacyApp({
   const filteredBatchProducts = useMemo(() => {
     return dashboardData.products.filter((product) => matchesProductSearch(product, batchProductSearch));
   }, [batchProductSearch, dashboardData.products]);
+  const filteredAdjustmentProducts = useMemo(() => {
+    if (!adjustmentProductSearch.trim()) return [];
+    return dashboardData.products.filter((product) => matchesProductSearch(product, adjustmentProductSearch));
+  }, [adjustmentProductSearch, dashboardData.products]);
 
   const selectedProduct = dashboardData.products.find((product) => product.id === selectedProductId);
   const batchProduct = dashboardData.products.find((product) => product.id === batchProductId);
+  const adjustmentProduct = dashboardData.products.find((product) => product.id === adjustmentProductId);
+  const adjustmentBatches = dashboardData.batches.filter((batch) => batch.product_id === adjustmentProductId);
+  const adjustmentIsCustomerReturn = adjustmentReason === "CUSTOMER_RETURN";
+  const adjustmentQuantityNumber = Number(adjustmentQuantity);
+  const adjustmentFormInvalid =
+    !adjustmentProduct ||
+    (!adjustmentIsCustomerReturn && !adjustmentBatchId) ||
+    !Number.isInteger(adjustmentQuantityNumber) ||
+    adjustmentQuantityNumber <= 0 ||
+    adjustmentNote.length > 500;
   const sellType: SellType = selectedProduct ? getProductSellType(selectedProduct, preferredSellType) : preferredSellType;
   const saleQuantity = Number(quantity);
   const overridePriceNumber = overridePrice.trim() === "" ? null : Number(overridePrice);
@@ -637,6 +670,7 @@ export function PharmacyApp({
         batches: [],
         expiringBatches: [],
         sales: [],
+        adjustments: [],
       });
       return;
     }
@@ -661,6 +695,9 @@ export function PharmacyApp({
       setBatchProductId("");
       setBatchProductSearch("");
       setIsBatchProductPickerOpen(false);
+      setAdjustmentProductId("");
+      setAdjustmentProductSearch("");
+      setAdjustmentBatchId("");
       setProductImport(null);
       setBatchImport(null);
     } catch {
@@ -1047,6 +1084,54 @@ export function PharmacyApp({
       setToast({ message, type: "error" });
     } finally {
       setIsSavingStock(false);
+    }
+  }
+
+  async function submitAdjustment(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAdjustmentMessage("");
+    if (!activePharmacyId || adjustmentFormInvalid) return;
+
+    setIsSavingAdjustment(true);
+    try {
+      const response = await fetch("/api/inventory-adjustments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: adjustmentProduct.id,
+          inventory_batch_id: adjustmentBatchId || null,
+          reason: adjustmentReason,
+          quantity: adjustmentQuantityNumber,
+          note: adjustmentNote,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        const message = result.error || "Unable to record the adjustment.";
+        setAdjustmentMessage(message);
+        setToast({ message, type: "error" });
+        return;
+      }
+
+      const message = adjustmentIsCustomerReturn
+        ? "Customer return recorded in quarantine. Sellable stock was not increased."
+        : `${adjustmentQuantityNumber} unit${adjustmentQuantityNumber === 1 ? "" : "s"} removed from sellable stock.`;
+      setAdjustmentProductId("");
+      setAdjustmentProductSearch("");
+      setAdjustmentBatchId("");
+      setAdjustmentQuantity("");
+      setAdjustmentNote("");
+      setAdjustmentReason("DAMAGED");
+      setAdjustmentMessage(message);
+      setToast({ message, type: "success" });
+      await loadPharmacyData(activePharmacyId);
+      router.refresh();
+    } catch {
+      const message = "Unable to record the adjustment. Check your connection and try again.";
+      setAdjustmentMessage(message);
+      setToast({ message, type: "error" });
+    } finally {
+      setIsSavingAdjustment(false);
     }
   }
 
@@ -1814,6 +1899,7 @@ export function PharmacyApp({
                   <Metric label="Available" value={String(product.available_stock)} />
                   <Metric label="Received" value={String(product.total_received)} />
                   <Metric label="Sold" value={String(product.total_sold)} />
+                  <Metric label="Adjusted" value={String(product.total_adjusted)} />
                   <Metric label="Unit cost" value={product.derived_unit_cost == null ? "-" : formatTZS(product.derived_unit_cost)} />
                   <Metric label="Reorder" value={product.reorder_level == null ? "Not configured" : String(product.reorder_level)} />
                 </div>
@@ -1947,6 +2033,149 @@ export function PharmacyApp({
           </section>
         ) : null}
 
+        {activeTab === "adjust" ? (
+          <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-lg font-bold">Adjust Stock</h2>
+              <p className="mt-1 text-sm text-slate-600">Record stock that cannot be sold or does not match the physical count.</p>
+              <form className="mt-4 grid gap-4" onSubmit={submitAdjustment}>
+                <div>
+                  <label htmlFor="adjustment-product-search" className="block text-sm font-semibold">Medicine</label>
+                  <div className="relative mt-1">
+                    <input
+                      id="adjustment-product-search"
+                      type="search"
+                      autoComplete="off"
+                      value={adjustmentProductSearch}
+                      onFocus={() => setIsAdjustmentPickerOpen(true)}
+                      onChange={(event) => {
+                        setAdjustmentProductSearch(event.target.value);
+                        setAdjustmentProductId("");
+                        setAdjustmentBatchId("");
+                        setIsAdjustmentPickerOpen(true);
+                      }}
+                      placeholder="Search medicine, generic, or brand"
+                      role="combobox"
+                      aria-expanded={isAdjustmentPickerOpen}
+                      aria-controls="adjustment-product-results"
+                      className="w-full rounded-md border border-slate-300 px-4 py-3.5 text-base outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                  {isAdjustmentPickerOpen && adjustmentProductSearch.trim() ? (
+                    <div id="adjustment-product-results" role="listbox" className="mt-2 grid max-h-64 gap-2 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-2">
+                      {filteredAdjustmentProducts.length === 0 ? <EmptyState text="No medicine matches your search." /> : null}
+                      {filteredAdjustmentProducts.slice(0, 20).map((product) => (
+                        <StockProductOption
+                          key={product.id}
+                          product={product}
+                          selected={product.id === adjustmentProductId}
+                          onSelect={() => {
+                            setAdjustmentProductId(product.id);
+                            setAdjustmentProductSearch(product.product_name);
+                            setAdjustmentBatchId("");
+                            setIsAdjustmentPickerOpen(false);
+                            setAdjustmentMessage("");
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                <label className="text-sm font-semibold">
+                  Reason
+                  <select
+                    value={adjustmentReason}
+                    onChange={(event) => {
+                      const reason = event.target.value as InventoryAdjustmentReason;
+                      setAdjustmentReason(reason);
+                      if (reason === "CUSTOMER_RETURN") setAdjustmentBatchId("");
+                    }}
+                    className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-3"
+                  >
+                    {adjustmentReasons.map((reason) => <option key={reason.value} value={reason.value}>{reason.label}</option>)}
+                  </select>
+                </label>
+
+                <label className="text-sm font-semibold">
+                  Batch {adjustmentIsCustomerReturn ? "(optional)" : ""}
+                  <select
+                    value={adjustmentBatchId}
+                    disabled={!adjustmentProduct}
+                    onChange={(event) => setAdjustmentBatchId(event.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-3 disabled:bg-slate-100"
+                  >
+                    <option value="">{adjustmentIsCustomerReturn ? "Unknown / not recorded" : "Choose batch"}</option>
+                    {adjustmentBatches.map((batch) => (
+                      <option key={batch.id} value={batch.id}>
+                        {batch.batch_number} · expires {batch.expiry_date} · {batch.available_stock} units available
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <Input label="Quantity in units" value={adjustmentQuantity} onChange={setAdjustmentQuantity} type="number" min="1" step="1" />
+                <label className="text-sm font-semibold">
+                  Note (optional)
+                  <textarea
+                    value={adjustmentNote}
+                    onChange={(event) => setAdjustmentNote(event.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    placeholder="What happened?"
+                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600"
+                  />
+                  <span className="mt-1 block text-xs text-slate-500">{adjustmentNote.length}/500 characters</span>
+                </label>
+
+                {adjustmentIsCustomerReturn ? (
+                  <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+                    Customer returns are quarantined. They are recorded but are not added back to sellable stock.
+                  </p>
+                ) : (
+                  <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-900">
+                    This permanently removes the entered units from the selected batch’s sellable stock.
+                  </p>
+                )}
+                {adjustmentMessage ? <p className="text-sm font-semibold text-slate-700">{adjustmentMessage}</p> : null}
+                <button
+                  type="submit"
+                  disabled={isSavingAdjustment || !activePharmacyId || adjustmentFormInvalid}
+                  className="rounded-md bg-emerald-700 px-4 py-3.5 font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {isSavingAdjustment ? "Recording..." : adjustmentIsCustomerReturn ? "Record Quarantined Return" : "Confirm Stock Adjustment"}
+                </button>
+              </form>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-lg font-bold">Recent Adjustments</h2>
+              <p className="mt-1 text-sm text-slate-600">The latest 100 immutable adjustment records.</p>
+              <div className="mt-4 grid gap-3">
+                {dashboardData.adjustments.length === 0 ? <EmptyState text="No inventory adjustments recorded yet." /> : null}
+                {dashboardData.adjustments.map((adjustment) => (
+                  <article key={adjustment.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-bold">{adjustment.product.product_name}</p>
+                        <p className="text-sm text-slate-600">
+                          {adjustmentReasons.find((reason) => reason.value === adjustment.reason)?.label || adjustment.reason}
+                          {adjustment.batch ? ` · Batch ${adjustment.batch.batch_number}` : ""}
+                        </p>
+                      </div>
+                      <p className={`font-black ${adjustment.stock_effect === -1 ? "text-rose-700" : "text-amber-700"}`}>
+                        {adjustment.stock_effect === -1 ? "−" : "Quarantine "}{adjustment.quantity} units
+                      </p>
+                    </div>
+                    {adjustment.note ? <p className="mt-2 text-sm text-slate-700">{adjustment.note}</p> : null}
+                    <p className="mt-2 text-xs font-semibold text-slate-500">{adjustment.staff_name} · {formatDateTime(adjustment.created_at)}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {activeTab === "expiry" ? (
           <section className="grid gap-3">
             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -1993,6 +2222,7 @@ export function PharmacyApp({
                   <Metric label="Days" value={String(batch.days_to_expiry)} />
                   <Metric label="Packs" value={String(batch.packs_received)} />
                   <Metric label="Units" value={String(batch.total_units_received)} />
+                  <Metric label="Available" value={String(batch.available_stock)} />
                   <Metric label="Buying/pack" value={formatTZS(batch.buying_price_per_pack)} />
                   <Metric label="Unit cost" value={batch.derived_unit_cost == null ? "-" : formatTZS(batch.derived_unit_cost)} />
                 </div>

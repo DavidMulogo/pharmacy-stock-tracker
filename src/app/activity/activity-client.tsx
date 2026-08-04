@@ -9,6 +9,7 @@ const actionLabels: Record<ActivityLogAction, string> = {
   LOGOUT: "Logout",
   SALE_CREATED: "Sale created",
   STOCK_ADDED: "Stock added",
+  INVENTORY_ADJUSTED: "Inventory adjusted",
   PRODUCTS_IMPORTED: "Products imported",
   STOCK_IMPORTED: "Stock imported",
   EXPENSE_CREATED: "Expense created",

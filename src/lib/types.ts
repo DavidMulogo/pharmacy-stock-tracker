@@ -10,7 +10,8 @@ export type ExpenseCategory = "Rent" | "Salary" | "Electricity" | "Water" | "Int
 export type NotificationType = "LOW_STOCK" | "OUT_OF_STOCK" | "EXPIRING_SOON" | "EXPIRED_BATCH" | "TRIAL_EXPIRING" | "SUBSCRIPTION_EXPIRING" | "SUBSCRIPTION_EXPIRED";
 export type NotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
 export type NotificationStatus = "ACTIVE" | "RESOLVED";
-export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "STOCK_ADDED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET" | "REPORT_EXPORTED" | "BACKUP_EXPORTED" | "BACKUP_VALIDATED" | "ONBOARDING_STARTED" | "ONBOARDING_STEP_REVIEWED" | "ONBOARDING_COMPLETED";
+export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "STOCK_ADDED" | "INVENTORY_ADJUSTED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET" | "REPORT_EXPORTED" | "BACKUP_EXPORTED" | "BACKUP_VALIDATED" | "ONBOARDING_STARTED" | "ONBOARDING_STEP_REVIEWED" | "ONBOARDING_COMPLETED";
+export type InventoryAdjustmentReason = "DAMAGED" | "EXPIRED" | "CUSTOMER_RETURN" | "SUPPLIER_RETURN" | "MISSING" | "INTERNAL_USE" | "OTHER";
 
 export type OnboardingStepId = "profile" | "business_rules" | "staff" | "products" | "opening_stock" | "subscription";
 
@@ -208,6 +209,7 @@ export type Sale = {
 export type ProductWithStock = Product & {
   total_received: number;
   total_sold: number;
+  total_adjusted: number;
   available_stock: number;
   derived_unit_cost: number | null;
   reorder_level_configured: boolean;
@@ -216,12 +218,32 @@ export type ProductWithStock = Product & {
 
 export type BatchWithProduct = InventoryBatch & {
   product: Product;
+  available_stock: number;
   expiry_status: ExpiryStatus;
   days_to_expiry: number;
 };
 
 export type SaleWithProduct = Sale & {
   product: Product;
+};
+
+export type InventoryAdjustment = {
+  id: string;
+  pharmacy_id: string;
+  product_id: string;
+  inventory_batch_id: string | null;
+  created_by: string | null;
+  reason: InventoryAdjustmentReason;
+  quantity: number;
+  stock_effect: -1 | 0;
+  note: string;
+  created_at: string;
+};
+
+export type InventoryAdjustmentWithDetails = InventoryAdjustment & {
+  product: Product;
+  batch: Pick<InventoryBatch, "id" | "batch_number" | "expiry_date"> | null;
+  staff_name: string;
 };
 
 export type Expense = {
@@ -282,4 +304,5 @@ export type DashboardData = {
   batches: BatchWithProduct[];
   expiringBatches: BatchWithProduct[];
   sales: SaleWithProduct[];
+  adjustments: InventoryAdjustmentWithDetails[];
 };

@@ -85,7 +85,7 @@ Sales use generated columns for:
 - `total_sale`
 - `override_flag`
 
-New customer purchases are grouped in `sale_transactions`. Each cart item remains an individual `sales` row for existing stock, reporting, and product-history compatibility. `create_sale_transaction_v1` validates every line, locks the relevant batches, allocates FEFO COGS, and commits the whole cart in one database transaction. If one item fails, no item is saved.
+New customer purchases are grouped in `sale_transactions`. Each cart item remains an individual `sales` row for existing stock, reporting, and product-history compatibility. `create_sale_transaction_v2` validates every line, locks the relevant batches, accounts for inventory adjustments, allocates FEFO COGS, and commits the whole cart in one database transaction. If one item fails, no item is saved.
 
 The `product_stock_summary` database view calculates available stock as:
 
@@ -155,7 +155,13 @@ Each backup includes a deterministic SHA-256 checksum. The validation endpoint c
 
 Admin Restore v1 is available inside `/admin`. It restores only missing records for the same pharmacy id and never deletes or overwrites existing data. It restores pharmacy settings when missing, products, inventory batches, sales, and expenses. It does not restore staff accounts, historical activity logs, sessions, passwords, password hashes, cookies, access credentials, admin users, or admin credentials.
 
-Backup Restore v1 restores sale line records but does not currently rebuild `sale_transactions` grouping. Transaction-aware restore is reserved for a later backup schema version.
+New backup exports include inventory adjustments. Admin Restore v1 displays adjustment records as unsupported and does not restore them yet. It also restores sale line records without rebuilding `sale_transactions` grouping. Relationship-aware sale and adjustment restore is reserved for a later backup schema version.
+
+## Inventory Adjustments
+
+The **Adjust Stock** tab records damaged, expired, supplier-returned, missing, internally used, and other quantities against the correct inventory batch. These records reduce sellable stock everywhere, including checkout, dashboard totals, notifications, expiry availability, and reports. Customer returns are recorded as quarantined and do not increase sellable stock.
+
+Apply `supabase/migrations/028_inventory_adjustments.sql` before deploying this feature.
 
 ## Cost Of Goods Sold
 

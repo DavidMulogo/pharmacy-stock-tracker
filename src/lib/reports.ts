@@ -124,6 +124,7 @@ async function getInventoryReport(pharmacyId: string) {
       id: product.id,
       product: product.product_name,
       available_stock: availableStock,
+      total_adjusted: normalizeNumber(product.total_adjusted),
       stock_status: product.stock_status as StockStatus | null,
       reorder_level: product.reorder_level == null ? null : normalizeNumber(product.reorder_level),
       reorder_level_configured: Boolean(product.reorder_level_configured),
@@ -166,7 +167,7 @@ async function getExpiryReport(pharmacyId: string, filters: ReportFilters) {
   );
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const rows = ((batchesResult.data || []) as BatchExpirySummaryRow[]).map((batch) => {
+  const rows = ((batchesResult.data || []) as BatchExpirySummaryRow[]).filter((batch) => normalizeNumber(batch.available_stock) > 0).map((batch) => {
     const product = productById.get(batch.product_id);
     const expiry = new Date(`${batch.expiry_date}T00:00:00`);
     expiry.setHours(0, 0, 0, 0);
@@ -178,7 +179,7 @@ async function getExpiryReport(pharmacyId: string, filters: ReportFilters) {
       expiry_date: batch.expiry_date,
       expiry_status: batch.expiry_status as ExpiryStatus,
       days_to_expiry: Math.ceil((expiry.getTime() - today.getTime()) / 86_400_000),
-      remaining_stock: product?.available_stock ?? null,
+      remaining_stock: normalizeNumber(batch.available_stock),
     };
   });
 

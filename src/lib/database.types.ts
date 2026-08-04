@@ -1,4 +1,4 @@
-import type { ActivityLogAction, ExpenseCategory, ExpiryStatus, NotificationSeverity, NotificationStatus, NotificationType, OverrideFlag, PharmacyPlan, PharmacyStatus, PharmacyUserRole, SellingMode, SellType, StockStatus } from "@/lib/types";
+import type { ActivityLogAction, ExpenseCategory, ExpiryStatus, InventoryAdjustmentReason, NotificationSeverity, NotificationStatus, NotificationType, OverrideFlag, PharmacyPlan, PharmacyStatus, PharmacyUserRole, SellingMode, SellType, StockStatus } from "@/lib/types";
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -433,6 +433,63 @@ export type Database = {
           },
         ];
       };
+      inventory_adjustments: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          product_id: string;
+          inventory_batch_id: string | null;
+          created_by: string | null;
+          reason: InventoryAdjustmentReason;
+          quantity: number;
+          stock_effect: -1 | 0;
+          note: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          product_id: string;
+          inventory_batch_id?: string | null;
+          created_by?: string | null;
+          reason: InventoryAdjustmentReason;
+          quantity: number;
+          stock_effect: -1 | 0;
+          note?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["inventory_adjustments"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "inventory_adjustments_pharmacy_id_fkey";
+            columns: ["pharmacy_id"];
+            isOneToOne: false;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "inventory_adjustments_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "inventory_adjustments_inventory_batch_id_fkey";
+            columns: ["inventory_batch_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_batches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "inventory_adjustments_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "pharmacy_users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sale_transactions: {
         Row: {
           id: string;
@@ -669,6 +726,7 @@ export type Database = {
         Row: Database["public"]["Tables"]["products"]["Row"] & {
           total_received: number;
           total_sold: number;
+          total_adjusted: number;
           available_stock: number;
           derived_unit_cost: number | null;
           reorder_level_configured: boolean;
@@ -680,6 +738,7 @@ export type Database = {
         Row: Database["public"]["Tables"]["inventory_batches"]["Row"] & {
           derived_unit_cost: number | null;
           expiry_status: ExpiryStatus;
+          available_stock: number;
         };
         Relationships: [
           {
@@ -698,6 +757,26 @@ export type Database = {
           p_pharmacy_id: string;
           p_created_by: string | null;
           p_items: Json;
+        };
+        Returns: Json;
+      };
+      create_sale_transaction_v2: {
+        Args: {
+          p_pharmacy_id: string;
+          p_created_by: string | null;
+          p_items: Json;
+        };
+        Returns: Json;
+      };
+      create_inventory_adjustment_v1: {
+        Args: {
+          p_pharmacy_id: string;
+          p_created_by: string | null;
+          p_product_id: string;
+          p_inventory_batch_id: string | null;
+          p_reason: InventoryAdjustmentReason;
+          p_quantity: number;
+          p_note?: string;
         };
         Returns: Json;
       };
