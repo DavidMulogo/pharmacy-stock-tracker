@@ -494,6 +494,13 @@ export type Database = {
             referencedRelation: "pharmacy_users";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "inventory_adjustments_reversed_by_fkey";
+            columns: ["reversed_by"];
+            isOneToOne: false;
+            referencedRelation: "pharmacy_users";
+            referencedColumns: ["id"];
+          },
         ];
       };
       sale_transactions: {

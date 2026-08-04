@@ -6,6 +6,7 @@ const voidRoute = readFileSync(new URL("../src/app/api/sales/void/route.ts", imp
 const reverseRoute = readFileSync(new URL("../src/app/api/inventory-adjustments/reverse/route.ts", import.meta.url), "utf8");
 const salesRoute = readFileSync(new URL("../src/app/api/sales/route.ts", import.meta.url), "utf8");
 const adjustmentRoute = readFileSync(new URL("../src/app/api/inventory-adjustments/route.ts", import.meta.url), "utf8");
+const dataModule = readFileSync(new URL("../src/lib/data.ts", import.meta.url), "utf8");
 
 for (const pattern of [
   /void_sale_transaction_v1/i,
@@ -27,6 +28,7 @@ assert.match(reverseRoute, /role !== "OWNER"/);
 assert.doesNotMatch(reverseRoute, /body\.pharmacy_id/);
 assert.match(salesRoute, /create_sale_transaction_v3/);
 assert.match(adjustmentRoute, /create_inventory_adjustment_v2/);
+assert.match(dataModule, /pharmacy_users!inventory_adjustments_created_by_fkey/);
 
 const state = { stock: 20, saleVoided: false, adjustmentReversed: false };
 state.stock -= 5;

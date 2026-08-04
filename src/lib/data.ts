@@ -295,7 +295,7 @@ export async function getDashboardData(pharmacyId?: string, options: { includeFi
       .order("created_at", { ascending: false }),
     supabase
       .from("inventory_adjustments")
-      .select("*, product:products(*), batch:inventory_batches(*), creator:pharmacy_users(full_name)")
+      .select("*, product:products(*), batch:inventory_batches(*), creator:pharmacy_users!inventory_adjustments_created_by_fkey(full_name)")
       .eq("pharmacy_id", pharmacyId)
       .order("created_at", { ascending: false })
       .limit(100),
