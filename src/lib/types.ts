@@ -10,7 +10,7 @@ export type ExpenseCategory = "Rent" | "Salary" | "Electricity" | "Water" | "Int
 export type NotificationType = "LOW_STOCK" | "OUT_OF_STOCK" | "EXPIRING_SOON" | "EXPIRED_BATCH" | "TRIAL_EXPIRING" | "SUBSCRIPTION_EXPIRING" | "SUBSCRIPTION_EXPIRED";
 export type NotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
 export type NotificationStatus = "ACTIVE" | "RESOLVED";
-export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "STOCK_ADDED" | "INVENTORY_ADJUSTED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET" | "REPORT_EXPORTED" | "BACKUP_EXPORTED" | "BACKUP_VALIDATED" | "ONBOARDING_STARTED" | "ONBOARDING_STEP_REVIEWED" | "ONBOARDING_COMPLETED";
+export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "SALE_VOIDED" | "STOCK_ADDED" | "INVENTORY_ADJUSTED" | "INVENTORY_ADJUSTMENT_REVERSED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET" | "REPORT_EXPORTED" | "BACKUP_EXPORTED" | "BACKUP_VALIDATED" | "ONBOARDING_STARTED" | "ONBOARDING_STEP_REVIEWED" | "ONBOARDING_COMPLETED";
 export type InventoryAdjustmentReason = "DAMAGED" | "EXPIRED" | "CUSTOMER_RETURN" | "SUPPLIER_RETURN" | "MISSING" | "INTERNAL_USE" | "OTHER";
 
 export type OnboardingStepId = "profile" | "business_rules" | "staff" | "products" | "opening_stock" | "subscription";
@@ -204,6 +204,9 @@ export type Sale = {
   total_sale: number;
   override_flag: OverrideFlag;
   created_at: string;
+  voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string;
 };
 
 export type ProductWithStock = Product & {
@@ -238,6 +241,9 @@ export type InventoryAdjustment = {
   stock_effect: -1 | 0;
   note: string;
   created_at: string;
+  reversed_at: string | null;
+  reversed_by: string | null;
+  reversal_reason: string;
 };
 
 export type InventoryAdjustmentWithDetails = InventoryAdjustment & {

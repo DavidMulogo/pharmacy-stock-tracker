@@ -25,11 +25,13 @@
 - `sale_transactions`, sale-line transaction links, and service-role-only `create_sale_transaction_v1` RPC
 - Inventory Adjustments v1 for damaged, expired, supplier-returned, missing, internally used, other, and quarantined customer-return stock
 - Batch-safe adjustment RPC, immutable adjustment history, staff audit events, and adjustment-aware stock calculations
+- Controlled Corrections v1 with soft sale voids, inventory-adjustment reversals, mandatory reasons, and correction audit events
 
 ### Improved
 
 - Sales history and sales reports now group cart lines by transaction while retaining line-level product details
 - Dashboard inventory, notifications, expiry availability, sales checkout, inventory reports, and new backups account for stock adjustments
+- Stock, revenue, profit, reports, notifications, and checkout now consistently exclude voided sales and reversed adjustments
 - Sell product results now appear only after typing, are limited to 20 visible matches, and require explicit medicine selection
 - Mobile, tablet, and desktop Add Stock product selection now uses a searchable product picker with multi-word matching, bounded results, and explicit selection
 - Add Stock starts without an assumed product and keeps Save Batch disabled until a product is explicitly selected
@@ -53,10 +55,11 @@
 - Restore writes run through a service-role-only PostgreSQL RPC for atomic rollback on failure
 - Cart checkout derives pharmacy and staff identity from the session; the database revalidates tenant products, prices, selling modes, and stock under batch locks
 - Adjustment APIs derive pharmacy and staff identity from the session; service-role-only RPCs lock and revalidate tenant batches before reducing stock
+- Sale voids are limited to owners and pharmacists; adjustment reversals are owner-only; correction RPCs reject repeat actions under database locks
 
 ### Not Included
 
-- Destructive restore, overwrite restore, staff restore, activity log restore, inventory-adjustment restore, and supplier/purchase restore are not implemented
+- Destructive restore, overwrite restore, staff restore, activity log restore, correction-aware sale restore, inventory-adjustment restore, and supplier/purchase restore are not implemented
 
 ## v0.6.0-alpha
 

@@ -35,6 +35,13 @@ export default async function SaleDetail({
             </span>
           </div>
 
+          {sale.voided_at ? (
+            <div className="mt-4 rounded-md border border-rose-300 bg-rose-50 px-4 py-3 text-rose-900">
+              <p className="font-black">VOIDED SALE</p>
+              <p className="mt-1 text-sm font-semibold">{formatDateTime(sale.voided_at)} · {sale.void_reason}</p>
+            </div>
+          ) : null}
+
           <div className="mt-5 grid grid-cols-2 gap-3">
             <Metric label="Product" value={sale.product.product_name} />
             <Metric label="Sell type" value={sale.sell_type} />

@@ -183,6 +183,7 @@ async function deletePharmacyPermanently(supabase: SupabaseAdminClient, pharmacy
 
   await deleteStep("sale_batch_allocations", () => supabase.from("sale_batch_allocations").delete().eq("pharmacy_id", pharmacyId));
   await deleteStep("sales", () => supabase.from("sales").delete().eq("pharmacy_id", pharmacyId));
+  await deleteStep("inventory_adjustments", () => supabase.from("inventory_adjustments").delete().eq("pharmacy_id", pharmacyId));
   await deleteStep("inventory_batches", () => supabase.from("inventory_batches").delete().eq("pharmacy_id", pharmacyId));
   await deleteStep("products", () => supabase.from("products").delete().eq("pharmacy_id", pharmacyId));
   await deleteStep("pharmacy_sessions", () => supabase.from("pharmacy_sessions").delete().eq("pharmacy_id", pharmacyId));

@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     if (note.length > 500) return NextResponse.json({ error: "Note cannot exceed 500 characters." }, { status: 400 });
 
     const supabase = getSupabaseAdmin();
-    const result = await supabase.rpc("create_inventory_adjustment_v1", {
+    const result = await supabase.rpc("create_inventory_adjustment_v2", {
       p_pharmacy_id: session.pharmacy.id,
       p_created_by: session.user.id,
       p_product_id: productId,

@@ -81,6 +81,7 @@ async function getSalesReport(pharmacyId: string, filters: ReportFilters) {
     .from("sales")
     .select("*, product:products(product_name)")
     .eq("pharmacy_id", pharmacyId)
+    .is("voided_at", null)
     .gte("created_at", range.fromTimestamp)
     .lt("created_at", range.toTimestamp)
     .order("created_at", { ascending: false });
@@ -202,6 +203,7 @@ async function getOverrideReport(pharmacyId: string, filters: ReportFilters) {
     .select("*, product:products(product_name)")
     .eq("pharmacy_id", pharmacyId)
     .eq("override_flag", "OVERRIDDEN")
+    .is("voided_at", null)
     .gte("created_at", range.fromTimestamp)
     .lt("created_at", range.toTimestamp)
     .order("created_at", { ascending: false });
@@ -237,6 +239,7 @@ async function getExpenseProfitReport(pharmacyId: string, filters: ReportFilters
       .from("sales")
       .select("id, product_id, units_sold, total_sale")
       .eq("pharmacy_id", pharmacyId)
+      .is("voided_at", null)
       .gte("created_at", range.fromTimestamp)
       .lt("created_at", range.toTimestamp),
     supabase

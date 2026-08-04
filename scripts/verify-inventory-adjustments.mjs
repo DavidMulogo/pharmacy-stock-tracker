@@ -12,8 +12,9 @@ assert.match(migration, /stock_effect = -1/i);
 assert.match(migration, /for update/i);
 assert.match(migration, /revoke all on function public\.create_inventory_adjustment_v1[\s\S]*authenticated/i);
 assert.match(migration, /grant execute on function public\.create_inventory_adjustment_v1[\s\S]*service_role/i);
-assert.match(salesRoute, /create_sale_transaction_v2/);
+assert.match(salesRoute, /create_sale_transaction_v3/);
 assert.match(adjustmentRoute, /authenticatePharmacyFromSessionCookie/);
+assert.match(adjustmentRoute, /create_inventory_adjustment_v2/);
 assert.doesNotMatch(adjustmentRoute, /body\.pharmacy_id/);
 
 function adjust(stock, reason, quantity) {

@@ -133,6 +133,10 @@ export async function buildAdminRestorePreview(targetPharmacy: Pharmacy, confirm
   const validation = validatePharmaStockBackup(backup, targetPharmacy);
   const forbiddenPaths = Array.from(findForbiddenKeys(backup));
   forbiddenPaths.forEach((path) => validation.errors.push(`Backup contains forbidden key ${path}.`));
+  const voidedSales = arrayDataset(backup, "sales").filter((sale) => typeof sale.voided_at === "string" && sale.voided_at.length > 0).length;
+  if (voidedSales > 0) {
+    validation.errors.push(`Admin Restore v1 cannot safely restore ${voidedSales} voided sale line${voidedSales === 1 ? "" : "s"}. Use a backup without corrections or wait for relationship-aware Restore v2.`);
+  }
 
   const missing_counts = zeroCounts();
   const skipped_counts = zeroCounts();

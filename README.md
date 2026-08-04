@@ -10,6 +10,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - Add Stock screen for recording inventory batches.
 - Expiry screen showing only expired and expiring-soon batches.
 - Sales history with sale detail pages.
+- Controlled sale voids and inventory-adjustment reversals with mandatory reasons and audit history.
 - Business analytics and an expense ledger with role-aware financial visibility.
 - Reports for sales, inventory, expiry, price overrides, expenses/profit, and staff activity with CSV export.
 - Owner-only backup export and backup validation for pharmacy data.
@@ -85,7 +86,7 @@ Sales use generated columns for:
 - `total_sale`
 - `override_flag`
 
-New customer purchases are grouped in `sale_transactions`. Each cart item remains an individual `sales` row for existing stock, reporting, and product-history compatibility. `create_sale_transaction_v2` validates every line, locks the relevant batches, accounts for inventory adjustments, allocates FEFO COGS, and commits the whole cart in one database transaction. If one item fails, no item is saved.
+New customer purchases are grouped in `sale_transactions`. Each cart item remains an individual `sales` row for existing stock, reporting, and product-history compatibility. `create_sale_transaction_v3` validates every line, locks the relevant batches, accounts for active inventory adjustments, allocates FEFO COGS, and commits the whole cart in one database transaction. If one item fails, no item is saved.
 
 The `product_stock_summary` database view calculates available stock as:
 
@@ -155,13 +156,21 @@ Each backup includes a deterministic SHA-256 checksum. The validation endpoint c
 
 Admin Restore v1 is available inside `/admin`. It restores only missing records for the same pharmacy id and never deletes or overwrites existing data. It restores pharmacy settings when missing, products, inventory batches, sales, and expenses. It does not restore staff accounts, historical activity logs, sessions, passwords, password hashes, cookies, access credentials, admin users, or admin credentials.
 
-New backup exports include inventory adjustments. Admin Restore v1 displays adjustment records as unsupported and does not restore them yet. It also restores sale line records without rebuilding `sale_transactions` grouping. Relationship-aware sale and adjustment restore is reserved for a later backup schema version.
+New backup exports include inventory adjustments and correction fields. Admin Restore v1 displays adjustment records as unsupported and does not restore them yet. It also restores sale line records without rebuilding `sale_transactions` grouping. To prevent corrected data from being restored incorrectly, Restore v1 rejects backups containing voided sales. Relationship-aware sale and adjustment restore is reserved for a later backup schema version.
 
 ## Inventory Adjustments
 
 The **Adjust Stock** tab records damaged, expired, supplier-returned, missing, internally used, and other quantities against the correct inventory batch. These records reduce sellable stock everywhere, including checkout, dashboard totals, notifications, expiry availability, and reports. Customer returns are recorded as quarantined and do not increase sellable stock.
 
 Apply `supabase/migrations/028_inventory_adjustments.sql` before deploying this feature.
+
+## Controlled Corrections
+
+Owners and pharmacists can void a completed sale with a required reason. Voiding keeps the original transaction and COGS history for audit, removes its lines from revenue and profit calculations, and returns its allocated quantities to sellable stock. A transaction can be voided only once.
+
+Owners can reverse an inventory adjustment with a required reason. Reversal preserves the original adjustment record and restores stock only when that adjustment originally reduced sellable stock; quarantined customer returns remain non-sellable. A correction can be reversed only once.
+
+Apply `supabase/migrations/029_controlled_corrections.sql` before deploying this feature.
 
 ## Cost Of Goods Sold
 

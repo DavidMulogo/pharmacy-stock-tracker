@@ -44,6 +44,8 @@ type SaleGroup = {
   totalSale: number;
   unitsSold: number;
   hasOverride: boolean;
+  voidedAt: string | null;
+  voidReason: string;
 };
 
 const tabs: { id: Tab; label: string }[] = [
@@ -350,6 +352,10 @@ export function PharmacyApp({
   const [salesSearch, setSalesSearch] = useState("");
   const [salesDate, setSalesDate] = useState("");
   const [salesOverrideFlag, setSalesOverrideFlag] = useState<OverrideFlag | "ALL">("ALL");
+  const [salesStatus, setSalesStatus] = useState<"ALL" | "COMPLETED" | "VOIDED">("ALL");
+  const [voidTargetKey, setVoidTargetKey] = useState("");
+  const [voidReason, setVoidReason] = useState("");
+  const [isVoidingSale, setIsVoidingSale] = useState(false);
   const [expirySearch, setExpirySearch] = useState("");
   const [expiryStatus, setExpiryStatus] = useState<ExpiryStatus | "ALL">("ALL");
   const [selectedProductId, setSelectedProductId] = useState("");
@@ -379,6 +385,9 @@ export function PharmacyApp({
   const [adjustmentNote, setAdjustmentNote] = useState("");
   const [adjustmentMessage, setAdjustmentMessage] = useState("");
   const [isSavingAdjustment, setIsSavingAdjustment] = useState(false);
+  const [reverseAdjustmentId, setReverseAdjustmentId] = useState("");
+  const [reversalReason, setReversalReason] = useState("");
+  const [isReversingAdjustment, setIsReversingAdjustment] = useState(false);
   const [productImport, setProductImport] = useState<ImportPreview | null>(null);
   const [batchImport, setBatchImport] = useState<ImportPreview | null>(null);
   const [isImportingProducts, setIsImportingProducts] = useState(false);
@@ -503,20 +512,23 @@ export function PharmacyApp({
           totalSale: sale.total_sale,
           unitsSold: sale.units_sold,
           hasOverride: sale.override_flag === "OVERRIDDEN",
+          voidedAt: sale.voided_at,
+          voidReason: sale.void_reason,
         });
       }
     }
 
     const text = salesSearch.trim().toLowerCase();
-    return [...groups.values()].filter((transaction) =>
-      transaction.lines.some((sale) => {
+    return [...groups.values()].filter((transaction) => {
+      const matchesStatus = salesStatus === "ALL" || (salesStatus === "VOIDED" ? Boolean(transaction.voidedAt) : !transaction.voidedAt);
+      return matchesStatus && transaction.lines.some((sale) => {
         const matchesText = !text || sale.product.product_name.toLowerCase().includes(text);
         const matchesDate = !salesDate || sale.created_at.slice(0, 10) === salesDate;
         const matchesFlag = salesOverrideFlag === "ALL" || sale.override_flag === salesOverrideFlag;
         return matchesText && matchesDate && matchesFlag;
-      }),
-    );
-  }, [dashboardData.sales, salesDate, salesOverrideFlag, salesSearch]);
+      });
+    });
+  }, [dashboardData.sales, salesDate, salesOverrideFlag, salesSearch, salesStatus]);
   const groupedSaleLineCount = groupedSales.reduce((total, transaction) => total + transaction.lines.length, 0);
   const productsByName = useMemo(
     () => new Map(dashboardData.products.map((product) => [product.product_name.toLowerCase(), product])),
@@ -1132,6 +1144,62 @@ export function PharmacyApp({
       setToast({ message, type: "error" });
     } finally {
       setIsSavingAdjustment(false);
+    }
+  }
+
+  async function voidSale(transaction: SaleGroup) {
+    if (voidReason.trim().length < 3 || isVoidingSale) return;
+    setIsVoidingSale(true);
+    try {
+      const response = await fetch("/api/sales/void", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transaction_id: transaction.transactionId,
+          sale_id: transaction.transactionId ? null : transaction.lines[0]?.id,
+          reason: voidReason.trim(),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setToast({ message: result.error || "Unable to void the sale.", type: "error" });
+        return;
+      }
+      setVoidTargetKey("");
+      setVoidReason("");
+      setToast({ message: "Sale voided and its stock restored to the original batches.", type: "success" });
+      await loadPharmacyData(activePharmacyId);
+      router.refresh();
+    } catch {
+      setToast({ message: "Unable to void the sale. Check your connection and try again.", type: "error" });
+    } finally {
+      setIsVoidingSale(false);
+    }
+  }
+
+  async function reverseAdjustment(adjustmentId: string) {
+    if (reversalReason.trim().length < 3 || isReversingAdjustment) return;
+    setIsReversingAdjustment(true);
+    try {
+      const response = await fetch("/api/inventory-adjustments/reverse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adjustment_id: adjustmentId, reason: reversalReason.trim() }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setToast({ message: result.error || "Unable to reverse the adjustment.", type: "error" });
+        return;
+      }
+      setReverseAdjustmentId("");
+      setReversalReason("");
+      setToast({ message: "Inventory adjustment reversed.", type: "success" });
+      await loadPharmacyData(activePharmacyId);
+      router.refresh();
+    } catch {
+      setToast({ message: "Unable to reverse the adjustment. Check your connection and try again.", type: "error" });
+    } finally {
+      setIsReversingAdjustment(false);
     }
   }
 
@@ -2154,7 +2222,7 @@ export function PharmacyApp({
               <div className="mt-4 grid gap-3">
                 {dashboardData.adjustments.length === 0 ? <EmptyState text="No inventory adjustments recorded yet." /> : null}
                 {dashboardData.adjustments.map((adjustment) => (
-                  <article key={adjustment.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <article key={adjustment.id} className={`rounded-md border p-3 ${adjustment.reversed_at ? "border-slate-300 bg-slate-100 opacity-75" : "border-slate-200 bg-slate-50"}`}>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="font-bold">{adjustment.product.product_name}</p>
@@ -2163,12 +2231,38 @@ export function PharmacyApp({
                           {adjustment.batch ? ` · Batch ${adjustment.batch.batch_number}` : ""}
                         </p>
                       </div>
-                      <p className={`font-black ${adjustment.stock_effect === -1 ? "text-rose-700" : "text-amber-700"}`}>
-                        {adjustment.stock_effect === -1 ? "−" : "Quarantine "}{adjustment.quantity} units
-                      </p>
+                      <div className="text-right">
+                        {adjustment.reversed_at ? <span className="rounded-full border border-slate-300 bg-white px-2 py-1 text-xs font-black text-slate-700">REVERSED</span> : null}
+                        <p className={`mt-1 font-black ${adjustment.stock_effect === -1 ? "text-rose-700" : "text-amber-700"}`}>
+                          {adjustment.stock_effect === -1 ? "−" : "Quarantine "}{adjustment.quantity} units
+                        </p>
+                      </div>
                     </div>
                     {adjustment.note ? <p className="mt-2 text-sm text-slate-700">{adjustment.note}</p> : null}
                     <p className="mt-2 text-xs font-semibold text-slate-500">{adjustment.staff_name} · {formatDateTime(adjustment.created_at)}</p>
+                    {adjustment.reversed_at ? (
+                      <p className="mt-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                        Reversed {formatDateTime(adjustment.reversed_at)} · {adjustment.reversal_reason}
+                      </p>
+                    ) : null}
+                    {activeUser?.role === "OWNER" && !adjustment.reversed_at ? (
+                      reverseAdjustmentId === adjustment.id ? (
+                        <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-3">
+                          <label className="text-sm font-bold text-rose-900">
+                            Why are you reversing this adjustment?
+                            <textarea value={reversalReason} onChange={(event) => setReversalReason(event.target.value)} maxLength={500} rows={2} className="mt-1 w-full rounded-md border border-rose-300 bg-white px-3 py-2" />
+                          </label>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button type="button" disabled={reversalReason.trim().length < 3 || isReversingAdjustment} onClick={() => reverseAdjustment(adjustment.id)} className="rounded-md bg-rose-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300">
+                              {isReversingAdjustment ? "Reversing..." : "Confirm Reversal"}
+                            </button>
+                            <button type="button" onClick={() => { setReverseAdjustmentId(""); setReversalReason(""); }} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-bold">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => { setReverseAdjustmentId(adjustment.id); setReversalReason(""); }} className="mt-3 rounded-md border border-rose-300 bg-white px-3 py-2 text-sm font-bold text-rose-700">Reverse Adjustment</button>
+                      )
+                    ) : null}
                   </article>
                 ))}
               </div>
@@ -2235,7 +2329,7 @@ export function PharmacyApp({
           <section className="grid gap-3">
             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <h2 className="text-lg font-bold">Sales</h2>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <input
                   value={salesSearch}
                   onChange={(event) => setSalesSearch(event.target.value)}
@@ -2257,6 +2351,11 @@ export function PharmacyApp({
                   <option value="NORMAL">Normal</option>
                   <option value="OVERRIDDEN">Overridden</option>
                 </select>
+                <select value={salesStatus} onChange={(event) => setSalesStatus(event.target.value as "ALL" | "COMPLETED" | "VOIDED")} className="w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600">
+                  <option value="ALL">All sale statuses</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="VOIDED">Voided</option>
+                </select>
               </div>
               {dashboardData.sales.length ? (
                 <p className="mt-3 text-sm font-semibold text-slate-600">
@@ -2270,7 +2369,7 @@ export function PharmacyApp({
             ) : null}
 
             {dashboardData.sales.length ? groupedSales.map((transaction) => (
-              <article key={transaction.key} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <article key={transaction.key} className={`rounded-lg border p-4 shadow-sm ${transaction.voidedAt ? "border-slate-300 bg-slate-100 opacity-80" : "border-slate-200 bg-white"}`}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <h2 className="font-bold">
@@ -2280,7 +2379,10 @@ export function PharmacyApp({
                       {formatDateTime(transaction.createdAt)} · {transaction.lines.length} item{transaction.lines.length === 1 ? "" : "s"}
                     </p>
                   </div>
-                  <StatusBadge value={transaction.hasOverride ? "OVERRIDDEN" : "NORMAL"} />
+                  <div className="flex flex-wrap gap-2">
+                    <StatusBadge value={transaction.hasOverride ? "OVERRIDDEN" : "NORMAL"} />
+                    {transaction.voidedAt ? <span className="rounded-full border border-rose-300 bg-rose-100 px-2.5 py-1 text-xs font-black text-rose-800">VOIDED</span> : null}
+                  </div>
                 </div>
                 <div className="mt-4 grid gap-2">
                   {transaction.lines.map((sale) => (
@@ -2304,6 +2406,31 @@ export function PharmacyApp({
                   <Metric label="Total units" value={String(transaction.unitsSold)} />
                   <Metric label="Transaction total" value={formatTZS(transaction.totalSale)} />
                 </div>
+                {transaction.voidedAt ? (
+                  <p className="mt-3 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                    Voided {formatDateTime(transaction.voidedAt)} · {transaction.voidReason}
+                  </p>
+                ) : null}
+                {(activeUser?.role === "OWNER" || activeUser?.role === "PHARMACIST") && !transaction.voidedAt ? (
+                  voidTargetKey === transaction.key ? (
+                    <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3">
+                      <p className="text-sm font-black text-rose-900">Void the entire transaction?</p>
+                      <p className="mt-1 text-xs font-semibold text-rose-800">Revenue and profit will be excluded, and all item quantities will return to their original batches.</p>
+                      <label className="mt-3 block text-sm font-bold text-rose-900">
+                        Correction reason
+                        <textarea value={voidReason} onChange={(event) => setVoidReason(event.target.value)} maxLength={500} rows={2} className="mt-1 w-full rounded-md border border-rose-300 bg-white px-3 py-2" />
+                      </label>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button type="button" disabled={voidReason.trim().length < 3 || isVoidingSale} onClick={() => voidSale(transaction)} className="rounded-md bg-rose-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300">
+                          {isVoidingSale ? "Voiding..." : "Confirm Void"}
+                        </button>
+                        <button type="button" onClick={() => { setVoidTargetKey(""); setVoidReason(""); }} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-bold">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => { setVoidTargetKey(transaction.key); setVoidReason(""); }} className="mt-4 rounded-md border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-700">Void Transaction</button>
+                  )
+                ) : null}
               </article>
             )) : <EmptyState text="No sales recorded yet." />}
           </section>

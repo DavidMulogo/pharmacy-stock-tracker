@@ -445,6 +445,9 @@ export type Database = {
           stock_effect: -1 | 0;
           note: string;
           created_at: string;
+          reversed_at: string | null;
+          reversed_by: string | null;
+          reversal_reason: string;
         };
         Insert: {
           id?: string;
@@ -457,6 +460,9 @@ export type Database = {
           stock_effect: -1 | 0;
           note?: string;
           created_at?: string;
+          reversed_at?: string | null;
+          reversed_by?: string | null;
+          reversal_reason?: string;
         };
         Update: Partial<Database["public"]["Tables"]["inventory_adjustments"]["Insert"]>;
         Relationships: [
@@ -498,6 +504,10 @@ export type Database = {
           item_count: number;
           total_amount: number;
           created_at: string;
+          status: "COMPLETED" | "VOIDED";
+          voided_at: string | null;
+          voided_by: string | null;
+          void_reason: string;
         };
         Insert: {
           id?: string;
@@ -506,6 +516,10 @@ export type Database = {
           item_count: number;
           total_amount: number;
           created_at?: string;
+          status?: "COMPLETED" | "VOIDED";
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string;
         };
         Update: Partial<Database["public"]["Tables"]["sale_transactions"]["Insert"]>;
         Relationships: [
@@ -544,6 +558,9 @@ export type Database = {
           total_sale: number;
           override_flag: OverrideFlag;
           created_at: string;
+          voided_at: string | null;
+          voided_by: string | null;
+          void_reason: string;
         };
         Insert: {
           id?: string;
@@ -560,6 +577,9 @@ export type Database = {
           effective_price?: number;
           final_selling_price?: number | null;
           created_at?: string;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string;
         };
         Update: Partial<Database["public"]["Tables"]["sales"]["Insert"]>;
         Relationships: [
@@ -778,6 +798,26 @@ export type Database = {
           p_quantity: number;
           p_note?: string;
         };
+        Returns: Json;
+      };
+      create_inventory_adjustment_v2: {
+        Args: Database["public"]["Functions"]["create_inventory_adjustment_v1"]["Args"];
+        Returns: Json;
+      };
+      create_sale_transaction_v3: {
+        Args: Database["public"]["Functions"]["create_sale_transaction_v2"]["Args"];
+        Returns: Json;
+      };
+      void_sale_transaction_v1: {
+        Args: { p_pharmacy_id: string; p_voided_by: string; p_transaction_id: string; p_reason: string };
+        Returns: Json;
+      };
+      void_legacy_sale_v1: {
+        Args: { p_pharmacy_id: string; p_voided_by: string; p_sale_id: string; p_reason: string };
+        Returns: Json;
+      };
+      reverse_inventory_adjustment_v1: {
+        Args: { p_pharmacy_id: string; p_reversed_by: string; p_adjustment_id: string; p_reason: string };
         Returns: Json;
       };
       restore_pharmastock_backup_v1: {

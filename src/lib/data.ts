@@ -188,10 +188,10 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("stock_status", "LOW STOCK"),
     supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("stock_status", "OUT OF STOCK"),
     supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("reorder_level_configured", false),
-    supabase.from("batch_expiry_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("expiry_status", "EXPIRING SOON"),
+    supabase.from("batch_expiry_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("expiry_status", "EXPIRING SOON").gt("available_stock", 0),
     supabase.from("product_stock_summary").select("id, product_name, available_stock, derived_unit_cost").eq("pharmacy_id", pharmacyId),
-    supabase.from("sales").select("id, product_id, units_sold, total_sale").eq("pharmacy_id", pharmacyId).gte("created_at", today.start).lt("created_at", today.end),
-    supabase.from("sales").select("id, product_id, units_sold, total_sale").eq("pharmacy_id", pharmacyId).gte("created_at", month.start).lt("created_at", month.end),
+    supabase.from("sales").select("id, product_id, units_sold, total_sale").eq("pharmacy_id", pharmacyId).is("voided_at", null).gte("created_at", today.start).lt("created_at", today.end),
+    supabase.from("sales").select("id, product_id, units_sold, total_sale").eq("pharmacy_id", pharmacyId).is("voided_at", null).gte("created_at", month.start).lt("created_at", month.end),
     includeFinancials
       ? supabase.from("expenses").select("amount").eq("pharmacy_id", pharmacyId).gte("expense_date", month.startDate).lt("expense_date", month.endDate)
       : Promise.resolve({ data: [], error: null }),
@@ -357,6 +357,9 @@ export async function getDashboardData(pharmacyId?: string, options: { includeFi
       total_sale: normalizeNumber(sale.total_sale),
       override_flag: sale.override_flag,
       created_at: sale.created_at,
+      voided_at: sale.voided_at,
+      voided_by: sale.voided_by,
+      void_reason: sale.void_reason,
       product: product as Product,
     };
   });
@@ -376,6 +379,9 @@ export async function getDashboardData(pharmacyId?: string, options: { includeFi
       stock_effect: adjustment.stock_effect,
       note: adjustment.note,
       created_at: adjustment.created_at,
+      reversed_at: adjustment.reversed_at,
+      reversed_by: adjustment.reversed_by,
+      reversal_reason: adjustment.reversal_reason,
       product: product as Product,
       batch: batch || null,
       staff_name: creator?.full_name || "Former staff member",
