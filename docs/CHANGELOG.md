@@ -22,6 +22,10 @@
 - `BACKUP_EXPORTED` and `BACKUP_VALIDATED` audit actions for successful explicit backup actions
 - `ONBOARDING_STARTED`, `ONBOARDING_STEP_REVIEWED`, and `ONBOARDING_COMPLETED` activity events
 
+### Improved
+
+- Mobile, tablet, and desktop Sell and Add Stock product selection now uses true searchable medicine pickers with multi-word matching, bounded results, and explicit selection
+
 ### Security
 
 - Onboarding APIs are OWNER-only and derive pharmacy identity from the authenticated session

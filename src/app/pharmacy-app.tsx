@@ -167,6 +167,22 @@ function hasPriceForSellType(product: ProductWithStock, preferredSellType: SellT
   return resolveDefaultPrice(product, getProductSellType(product, preferredSellType)) != null;
 }
 
+function matchesProductSearch(product: ProductWithStock, query: string) {
+  const searchTerms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (searchTerms.length === 0) return true;
+
+  const searchableText = [
+    product.product_name,
+    product.generic_name,
+    product.brand_name,
+    product.dosage_form,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return searchTerms.every((term) => searchableText.includes(term));
+}
+
 function getImportBatchKey(productId: string, batchNumber: string, expiryDate: string) {
   return `${productId}::${batchNumber.trim().toLowerCase()}::${expiryDate}`;
 }
@@ -309,6 +325,7 @@ export function PharmacyApp({
   const [expirySearch, setExpirySearch] = useState("");
   const [expiryStatus, setExpiryStatus] = useState<ExpiryStatus | "ALL">("ALL");
   const [selectedProductId, setSelectedProductId] = useState("");
+  const [isSellProductPickerOpen, setIsSellProductPickerOpen] = useState(false);
   const [preferredSellType, setPreferredSellType] = useState<SellType>("UNIT");
   const [quantity, setQuantity] = useState("1");
   const [overridePrice, setOverridePrice] = useState("");
@@ -317,6 +334,8 @@ export function PharmacyApp({
   const [stockMessage, setStockMessage] = useState("");
   const [stockConfirmation, setStockConfirmation] = useState("");
   const [batchProductId, setBatchProductId] = useState(initialData.products[0]?.id || "");
+  const [batchProductSearch, setBatchProductSearch] = useState(initialData.products[0]?.product_name || "");
+  const [isBatchProductPickerOpen, setIsBatchProductPickerOpen] = useState(false);
   const [batchNumber, setBatchNumber] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [packsReceived, setPacksReceived] = useState("");
@@ -329,11 +348,7 @@ export function PharmacyApp({
   const [isImportingBatches, setIsImportingBatches] = useState(false);
 
   const filteredProducts = useMemo(() => {
-    const text = query.trim().toLowerCase();
-    if (!text) return dashboardData.products;
-    return dashboardData.products.filter((product) =>
-      [product.product_name, product.generic_name, product.brand_name].some((value) => value.toLowerCase().includes(text)),
-    );
+    return dashboardData.products.filter((product) => matchesProductSearch(product, query));
   }, [dashboardData.products, query]);
   const filteredProductList = useMemo(() => {
     const text = productSearch.trim().toLowerCase();
@@ -352,11 +367,14 @@ export function PharmacyApp({
       return matchesText && matchesStatus;
     });
   }, [dashboardData.products, productSearch, productStockStatus]);
+  const filteredBatchProducts = useMemo(() => {
+    return dashboardData.products.filter((product) => matchesProductSearch(product, batchProductSearch));
+  }, [batchProductSearch, dashboardData.products]);
 
-  const selectedProduct =
-    dashboardData.products.find((product) => product.id === selectedProductId && hasPriceForSellType(product, preferredSellType)) ||
-    dashboardData.products.find((product) => hasPriceForSellType(product, preferredSellType));
-  const batchProduct = dashboardData.products.find((product) => product.id === batchProductId) || dashboardData.products[0];
+  const selectedProduct = dashboardData.products.find(
+    (product) => product.id === selectedProductId && hasPriceForSellType(product, preferredSellType),
+  );
+  const batchProduct = dashboardData.products.find((product) => product.id === batchProductId);
   const sellType: SellType = selectedProduct ? getProductSellType(selectedProduct, preferredSellType) : preferredSellType;
   const saleQuantity = Number(quantity);
   const overridePriceNumber = overridePrice.trim() === "" ? null : Number(overridePrice);
@@ -587,6 +605,8 @@ export function PharmacyApp({
       setDashboardData(result.data as DashboardData);
       setSelectedProductId("");
       setBatchProductId((result.data as DashboardData).products[0]?.id || "");
+      setBatchProductSearch((result.data as DashboardData).products[0]?.product_name || "");
+      setIsBatchProductPickerOpen(false);
       setProductImport(null);
       setBatchImport(null);
     } catch {
@@ -1364,30 +1384,90 @@ export function PharmacyApp({
         {activeTab === "sell" ? (
           <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-lg font-bold">Sell</h2>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search product, generic, or brand"
-                className="mt-4 w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600"
-              />
-              <div className="mt-4 grid gap-2">
-                {dashboardData.products.length === 0 ? (
-                  <EmptyState text="No products found. Add products in Supabase to start selling." />
+              <h2 className="text-lg font-bold">Find a medicine</h2>
+              <p className="mt-1 text-sm text-slate-600">Search by product, generic name, brand, strength, or dosage form.</p>
+              <div className="relative mt-4">
+                <label htmlFor="sell-product-search" className="sr-only">Search medicines</label>
+                <input
+                  id="sell-product-search"
+                  type="search"
+                  inputMode="search"
+                  autoComplete="off"
+                  enterKeyHint="search"
+                  value={query}
+                  onFocus={(event) => {
+                    setIsSellProductPickerOpen(true);
+                    if (selectedProduct) event.currentTarget.select();
+                  }}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setSelectedProductId("");
+                    setIsSellProductPickerOpen(true);
+                  }}
+                  placeholder="Type paracetamol, Panadol, 500 mg..."
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-controls="sell-product-results"
+                  aria-expanded={isSellProductPickerOpen}
+                  className="w-full rounded-md border border-slate-300 px-4 py-3.5 pr-12 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                />
+                {query ? (
+                  <button
+                    type="button"
+                    aria-label="Clear medicine search"
+                    onClick={() => {
+                      setQuery("");
+                      setSelectedProductId("");
+                      setIsSellProductPickerOpen(true);
+                    }}
+                    className="absolute right-2 top-1/2 min-h-10 min-w-10 -translate-y-1/2 rounded-md text-xl font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    ×
+                  </button>
                 ) : null}
-                {dashboardData.products.length > 0 && filteredProducts.length === 0 ? (
-                  <EmptyState text="No products match your search." />
-                ) : null}
-                {filteredProducts.map((product) => (
-                  <ProductRow
-                    key={product.id}
-                    product={product}
-                    sellType={getProductSellType(product, preferredSellType)}
-                    selected={product.id === selectedProduct?.id}
-                    onSelect={() => setSelectedProductId(product.id)}
-                  />
-                ))}
               </div>
+              {isSellProductPickerOpen ? (
+                <div id="sell-product-results" role="listbox" aria-label="Medicine search results" className="mt-3 grid max-h-[55vh] gap-2 overflow-y-auto overscroll-contain rounded-md border border-slate-200 bg-slate-50 p-2">
+                  {dashboardData.products.length === 0 ? (
+                    <EmptyState text="No products found. Add a product to start selling." />
+                  ) : null}
+                  {dashboardData.products.length > 0 && filteredProducts.length === 0 ? (
+                    <EmptyState text={`No medicine matches “${query.trim()}”. Try the generic or brand name.`} />
+                  ) : null}
+                  {filteredProducts.slice(0, 20).map((product) => (
+                    <ProductRow
+                      key={product.id}
+                      product={product}
+                      sellType={getProductSellType(product, preferredSellType)}
+                      selected={product.id === selectedProduct?.id}
+                      onSelect={() => {
+                        setSelectedProductId(product.id);
+                        setQuery(product.product_name);
+                        setIsSellProductPickerOpen(false);
+                        setSaleMessage("");
+                      }}
+                    />
+                  ))}
+                  {filteredProducts.length > 20 ? (
+                    <p className="px-2 py-1 text-center text-xs font-semibold text-slate-500">
+                      Showing 20 of {filteredProducts.length} matches. Type more letters to narrow the list.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {!isSellProductPickerOpen && selectedProduct ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    setSelectedProductId("");
+                    setIsSellProductPickerOpen(true);
+                  }}
+                  className="mt-3 w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:border-emerald-500 hover:text-emerald-800"
+                >
+                  Choose a different medicine
+                </button>
+              ) : null}
             </section>
 
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -1499,7 +1579,9 @@ export function PharmacyApp({
                   </button>
                 </form>
               ) : (
-                <p className="mt-4 text-slate-600">Add a product in Supabase to start selling.</p>
+                <p className="mt-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-slate-600">
+                  Search for and select a medicine to prepare the sale.
+                </p>
               )}
             </section>
           </div>
@@ -1569,18 +1651,76 @@ export function PharmacyApp({
             <h2 className="text-lg font-bold">Add Stock</h2>
             {dashboardData.products.length === 0 ? <div className="mt-4"><EmptyState text="No products available for stock entry." /></div> : null}
             {dashboardData.products.length ? <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={submitBatch}>
-              <label className="block text-sm font-semibold sm:col-span-2">
-                Product
-                <select
-                  value={batchProductId}
-                  onChange={(event) => setBatchProductId(event.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600"
-                >
-                  {dashboardData.products.map((product) => (
-                    <option key={product.id} value={product.id}>{product.product_name}</option>
-                  ))}
-                </select>
-              </label>
+              <div className="sm:col-span-2">
+                <label htmlFor="stock-product-search" className="block text-sm font-semibold">Product</label>
+                <div className="relative mt-1">
+                  <input
+                    id="stock-product-search"
+                    type="search"
+                    inputMode="search"
+                    autoComplete="off"
+                    enterKeyHint="search"
+                    value={batchProductSearch}
+                    onFocus={(event) => {
+                      setIsBatchProductPickerOpen(true);
+                      if (batchProduct) event.currentTarget.select();
+                    }}
+                    onChange={(event) => {
+                      setBatchProductSearch(event.target.value);
+                      setBatchProductId("");
+                      setIsBatchProductPickerOpen(true);
+                    }}
+                    placeholder="Search product, generic, brand, or strength"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-controls="stock-product-results"
+                    aria-expanded={isBatchProductPickerOpen}
+                    className="w-full rounded-md border border-slate-300 px-4 py-3.5 pr-12 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                  />
+                  {batchProductSearch ? (
+                    <button
+                      type="button"
+                      aria-label="Clear stock product search"
+                      onClick={() => {
+                        setBatchProductSearch("");
+                        setBatchProductId("");
+                        setIsBatchProductPickerOpen(true);
+                      }}
+                      className="absolute right-2 top-1/2 min-h-10 min-w-10 -translate-y-1/2 rounded-md text-xl font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+                {isBatchProductPickerOpen ? (
+                  <div id="stock-product-results" role="listbox" aria-label="Stock product search results" className="mt-2 grid max-h-[45vh] gap-2 overflow-y-auto overscroll-contain rounded-md border border-slate-200 bg-slate-50 p-2">
+                    {filteredBatchProducts.length === 0 ? (
+                      <EmptyState text={`No product matches “${batchProductSearch.trim()}”.`} />
+                    ) : null}
+                    {filteredBatchProducts.slice(0, 20).map((product) => (
+                      <StockProductOption
+                        key={product.id}
+                        product={product}
+                        selected={product.id === batchProductId}
+                        onSelect={() => {
+                          setBatchProductId(product.id);
+                          setBatchProductSearch(product.product_name);
+                          setIsBatchProductPickerOpen(false);
+                          setStockMessage("");
+                        }}
+                      />
+                    ))}
+                    {filteredBatchProducts.length > 20 ? (
+                      <p className="px-2 py-1 text-center text-xs font-semibold text-slate-500">
+                        Showing 20 of {filteredBatchProducts.length} matches. Type more letters to narrow the list.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {!batchProductId ? (
+                  <p className="mt-2 text-xs font-semibold text-amber-700">Select a product from the search results.</p>
+                ) : null}
+              </div>
               <Input label="Batch number" value={batchNumber} onChange={setBatchNumber} />
               <Input label="Expiry date" value={expiryDate} onChange={setExpiryDate} type="date" />
               <Input label="Packs received" value={packsReceived} onChange={setPacksReceived} type="number" min="1" />
@@ -1935,9 +2075,11 @@ function ProductRow({
   return (
     <button
       type="button"
+      role="option"
+      aria-selected={selected}
       disabled={priceMissing}
       onClick={onSelect}
-      className={`rounded-md border p-3 text-left transition ${
+      className={`min-h-16 rounded-md border p-3 text-left transition ${
         selected ? "border-emerald-600 bg-emerald-50" : "border-slate-200 bg-white hover:border-emerald-300"
       } disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-75`}
     >
@@ -1958,6 +2100,36 @@ function ProductRow({
         </div>
       </div>
       <p className="mt-2 text-sm text-slate-700">{product.available_stock} {product.base_unit} available</p>
+    </button>
+  );
+}
+
+function StockProductOption({
+  product,
+  selected,
+  onSelect,
+}: {
+  product: ProductWithStock;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={selected}
+      onClick={onSelect}
+      className={`min-h-16 rounded-md border p-3 text-left transition ${
+        selected ? "border-emerald-600 bg-emerald-50" : "border-slate-200 bg-white hover:border-emerald-300"
+      }`}
+    >
+      <p className="font-semibold">{product.product_name}</p>
+      <p className="mt-1 text-sm text-slate-600">
+        {[product.generic_name, product.brand_name, product.dosage_form].filter(Boolean).join(" · ")}
+      </p>
+      <p className="mt-2 text-sm text-slate-700">
+        {product.available_stock} {product.base_unit} available · {product.units_per_pack} per {product.pack_type}
+      </p>
     </button>
   );
 }
