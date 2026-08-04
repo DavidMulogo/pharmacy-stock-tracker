@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 
 type SalesRow = {
   id: string;
+  transaction_id: string | null;
   product: string;
   sell_type: SellType;
   quantity_entered: number;

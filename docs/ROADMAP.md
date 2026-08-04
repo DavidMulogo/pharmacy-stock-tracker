@@ -13,6 +13,7 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 - Subscription and trial enforcement
 - Pharmacy settings
 - Inventory, stock batches, sales, expiry tracking, and CSV import/export
+- Atomic multi-item sales cart with FEFO batch allocation and immutable COGS
 - Pharmacy archive, restore, and permanent delete controls
 - Business analytics with expenses, gross profit, net profit, and best-selling products
 - Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity exports
@@ -30,7 +31,7 @@ Expand Reports v1 with supplier and purchase reports after supplier and purchasi
 
 ### Backup Restore
 
-Expand Admin Restore v1 with richer conflict review, scheduled exports, and admin recovery tooling. Current restore is merge-only and intentionally does not overwrite or delete existing data.
+Expand Admin Restore v1 with richer conflict review, transaction-aware sale restore, weekly encrypted scheduled exports, retention controls, failure notifications, and admin recovery tooling. Current restore is merge-only and intentionally does not overwrite or delete existing data.
 
 ### Onboarding
 

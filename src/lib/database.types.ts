@@ -433,10 +433,47 @@ export type Database = {
           },
         ];
       };
+      sale_transactions: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          created_by: string | null;
+          item_count: number;
+          total_amount: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          created_by?: string | null;
+          item_count: number;
+          total_amount: number;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["sale_transactions"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "sale_transactions_pharmacy_id_fkey";
+            columns: ["pharmacy_id"];
+            isOneToOne: false;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sale_transactions_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "pharmacy_users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sales: {
         Row: {
           id: string;
           pharmacy_id: string | null;
+          transaction_id: string | null;
+          line_number: number | null;
           product_id: string;
           sell_type: SellType;
           quantity_entered: number;
@@ -454,6 +491,8 @@ export type Database = {
         Insert: {
           id?: string;
           pharmacy_id?: string | null;
+          transaction_id?: string | null;
+          line_number?: number | null;
           product_id: string;
           sell_type?: SellType;
           quantity_entered?: number;
@@ -467,6 +506,13 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["sales"]["Insert"]>;
         Relationships: [
+          {
+            foreignKeyName: "sales_transaction_id_fkey";
+            columns: ["transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "sale_transactions";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "sales_product_id_fkey";
             columns: ["product_id"];
@@ -647,6 +693,14 @@ export type Database = {
       };
     };
     Functions: {
+      create_sale_transaction_v1: {
+        Args: {
+          p_pharmacy_id: string;
+          p_created_by: string | null;
+          p_items: Json;
+        };
+        Returns: Json;
+      };
       restore_pharmastock_backup_v1: {
         Args: {
           p_target_pharmacy_id: string;

@@ -326,6 +326,8 @@ export async function getDashboardData(pharmacyId?: string, options: { includeFi
     return {
       id: sale.id,
       pharmacy_id: sale.pharmacy_id,
+      transaction_id: sale.transaction_id,
+      line_number: sale.line_number,
       product_id: sale.product_id,
       sell_type: sale.sell_type,
       quantity_entered: normalizeNumber(sale.quantity_entered),

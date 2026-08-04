@@ -60,6 +60,12 @@ Report access by role:
 
 CSV export is intentionally audited with `REPORT_EXPORTED`; ordinary report views and filter changes are not logged.
 
+## Sales Transactions
+
+`sale_transactions` groups all line items from one customer checkout. Individual items remain in `sales`, linked by nullable `transaction_id` and ordered by `line_number`, so historical single-item sales and existing stock/report queries remain compatible.
+
+The authenticated `/api/sales` route accepts a bounded cart and calls the service-role-only `create_sale_transaction_v1` PostgreSQL RPC. The RPC derives all prices from tenant-owned products, validates selling modes and quantities, locks relevant inventory batches in a deterministic order, rechecks stock, inserts every sale line, allocates FEFO batches, and snapshots COGS. PostgreSQL rolls back the complete checkout if any line fails. Execute permission is revoked from `anon` and `authenticated`.
+
 ## Backup
 
 The `/backup` area is restricted to pharmacy `OWNER` accounts. Backup APIs authenticate through the pharmacy session helper, derive `pharmacy_id` and actor identity from the session, and never accept tenant identifiers from the client.
@@ -87,7 +93,9 @@ The actual restore write uses the `restore_pharmastock_backup_v1` PostgreSQL RPC
 - `notifications`: tenant-scoped in-app alert inbox with active, unread, and resolved states
 - `products`: pharmacy-scoped product catalog
 - `inventory_batches`: pharmacy-scoped stock receiving batches
+- `sale_transactions`: one customer checkout and its total
 - `sales`: pharmacy-scoped sales history
+- `sale_batch_allocations`: immutable sale-line FEFO and COGS snapshots
 - `expenses`: pharmacy-scoped operating expenses
 - `activity_logs`: immutable pharmacy-scoped audit trail with actor snapshots
 - `product_stock_summary`: stock aggregation view

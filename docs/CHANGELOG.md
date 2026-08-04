@@ -21,11 +21,14 @@
 - `REPORT_EXPORTED` audit action for explicit report exports
 - `BACKUP_EXPORTED` and `BACKUP_VALIDATED` audit actions for successful explicit backup actions
 - `ONBOARDING_STARTED`, `ONBOARDING_STEP_REVIEWED`, and `ONBOARDING_COMPLETED` activity events
+- Multi-item sales cart with one atomic checkout, per-item pricing, quantity controls, and transaction grouping
+- `sale_transactions`, sale-line transaction links, and service-role-only `create_sale_transaction_v1` RPC
 
 ### Improved
 
 - Mobile, tablet, and desktop Add Stock product selection now uses a searchable product picker with multi-word matching, bounded results, and explicit selection
 - Add Stock starts without an assumed product and keeps Save Batch disabled until a product is explicitly selected
+- Sales report transaction counts now group cart lines under their customer transaction
 
 ### Security
 
@@ -43,6 +46,7 @@
 - Admin restore authenticates with admin sessions, verifies selected pharmacy against backup pharmacy id, and restores only missing settings, products, batches, sales, and expenses
 - Admin restore excludes staff accounts, historical activity logs, sessions, passwords, hashes, cookies, access credentials, admin users, and admin credentials
 - Restore writes run through a service-role-only PostgreSQL RPC for atomic rollback on failure
+- Cart checkout derives pharmacy and staff identity from the session; the database revalidates tenant products, prices, selling modes, and stock under batch locks
 
 ### Not Included
 

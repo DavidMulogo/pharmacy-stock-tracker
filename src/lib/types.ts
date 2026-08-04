@@ -188,6 +188,8 @@ export type InventoryBatch = {
 export type Sale = {
   id: string;
   pharmacy_id: string | null;
+  transaction_id: string | null;
+  line_number: number | null;
   product_id: string;
   sell_type: SellType;
   quantity_entered: number;

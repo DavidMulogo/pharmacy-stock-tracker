@@ -1,18 +1,53 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import type { Database } from "@/lib/database.types";
-import { resolveDefaultPrice } from "@/lib/pricing";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 import { recordActivity } from "@/lib/activity-log";
-import { allocateSaleBatches } from "@/lib/cogs";
 
-type SaleInsert = Database["public"]["Tables"]["sales"]["Insert"];
 const sellTypes = ["UNIT", "PACK"] as const;
 type SellType = (typeof sellTypes)[number];
+type CartItemInput = {
+  product_id: string;
+  sell_type: SellType;
+  quantity_entered: number;
+  override_price: number | null;
+};
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isSellType(value: string): value is SellType {
   return sellTypes.includes(value as SellType);
+}
+function parseCartItem(value: unknown, index: number): CartItemInput {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Cart item ${index + 1} is invalid.`);
+  }
+
+  const item = value as Record<string, unknown>;
+  const productId = String(item.product_id || "");
+  const sellType = String(item.sell_type || "");
+  const quantityEntered = Number(item.quantity_entered);
+  const overridePrice = item.override_price === "" || item.override_price == null ? null : Number(item.override_price);
+
+  if (!UUID_PATTERN.test(productId)) {
+    throw new Error(`Select a valid product for cart item ${index + 1}.`);
+  }
+  if (!isSellType(sellType)) {
+    throw new Error(`Choose unit or pack for cart item ${index + 1}.`);
+  }
+  if (!Number.isInteger(quantityEntered) || quantityEntered <= 0) {
+    throw new Error(`Cart item ${index + 1} quantity must be a whole number greater than zero.`);
+  }
+  if (overridePrice !== null && (!Number.isFinite(overridePrice) || overridePrice < 0)) {
+    throw new Error(`Cart item ${index + 1} override price must be zero or greater.`);
+  }
+
+  return {
+    product_id: productId,
+    sell_type: sellType,
+    quantity_entered: quantityEntered,
+    override_price: overridePrice,
+  };
 }
 
 export async function POST(request: Request) {
@@ -24,132 +59,86 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    const rawItems = Array.isArray(body.items)
+      ? body.items
+      : [{
+          product_id: body.product_id,
+          sell_type: body.sell_type,
+          quantity_entered: body.quantity_entered,
+          override_price: body.override_price,
+        }];
+
+    if (rawItems.length === 0) {
+      return NextResponse.json({ error: "Add at least one item to the sale." }, { status: 400 });
+    }
+    if (rawItems.length > 50) {
+      return NextResponse.json({ error: "A sale cannot contain more than 50 items." }, { status: 400 });
+    }
+
+    let items: CartItemInput[];
+    try {
+      items = rawItems.map(parseCartItem);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "The cart contains an invalid item." },
+        { status: 400 },
+      );
+    }
+
     const pharmacyId = session.pharmacy.id;
-    const productId = String(body.product_id || "");
-    const sellType = String(body.sell_type || "");
-    const quantityEntered = Number(body.quantity_entered);
-    const overridePrice = body.override_price === "" || body.override_price == null ? null : Number(body.override_price);
-
-    if (!productId) {
-      return NextResponse.json({ error: "Select a product before saving a sale." }, { status: 400 });
-    }
-
-    if (!isSellType(sellType)) {
-      return NextResponse.json({ error: "Choose whether to sell by unit or pack." }, { status: 400 });
-    }
-
-    if (!Number.isInteger(quantityEntered) || quantityEntered <= 0) {
-      return NextResponse.json({ error: "Quantity must be a whole number greater than zero." }, { status: 400 });
-    }
-
-    if (overridePrice !== null && (!Number.isFinite(overridePrice) || overridePrice < 0)) {
-      return NextResponse.json({ error: "Override price must be zero or greater." }, { status: 400 });
-    }
-
     const supabase = getSupabaseAdmin();
-    const stockResult = await supabase
-      .from("product_stock_summary")
-      .select("id, selling_mode, units_per_pack, default_unit_price, default_pack_price, available_stock, derived_unit_cost")
-      .eq("pharmacy_id", pharmacyId)
-      .eq("id", productId)
-      .single();
-
-    if (stockResult.error) throw stockResult.error;
-
-    const sellingMode = stockResult.data.selling_mode;
-    if (sellingMode === "UNIT" && sellType !== "UNIT") {
-      return NextResponse.json({ error: "This product can only be sold by unit." }, { status: 400 });
-    }
-    if (sellingMode === "PACK" && sellType !== "PACK") {
-      return NextResponse.json({ error: "This product can only be sold by pack." }, { status: 400 });
-    }
-
-    const unitsPerPack = Number(stockResult.data.units_per_pack);
-    const unitsSold = sellType === "PACK" ? quantityEntered * unitsPerPack : quantityEntered;
-    const defaultPrice = resolveDefaultPrice(
-      {
-        default_unit_price: stockResult.data.default_unit_price,
-        default_pack_price: stockResult.data.default_pack_price,
-        units_per_pack: unitsPerPack,
-      },
-      sellType,
-    );
-    if (defaultPrice == null) {
-      return NextResponse.json({ error: "Price not set for this sell type." }, { status: 400 });
-    }
-    const effectivePrice = overridePrice ?? defaultPrice;
-    const availableStock = Number(stockResult.data.available_stock);
-
-    if (unitsSold > availableStock) {
-      return NextResponse.json({ error: `Only ${availableStock} units are available.` }, { status: 409 });
-    }
-
-    const allocationDrafts = await allocateSaleBatches(supabase, {
-      pharmacyId,
-      productId,
-      unitsSold,
+    const transactionResult = await supabase.rpc("create_sale_transaction_v1", {
+      p_pharmacy_id: pharmacyId,
+      p_created_by: session.user.id,
+      p_items: items,
     });
 
-    const salePayload: SaleInsert = {
-      pharmacy_id: pharmacyId,
-      product_id: productId,
-      sell_type: sellType,
-      quantity_entered: quantityEntered,
-      units_sold: unitsSold,
-      quantity_sold: unitsSold,
-      default_price: defaultPrice,
-      override_price: overridePrice,
-      effective_price: effectivePrice,
-      final_selling_price: overridePrice,
-    };
-
-    const saleResult = await supabase
-      .from("sales")
-      .insert(salePayload)
-      .select()
-      .single();
-
-    if (saleResult.error) throw saleResult.error;
-
-    const allocationResult = await supabase.from("sale_batch_allocations").insert(
-      allocationDrafts.map((allocation) => ({
-        ...allocation,
-        sale_id: saleResult.data.id,
-      })),
-    );
-
-    if (allocationResult.error) {
-      console.error("Sale batch allocation insert failed; rolling back sale.", allocationResult.error);
-      const rollback = await supabase.from("sales").delete().eq("id", saleResult.data.id).eq("pharmacy_id", pharmacyId);
-      if (rollback.error) console.error("Sale rollback failed after allocation failure.", rollback.error);
-      throw allocationResult.error;
+    if (transactionResult.error) {
+      const code = transactionResult.error.code;
+      const status = code === "P0001" ? 409 : code === "42501" ? 403 : code === "22023" ? 400 : 500;
+      return NextResponse.json(
+        { error: transactionResult.error.message || "Unable to complete the sale." },
+        { status },
+      );
     }
 
-    await recordActivity(
-      { pharmacyId, userId: session.user.id, name: session.user.full_name, role: session.role },
-      {
-        action: "SALE_CREATED",
-        entityType: "sale",
-        entityId: saleResult.data.id,
-        description: `Recorded a ${sellType.toLowerCase()} sale of ${quantityEntered}.`,
-        metadata: {
-          product_id: productId,
-          units_sold: unitsSold,
-          total_sale: saleResult.data.total_sale,
-          price_overridden: overridePrice !== null,
-          cost_of_goods_sold: allocationDrafts.reduce((total, allocation) => total + Number(allocation.cost_of_goods_sold), 0),
-          batch_allocations: allocationDrafts.map((allocation) => ({
-            inventory_batch_id: allocation.inventory_batch_id,
-            quantity: allocation.quantity,
-            unit_cost_at_sale: allocation.unit_cost_at_sale,
-            cost_of_goods_sold: allocation.cost_of_goods_sold,
-          })),
+    const transaction = transactionResult.data as {
+      id: string;
+      item_count: number;
+      total_amount: number;
+      sale_ids: string[];
+      created_at: string;
+    };
+
+    try {
+      await recordActivity(
+        { pharmacyId, userId: session.user.id, name: session.user.full_name, role: session.role },
+        {
+          action: "SALE_CREATED",
+          entityType: "sale_transaction",
+          entityId: transaction.id,
+          description: `Completed a sale with ${transaction.item_count} item${transaction.item_count === 1 ? "" : "s"}.`,
+          metadata: {
+            item_count: transaction.item_count,
+            total_sale: transaction.total_amount,
+            product_ids: [...new Set(items.map((item) => item.product_id))],
+            sale_ids: transaction.sale_ids,
+            price_override_count: items.filter((item) => item.override_price !== null).length,
+          },
         },
-      },
-    );
+      );
+    } catch (activityError) {
+      // The atomic sale has already committed. Never report it as failed and
+      // invite a duplicate retry only because the secondary audit write failed.
+      console.error("Sale completed but activity logging failed.", activityError);
+    }
+
     revalidatePath("/");
-    revalidatePath(`/products/${productId}`);
-    return NextResponse.json({ sale: saleResult.data }, { status: 201 });
+    for (const productId of new Set(items.map((item) => item.product_id))) {
+      revalidatePath(`/products/${productId}`);
+    }
+
+    return NextResponse.json({ transaction, sale: null }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to save sale.";
     return NextResponse.json({ error: message }, { status: 500 });

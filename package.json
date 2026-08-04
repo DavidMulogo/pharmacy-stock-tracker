@@ -13,7 +13,8 @@
     "verify:onboarding": "node scripts/verify-onboarding.mjs",
     "verify:notifications": "node scripts/verify-notifications.mjs",
     "verify:expiry-warning": "node scripts/verify-expiry-warning.mjs",
-    "verify:reorder-level": "node scripts/verify-reorder-level.mjs"
+    "verify:reorder-level": "node scripts/verify-reorder-level.mjs",
+    "verify:sale-cart": "node scripts/verify-sale-cart.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

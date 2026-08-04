@@ -23,6 +23,19 @@ type ImportPreview = {
   warnings: { row: number; warnings: string[] }[];
   missingColumns: string[];
 };
+type CartItem = {
+  id: string;
+  product_id: string;
+  product_name: string;
+  sell_type: SellType;
+  quantity_entered: number;
+  units_sold: number;
+  unit_label: string;
+  default_price: number;
+  override_price: number | null;
+  effective_price: number;
+  total_sale: number;
+};
 
 const tabs: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
@@ -328,6 +341,7 @@ export function PharmacyApp({
   const [preferredSellType, setPreferredSellType] = useState<SellType>("UNIT");
   const [quantity, setQuantity] = useState("1");
   const [overridePrice, setOverridePrice] = useState("");
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [saleMessage, setSaleMessage] = useState("");
   const [toast, setToast] = useState<Toast | null>(null);
   const [stockMessage, setStockMessage] = useState("");
@@ -395,12 +409,18 @@ export function PharmacyApp({
         ? saleQuantity * selectedProduct.units_per_pack
         : saleQuantity
       : 0;
-  const exceedsStock = selectedProduct && Number.isFinite(saleQuantity) ? unitsToDeduct > selectedProduct.available_stock : false;
+  const cartUnitsForSelectedProduct = selectedProduct
+    ? cartItems
+        .filter((item) => item.product_id === selectedProduct.id)
+        .reduce((total, item) => total + item.units_sold, 0)
+    : 0;
+  const exceedsStock = selectedProduct && Number.isFinite(saleQuantity)
+    ? unitsToDeduct + cartUnitsForSelectedProduct > selectedProduct.available_stock
+    : false;
   const saleQuantityInvalid = !Number.isFinite(saleQuantity) || saleQuantity <= 0;
   const saleQuantityFractional = Number.isFinite(saleQuantity) && !Number.isInteger(saleQuantity);
   const saleQuantityBlocked = saleQuantityInvalid || saleQuantityFractional;
   const saveSaleDisabled =
-    isSavingSale ||
     !activePharmacyId ||
     !selectedProduct ||
     selectedDefaultPrice == null ||
@@ -408,6 +428,7 @@ export function PharmacyApp({
     overridePriceInvalid ||
     exceedsStock ||
     selectedProduct.available_stock <= 0;
+  const cartTotal = cartItems.reduce((total, item) => total + item.total_sale, 0);
   const packsReceivedNumber = Number(packsReceived);
   const buyingPricePerPackNumber = Number(buyingPricePerPack);
   const packsReceivedInvalid = !Number.isInteger(packsReceivedNumber) || packsReceivedNumber <= 0;
@@ -608,6 +629,7 @@ export function PharmacyApp({
 
       setDashboardData(result.data as DashboardData);
       setSelectedProductId("");
+      setCartItems([]);
       setBatchProductId("");
       setBatchProductSearch("");
       setIsBatchProductPickerOpen(false);
@@ -760,7 +782,7 @@ export function PharmacyApp({
     return () => window.clearTimeout(timeoutId);
   }, [toast]);
 
-  async function submitSale(event: React.FormEvent<HTMLFormElement>) {
+  function submitSale(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaleMessage("");
     setStockConfirmation("");
@@ -789,8 +811,103 @@ export function PharmacyApp({
       return;
     }
     if (exceedsStock) {
-      setSaleMessage(`Only ${selectedProduct.available_stock} units are available.`);
+      const remainingStock = Math.max(0, selectedProduct.available_stock - cartUnitsForSelectedProduct);
+      setSaleMessage(`Only ${remainingStock} more units are available after the items already in the cart.`);
       setToast({ message: "Sale blocked because stock is insufficient.", type: "error" });
+      return;
+    }
+
+    const cartItem: CartItem = {
+      id: crypto.randomUUID(),
+      product_id: selectedProduct.id,
+      product_name: selectedProduct.product_name,
+      sell_type: sellType,
+      quantity_entered: saleQuantity,
+      units_sold: unitsToDeduct,
+      unit_label: sellType === "PACK" ? selectedProduct.pack_type : selectedProduct.base_unit,
+      default_price: selectedDefaultPrice,
+      override_price: overridePriceNumber,
+      effective_price: effectiveSellingPrice ?? selectedDefaultPrice,
+      total_sale: saleTotal,
+    };
+
+    setCartItems((current) => {
+      const existingIndex = current.findIndex(
+        (item) =>
+          item.product_id === cartItem.product_id &&
+          item.sell_type === cartItem.sell_type &&
+          item.override_price === cartItem.override_price,
+      );
+
+      if (existingIndex < 0) return [...current, cartItem];
+
+      return current.map((item, index) =>
+        index === existingIndex
+          ? {
+              ...item,
+              quantity_entered: item.quantity_entered + cartItem.quantity_entered,
+              units_sold: item.units_sold + cartItem.units_sold,
+              total_sale: item.total_sale + cartItem.total_sale,
+            }
+          : item,
+      );
+    });
+
+    setQuantity("1");
+    setOverridePrice("");
+    setQuery("");
+    setSaleMessage(`${selectedProduct.product_name} added to the cart.`);
+  }
+
+  function removeCartItem(itemId: string) {
+    setCartItems((current) => current.filter((item) => item.id !== itemId));
+    setSaleMessage("");
+  }
+
+  function changeCartItemQuantity(itemId: string, change: number) {
+    setCartItems((current) => {
+      const target = current.find((item) => item.id === itemId);
+      if (!target) return current;
+
+      const nextQuantity = target.quantity_entered + change;
+      if (nextQuantity <= 0) return current.filter((item) => item.id !== itemId);
+
+      const product = dashboardData.products.find((candidate) => candidate.id === target.product_id);
+      if (!product) return current;
+
+      const unitsPerEntry = target.sell_type === "PACK" ? product.units_per_pack : 1;
+      const nextUnits = nextQuantity * unitsPerEntry;
+      const otherUnits = current
+        .filter((item) => item.id !== itemId && item.product_id === target.product_id)
+        .reduce((total, item) => total + item.units_sold, 0);
+
+      if (nextUnits + otherUnits > product.available_stock) {
+        setToast({ message: `Only ${product.available_stock} ${product.base_unit} are available.`, type: "error" });
+        return current;
+      }
+
+      return current.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              quantity_entered: nextQuantity,
+              units_sold: nextUnits,
+              total_sale: nextQuantity * item.effective_price,
+            }
+          : item,
+      );
+    });
+  }
+
+  async function completeSale() {
+    setSaleMessage("");
+
+    if (!activePharmacyId) {
+      setToast({ message: "Select a pharmacy before completing the sale.", type: "error" });
+      return;
+    }
+    if (cartItems.length === 0) {
+      setToast({ message: "Add at least one item to the cart.", type: "error" });
       return;
     }
 
@@ -801,10 +918,12 @@ export function PharmacyApp({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          product_id: selectedProduct.id,
-          sell_type: sellType,
-          quantity_entered: saleQuantity,
-          override_price: overridePrice,
+          items: cartItems.map((item) => ({
+            product_id: item.product_id,
+            sell_type: item.sell_type,
+            quantity_entered: item.quantity_entered,
+            override_price: item.override_price,
+          })),
         }),
       });
       const result = await response.json();
@@ -816,9 +935,13 @@ export function PharmacyApp({
         return;
       }
 
+      const completedItemCount = cartItems.length;
+      setCartItems([]);
+      setSelectedProductId("");
+      setQuery("");
       setQuantity("1");
       setOverridePrice("");
-      setToast({ message: "Sale saved successfully.", type: "success" });
+      setToast({ message: `Sale completed with ${completedItemCount} item${completedItemCount === 1 ? "" : "s"}.`, type: "success" });
       await loadPharmacyData(activePharmacyId);
       router.refresh();
     } catch {
@@ -1493,7 +1616,7 @@ export function PharmacyApp({
                   </div>
                   {exceedsStock ? (
                     <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
-                      Cannot deduct {unitsToDeduct} units. Only {selectedProduct.available_stock} units are available.
+                      Cannot add {unitsToDeduct} units. The cart already contains {cartUnitsForSelectedProduct} units and only {selectedProduct.available_stock} are available.
                     </p>
                   ) : null}
                   {saleQuantityFractional ? (
@@ -1522,12 +1645,85 @@ export function PharmacyApp({
                     disabled={saveSaleDisabled}
                     className="w-full rounded-md bg-emerald-700 px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
-                    {isSavingSale ? "Saving Sale..." : "Save Sale"}
+                    Add to Cart
                   </button>
                 </form>
               ) : (
                 <p className="mt-4 text-slate-600">Add a product in Supabase to start selling.</p>
               )}
+            </section>
+
+            <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-bold">Current Sale</h2>
+                  <p className="text-sm text-slate-600">{cartItems.length} cart item{cartItems.length === 1 ? "" : "s"}</p>
+                </div>
+                <p className="text-2xl font-black text-emerald-800">{formatTZS(cartTotal)}</p>
+              </div>
+
+              {cartItems.length === 0 ? (
+                <p className="mt-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold text-slate-600">
+                  Search for a medicine, prepare its quantity, and add it to the cart.
+                </p>
+              ) : (
+                <div className="mt-4 grid gap-3">
+                  {cartItems.map((item) => (
+                    <article key={item.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-bold">{item.product_name}</p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            {item.sell_type === "PACK" ? "Pack" : "Unit"} · {formatTZS(item.effective_price)} each
+                            {item.override_price !== null ? " · Price overridden" : ""}
+                          </p>
+                        </div>
+                        <p className="text-lg font-black">{formatTZS(item.total_sale)}</p>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          aria-label={`Reduce ${item.product_name} quantity`}
+                          onClick={() => changeCartItemQuantity(item.id, -1)}
+                          className="min-h-11 min-w-11 rounded-md border border-slate-300 bg-white text-xl font-bold"
+                        >
+                          −
+                        </button>
+                        <span className="min-w-24 text-center text-sm font-bold">
+                          {item.quantity_entered} {item.unit_label}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Increase ${item.product_name} quantity`}
+                          onClick={() => changeCartItemQuantity(item.id, 1)}
+                          className="min-h-11 min-w-11 rounded-md border border-slate-300 bg-white text-xl font-bold"
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeCartItem(item.id)}
+                          className="ml-auto min-h-11 rounded-md border border-rose-300 bg-white px-4 text-sm font-bold text-rose-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={cartItems.length === 0 || isSavingSale}
+                onClick={completeSale}
+                className="mt-4 w-full rounded-md bg-emerald-700 px-4 py-3.5 text-base font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {isSavingSale ? "Completing Sale..." : `Complete Sale · ${formatTZS(cartTotal)}`}
+              </button>
+              <p className="mt-2 text-center text-xs font-semibold text-slate-500">
+                Stock is rechecked and the entire cart is saved together.
+              </p>
             </section>
           </div>
         ) : null}

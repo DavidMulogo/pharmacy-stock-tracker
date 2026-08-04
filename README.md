@@ -4,7 +4,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 
 ## Features
 
-- Sell screen with product search, stock visibility, default price, optional price override, and stock-limit validation.
+- Multi-item Sell cart with product search, quantity controls, optional per-item price overrides, and one atomic checkout.
 - Products screen with available stock and stock status.
 - Product detail pages with batches and sales.
 - Add Stock screen for recording inventory batches.
@@ -85,6 +85,8 @@ Sales use generated columns for:
 - `total_sale`
 - `override_flag`
 
+New customer purchases are grouped in `sale_transactions`. Each cart item remains an individual `sales` row for existing stock, reporting, and product-history compatibility. `create_sale_transaction_v1` validates every line, locks the relevant batches, allocates FEFO COGS, and commits the whole cart in one database transaction. If one item fails, no item is saved.
+
 The `product_stock_summary` database view calculates available stock as:
 
 ```text
@@ -152,6 +154,8 @@ The backup JSON includes pharmacy profile, pharmacy settings, products, inventor
 Each backup includes a deterministic SHA-256 checksum. The validation endpoint checks format, schema version, pharmacy identity, required datasets, record counts, and checksum.
 
 Admin Restore v1 is available inside `/admin`. It restores only missing records for the same pharmacy id and never deletes or overwrites existing data. It restores pharmacy settings when missing, products, inventory batches, sales, and expenses. It does not restore staff accounts, historical activity logs, sessions, passwords, password hashes, cookies, access credentials, admin users, or admin credentials.
+
+Backup Restore v1 restores sale line records but does not currently rebuild `sale_transactions` grouping. Transaction-aware restore is reserved for a later backup schema version.
 
 ## Cost Of Goods Sold
 

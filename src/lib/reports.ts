@@ -88,6 +88,7 @@ async function getSalesReport(pharmacyId: string, filters: ReportFilters) {
   if (result.error) throw result.error;
   const rows = ((result.data || []) as SaleWithProductRow[]).map((sale) => ({
     id: sale.id,
+    transaction_id: sale.transaction_id,
     product: productName(sale.product),
     sell_type: sale.sell_type as SellType,
     quantity_entered: normalizeNumber(sale.quantity_entered),
@@ -104,7 +105,7 @@ async function getSalesReport(pharmacyId: string, filters: ReportFilters) {
     summary: {
       total_sales: rows.reduce((total, row) => total + row.total_sale, 0),
       units_sold: rows.reduce((total, row) => total + row.units_sold, 0),
-      transactions: rows.length,
+      transactions: new Set(rows.map((row) => row.transaction_id || row.id)).size,
     },
     rows,
   };
