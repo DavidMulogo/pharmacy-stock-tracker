@@ -176,10 +176,6 @@ function getProductSellType(product: ProductWithStock, preferredSellType: SellTy
   return preferredSellType;
 }
 
-function hasPriceForSellType(product: ProductWithStock, preferredSellType: SellType) {
-  return resolveDefaultPrice(product, getProductSellType(product, preferredSellType)) != null;
-}
-
 function matchesProductSearch(product: ProductWithStock, query: string) {
   const searchTerms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (searchTerms.length === 0) return true;
@@ -362,7 +358,7 @@ export function PharmacyApp({
 
   const filteredProducts = useMemo(() => {
     const text = query.trim().toLowerCase();
-    if (!text) return dashboardData.products;
+    if (!text) return [];
     return dashboardData.products.filter((product) =>
       [product.product_name, product.generic_name, product.brand_name].some((value) => value.toLowerCase().includes(text)),
     );
@@ -388,9 +384,7 @@ export function PharmacyApp({
     return dashboardData.products.filter((product) => matchesProductSearch(product, batchProductSearch));
   }, [batchProductSearch, dashboardData.products]);
 
-  const selectedProduct =
-    dashboardData.products.find((product) => product.id === selectedProductId && hasPriceForSellType(product, preferredSellType)) ||
-    dashboardData.products.find((product) => hasPriceForSellType(product, preferredSellType));
+  const selectedProduct = dashboardData.products.find((product) => product.id === selectedProductId);
   const batchProduct = dashboardData.products.find((product) => product.id === batchProductId);
   const sellType: SellType = selectedProduct ? getProductSellType(selectedProduct, preferredSellType) : preferredSellType;
   const saleQuantity = Number(quantity);
@@ -1525,18 +1519,27 @@ export function PharmacyApp({
                 {dashboardData.products.length === 0 ? (
                   <EmptyState text="No products found. Add products in Supabase to start selling." />
                 ) : null}
-                {dashboardData.products.length > 0 && filteredProducts.length === 0 ? (
+                {dashboardData.products.length > 0 && query.trim() && filteredProducts.length === 0 ? (
                   <EmptyState text="No products match your search." />
                 ) : null}
-                {filteredProducts.map((product) => (
+                {filteredProducts.slice(0, 20).map((product) => (
                   <ProductRow
                     key={product.id}
                     product={product}
                     sellType={getProductSellType(product, preferredSellType)}
                     selected={product.id === selectedProduct?.id}
-                    onSelect={() => setSelectedProductId(product.id)}
+                    onSelect={() => {
+                      setSelectedProductId(product.id);
+                      setQuery("");
+                      setSaleMessage("");
+                    }}
                   />
                 ))}
+                {filteredProducts.length > 20 ? (
+                  <p className="text-sm font-semibold text-slate-500">
+                    Showing 20 of {filteredProducts.length} matches. Type more letters to narrow the list.
+                  </p>
+                ) : null}
               </div>
             </section>
 
@@ -1649,7 +1652,11 @@ export function PharmacyApp({
                   </button>
                 </form>
               ) : (
-                <p className="mt-4 text-slate-600">Add a product in Supabase to start selling.</p>
+                <p className="mt-4 text-slate-600">
+                  {dashboardData.products.length === 0
+                    ? "Add a product in Supabase to start selling."
+                    : "Search for and select a medicine to prepare the sale."}
+                </p>
               )}
             </section>
 
