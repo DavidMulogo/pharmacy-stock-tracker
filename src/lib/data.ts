@@ -88,32 +88,56 @@ export function normalizePharmacyRow(pharmacy: PharmacyRow): Pharmacy {
   };
 }
 
-function getTodayRange() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
+type CalendarDate = { year: number; month: number; day: number };
 
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-
-  return {
-    start: start.toISOString(),
-    end: end.toISOString(),
-  };
+function timeZoneParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
+  return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute"), second: value("second") };
 }
 
-function getMonthRange() {
-  const start = new Date();
-  start.setDate(1);
-  start.setHours(0, 0, 0, 0);
+function localMidnightUtc(date: CalendarDate, timeZone: string) {
+  const desired = Date.UTC(date.year, date.month - 1, date.day);
+  let candidate = desired;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const actual = timeZoneParts(new Date(candidate), timeZone);
+    const offset = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second) - candidate;
+    candidate = desired - offset;
+  }
+  return new Date(candidate);
+}
 
-  const end = new Date(start);
-  end.setMonth(end.getMonth() + 1);
+function localDateText(date: CalendarDate) {
+  return `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+}
 
+function getTodayRange(timeZone: string) {
+  const current = timeZoneParts(new Date(), timeZone);
+  const startDate = { year: current.year, month: current.month, day: current.day };
+  const nextDate = new Date(Date.UTC(current.year, current.month - 1, current.day + 1));
+  const endDate = { year: nextDate.getUTCFullYear(), month: nextDate.getUTCMonth() + 1, day: nextDate.getUTCDate() };
+  return { start: localMidnightUtc(startDate, timeZone).toISOString(), end: localMidnightUtc(endDate, timeZone).toISOString() };
+}
+
+function getMonthRange(timeZone: string) {
+  const current = timeZoneParts(new Date(), timeZone);
+  const startDate = { year: current.year, month: current.month, day: 1 };
+  const nextMonth = new Date(Date.UTC(current.year, current.month, 1));
+  const endDate = { year: nextMonth.getUTCFullYear(), month: nextMonth.getUTCMonth() + 1, day: 1 };
   return {
-    start: start.toISOString(),
-    end: end.toISOString(),
-    startDate: start.toISOString().slice(0, 10),
-    endDate: end.toISOString().slice(0, 10),
+    start: localMidnightUtc(startDate, timeZone).toISOString(),
+    end: localMidnightUtc(endDate, timeZone).toISOString(),
+    startDate: localDateText(startDate),
+    endDate: localDateText(endDate),
   };
 }
 
@@ -169,8 +193,16 @@ function emptyDashboardData(): DashboardData {
 
 async function getDashboardStats(pharmacyId: string, options: { includeFinancials?: boolean } = {}): Promise<DashboardStats> {
   const supabase = getSupabaseAdmin();
-  const today = getTodayRange();
-  const month = getMonthRange();
+  const settingsResult = await supabase.from("pharmacy_settings").select("expiry_warning_days, timezone").eq("pharmacy_id", pharmacyId).maybeSingle();
+  if (settingsResult.error) throw settingsResult.error;
+  let timeZone = settingsResult.data?.timezone || "Africa/Dar_es_Salaam";
+  try {
+    new Intl.DateTimeFormat("en", { timeZone }).format();
+  } catch {
+    timeZone = "Africa/Dar_es_Salaam";
+  }
+  const today = getTodayRange(timeZone);
+  const month = getMonthRange(timeZone);
   const includeFinancials = options.includeFinancials !== false;
   const [
     productsCountResult,
@@ -182,7 +214,6 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     todaysSalesResult,
     monthSalesResult,
     monthExpensesResult,
-    settingsResult,
   ] = await Promise.all([
     supabase.from("products").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId),
     supabase.from("product_stock_summary").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId).eq("stock_status", "LOW STOCK"),
@@ -195,7 +226,6 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
     includeFinancials
       ? supabase.from("expenses").select("amount").eq("pharmacy_id", pharmacyId).gte("expense_date", month.startDate).lt("expense_date", month.endDate)
       : Promise.resolve({ data: [], error: null }),
-    supabase.from("pharmacy_settings").select("expiry_warning_days").eq("pharmacy_id", pharmacyId).maybeSingle(),
   ]);
 
   if (productsCountResult.error) throw productsCountResult.error;
@@ -207,7 +237,6 @@ async function getDashboardStats(pharmacyId: string, options: { includeFinancial
   if (todaysSalesResult.error) throw todaysSalesResult.error;
   if (monthSalesResult.error) throw monthSalesResult.error;
   if (monthExpensesResult.error) throw monthExpensesResult.error;
-  if (settingsResult.error) throw settingsResult.error;
 
   const costByProductId = new Map(
     (inventoryValueResult.data || []).map((product) => [
