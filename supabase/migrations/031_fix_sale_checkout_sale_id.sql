@@ -1,7 +1,5 @@
--- Fixes the controlled-corrections checkout RPC after migration 029.
--- A PL/pgSQL record variable named `b` conflicted with a SQL table alias before
--- the record was assigned. The corrected function uses an unambiguous variable
--- and also prevents expired batches from being locked or allocated to a sale.
+-- Fixes the remaining PL/pgSQL sale_id variable/column ambiguity in checkout.
+-- Replaces create_sale_transaction_v3 with explicitly named local variables.
 
 create or replace function public.create_sale_transaction_v3(p_pharmacy_id uuid,p_created_by uuid,p_items jsonb)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const migration = readFileSync(new URL("../supabase/migrations/029_controlled_corrections.sql", import.meta.url), "utf8");
 const checkoutFixMigration = readFileSync(new URL("../supabase/migrations/030_fix_sale_checkout_batch_record.sql", import.meta.url), "utf8");
+const saleIdFixMigration = readFileSync(new URL("../supabase/migrations/031_fix_sale_checkout_sale_id.sql", import.meta.url), "utf8");
 const voidRoute = readFileSync(new URL("../src/app/api/sales/void/route.ts", import.meta.url), "utf8");
 const reverseRoute = readFileSync(new URL("../src/app/api/inventory-adjustments/reverse/route.ts", import.meta.url), "utf8");
 const salesRoute = readFileSync(new URL("../src/app/api/sales/route.ts", import.meta.url), "utf8");
@@ -35,6 +36,9 @@ assert.match(checkoutFixMigration, /batch_row record/i);
 assert.doesNotMatch(checkoutFixMigration, /\bb record\b/i);
 assert.match(checkoutFixMigration, /expiry_date>=current_date/i);
 assert.match(checkoutFixMigration, /could not be allocated to non-expired inventory batches/i);
+assert.match(saleIdFixMigration, /v_sale_id uuid/i);
+assert.doesNotMatch(saleIdFixMigration, /effective_price numeric;sale_id uuid/i);
+assert.match(saleIdFixMigration, /into v_sale_id,sale_total/i);
 
 const state = { stock: 20, saleVoided: false, adjustmentReversed: false };
 state.stock -= 5;

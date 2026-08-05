@@ -163,7 +163,7 @@ create or replace function public.create_sale_transaction_v3(p_pharmacy_id uuid,
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 declare
  tx uuid;tx_time timestamptz;item jsonb;line integer:=0;v_product_id uuid;product record;sell_type text;qty integer;units integer;
- override_price numeric;default_price numeric;effective_price numeric;sale_id uuid;sale_total numeric;total numeric:=0;available integer;
+ override_price numeric;default_price numeric;effective_price numeric;v_sale_id uuid;sale_total numeric;total numeric:=0;available integer;
  historical integer;remaining integer;batch_row record;allocated integer;adjusted integer;batch_available integer;reserved integer;take integer;unit_cost numeric;
  sale_ids jsonb:='[]'::jsonb;
 begin
@@ -197,12 +197,12 @@ begin
    -coalesce((select sum(a.quantity)::integer from public.inventory_adjustments a where a.pharmacy_id=p_pharmacy_id and a.product_id=v_product_id and a.stock_effect=-1 and a.reversed_at is null),0);
   if units>available then raise exception 'Cart item % has insufficient stock. Only % units are available.',line,available using errcode='P0001';end if;
   insert into public.sales(pharmacy_id,transaction_id,line_number,product_id,sell_type,quantity_entered,units_sold,quantity_sold,default_price,override_price,effective_price,final_selling_price,created_at)
-   values(p_pharmacy_id,tx,line,v_product_id,sell_type,qty,units,units,default_price,override_price,effective_price,override_price,tx_time) returning id,total_sale into sale_id,sale_total;
+   values(p_pharmacy_id,tx,line,v_product_id,sell_type,qty,units,units,default_price,override_price,effective_price,override_price,tx_time) returning id,total_sale into v_sale_id,sale_total;
   select coalesce(sum(greatest(s.units_sold-coalesce(x.quantity,0),0)),0)::integer into historical
    from public.sales s left join(
     select a.sale_id,sum(a.quantity)::integer quantity from public.sale_batch_allocations a join public.sales active_sale on active_sale.id=a.sale_id
     where a.pharmacy_id=p_pharmacy_id and a.product_id=v_product_id and active_sale.voided_at is null group by a.sale_id
-   )x on x.sale_id=s.id where s.pharmacy_id=p_pharmacy_id and s.product_id=v_product_id and s.id<>sale_id and s.voided_at is null;
+   )x on x.sale_id=s.id where s.pharmacy_id=p_pharmacy_id and s.product_id=v_product_id and s.id<>v_sale_id and s.voided_at is null;
   remaining:=units;
   for batch_row in select * from public.inventory_batches where pharmacy_id=p_pharmacy_id and product_id=v_product_id and expiry_date>=current_date order by expiry_date,created_at,id loop
    select coalesce(sum(a.quantity),0)::integer into allocated from public.sale_batch_allocations a join public.sales active_sale on active_sale.id=a.sale_id
@@ -214,13 +214,13 @@ begin
    if remaining>0 and batch_available>0 then
     take:=least(remaining,batch_available);unit_cost:=coalesce(batch_row.buying_price_per_pack,batch_row.buying_price,0)/nullif(batch_row.units_per_pack,0);
     insert into public.sale_batch_allocations(pharmacy_id,sale_id,product_id,inventory_batch_id,quantity,unit_cost_at_sale,cost_of_goods_sold,created_at)
-     values(p_pharmacy_id,sale_id,v_product_id,batch_row.id,take,coalesce(unit_cost,0),round(take*coalesce(unit_cost,0),2),tx_time);
+     values(p_pharmacy_id,v_sale_id,v_product_id,batch_row.id,take,coalesce(unit_cost,0),round(take*coalesce(unit_cost,0),2),tx_time);
     remaining:=remaining-take;
    end if;
    exit when remaining=0 and historical=0;
   end loop;
   if remaining>0 then raise exception 'Cart item % could not be allocated to inventory batches.',line using errcode='P0001';end if;
-  total:=total+sale_total;sale_ids:=sale_ids||jsonb_build_array(sale_id);
+  total:=total+sale_total;sale_ids:=sale_ids||jsonb_build_array(v_sale_id);
  end loop;
  update public.sale_transactions set total_amount=total where id=tx;
  return jsonb_build_object('id',tx,'pharmacy_id',p_pharmacy_id,'created_by',p_created_by,'item_count',jsonb_array_length(p_items),'total_amount',total,'created_at',tx_time,'sale_ids',sale_ids);

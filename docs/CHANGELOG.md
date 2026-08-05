@@ -32,7 +32,7 @@
 - Sales history and sales reports now group cart lines by transaction while retaining line-level product details
 - Dashboard inventory, notifications, expiry availability, sales checkout, inventory reports, and new backups account for stock adjustments
 - Stock, revenue, profit, reports, notifications, and checkout now consistently exclude voided sales and reversed adjustments
-- Checkout no longer has a PL/pgSQL record-alias collision and never allocates a new sale to an expired batch
+- Checkout no longer has PL/pgSQL record/column name collisions and never allocates a new sale to an expired batch
 - Sell product results now appear only after typing, are limited to 20 visible matches, and require explicit medicine selection
 - Mobile, tablet, and desktop Add Stock product selection now uses a searchable product picker with multi-word matching, bounded results, and explicit selection
 - Add Stock starts without an assumed product and keeps Save Batch disabled until a product is explicitly selected
