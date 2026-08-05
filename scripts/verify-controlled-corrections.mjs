@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const migration = readFileSync(new URL("../supabase/migrations/029_controlled_corrections.sql", import.meta.url), "utf8");
+const checkoutFixMigration = readFileSync(new URL("../supabase/migrations/030_fix_sale_checkout_batch_record.sql", import.meta.url), "utf8");
 const voidRoute = readFileSync(new URL("../src/app/api/sales/void/route.ts", import.meta.url), "utf8");
 const reverseRoute = readFileSync(new URL("../src/app/api/inventory-adjustments/reverse/route.ts", import.meta.url), "utf8");
 const salesRoute = readFileSync(new URL("../src/app/api/sales/route.ts", import.meta.url), "utf8");
@@ -29,6 +30,11 @@ assert.doesNotMatch(reverseRoute, /body\.pharmacy_id/);
 assert.match(salesRoute, /create_sale_transaction_v3/);
 assert.match(adjustmentRoute, /create_inventory_adjustment_v2/);
 assert.match(dataModule, /pharmacy_users!inventory_adjustments_created_by_fkey/);
+assert.match(checkoutFixMigration, /create or replace function public\.create_sale_transaction_v3/i);
+assert.match(checkoutFixMigration, /batch_row record/i);
+assert.doesNotMatch(checkoutFixMigration, /\bb record\b/i);
+assert.match(checkoutFixMigration, /expiry_date>=current_date/i);
+assert.match(checkoutFixMigration, /could not be allocated to non-expired inventory batches/i);
 
 const state = { stock: 20, saleVoided: false, adjustmentReversed: false };
 state.stock -= 5;

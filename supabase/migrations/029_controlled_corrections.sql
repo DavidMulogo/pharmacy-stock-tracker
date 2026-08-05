@@ -164,14 +164,14 @@ returns jsonb language plpgsql security definer set search_path=public,pg_temp a
 declare
  tx uuid;tx_time timestamptz;item jsonb;line integer:=0;v_product_id uuid;product record;sell_type text;qty integer;units integer;
  override_price numeric;default_price numeric;effective_price numeric;sale_id uuid;sale_total numeric;total numeric:=0;available integer;
- historical integer;remaining integer;b record;allocated integer;adjusted integer;batch_available integer;reserved integer;take integer;unit_cost numeric;
+ historical integer;remaining integer;batch_row record;allocated integer;adjusted integer;batch_available integer;reserved integer;take integer;unit_cost numeric;
  sale_ids jsonb:='[]'::jsonb;
 begin
  if p_pharmacy_id is null or jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items)=0 then raise exception 'Pharmacy and at least one cart item are required.' using errcode='22023';end if;
  if jsonb_array_length(p_items)>50 then raise exception 'A sale cannot contain more than 50 items.' using errcode='22023';end if;
  if p_created_by is not null and not exists(select 1 from public.pharmacy_users where id=p_created_by and pharmacy_id=p_pharmacy_id and active=true) then raise exception 'The staff account is not active for this pharmacy.' using errcode='42501';end if;
- perform b.id from public.inventory_batches b where b.pharmacy_id=p_pharmacy_id and b.product_id in
-  (select distinct(e.value->>'product_id')::uuid from jsonb_array_elements(p_items)e(value)) order by b.product_id,b.expiry_date,b.created_at,b.id for update;
+ perform 1 from public.inventory_batches ib where ib.pharmacy_id=p_pharmacy_id and ib.expiry_date>=current_date and ib.product_id in
+  (select distinct(e.value->>'product_id')::uuid from jsonb_array_elements(p_items)e(value)) order by ib.product_id,ib.expiry_date,ib.created_at,ib.id for update;
  insert into public.sale_transactions(pharmacy_id,created_by,item_count,total_amount) values(p_pharmacy_id,p_created_by,jsonb_array_length(p_items),0) returning id,created_at into tx,tx_time;
  for item in select value from jsonb_array_elements(p_items) loop
   line:=line+1;
@@ -204,17 +204,17 @@ begin
     where a.pharmacy_id=p_pharmacy_id and a.product_id=v_product_id and active_sale.voided_at is null group by a.sale_id
    )x on x.sale_id=s.id where s.pharmacy_id=p_pharmacy_id and s.product_id=v_product_id and s.id<>sale_id and s.voided_at is null;
   remaining:=units;
-  for b in select * from public.inventory_batches where pharmacy_id=p_pharmacy_id and product_id=v_product_id order by expiry_date,created_at,id loop
+  for batch_row in select * from public.inventory_batches where pharmacy_id=p_pharmacy_id and product_id=v_product_id and expiry_date>=current_date order by expiry_date,created_at,id loop
    select coalesce(sum(a.quantity),0)::integer into allocated from public.sale_batch_allocations a join public.sales active_sale on active_sale.id=a.sale_id
-    where a.pharmacy_id=p_pharmacy_id and a.inventory_batch_id=b.id and active_sale.voided_at is null;
+    where a.pharmacy_id=p_pharmacy_id and a.inventory_batch_id=batch_row.id and active_sale.voided_at is null;
    select coalesce(sum(quantity),0)::integer into adjusted from public.inventory_adjustments
-    where pharmacy_id=p_pharmacy_id and inventory_batch_id=b.id and stock_effect=-1 and reversed_at is null;
-   batch_available:=greatest(b.total_units_received-allocated-adjusted,0);
+    where pharmacy_id=p_pharmacy_id and inventory_batch_id=batch_row.id and stock_effect=-1 and reversed_at is null;
+   batch_available:=greatest(batch_row.total_units_received-allocated-adjusted,0);
    if historical>0 and batch_available>0 then reserved:=least(batch_available,historical);batch_available:=batch_available-reserved;historical:=historical-reserved;end if;
    if remaining>0 and batch_available>0 then
-    take:=least(remaining,batch_available);unit_cost:=coalesce(b.buying_price_per_pack,b.buying_price,0)/nullif(b.units_per_pack,0);
+    take:=least(remaining,batch_available);unit_cost:=coalesce(batch_row.buying_price_per_pack,batch_row.buying_price,0)/nullif(batch_row.units_per_pack,0);
     insert into public.sale_batch_allocations(pharmacy_id,sale_id,product_id,inventory_batch_id,quantity,unit_cost_at_sale,cost_of_goods_sold,created_at)
-     values(p_pharmacy_id,sale_id,v_product_id,b.id,take,coalesce(unit_cost,0),round(take*coalesce(unit_cost,0),2),tx_time);
+     values(p_pharmacy_id,sale_id,v_product_id,batch_row.id,take,coalesce(unit_cost,0),round(take*coalesce(unit_cost,0),2),tx_time);
     remaining:=remaining-take;
    end if;
    exit when remaining=0 and historical=0;
