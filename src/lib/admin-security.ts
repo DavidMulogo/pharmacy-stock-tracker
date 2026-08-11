@@ -41,6 +41,7 @@ export async function recordAdminActivity(input: {
   backupChecksum?: string | null;
   restoredCounts?: Json;
   skippedCounts?: Json;
+  metadata?: Json;
   success: boolean;
   errorMessage?: string | null;
 }) {
@@ -53,6 +54,7 @@ export async function recordAdminActivity(input: {
     backup_checksum: input.backupChecksum || null,
     restored_counts: input.restoredCounts || {},
     skipped_counts: input.skippedCounts || {},
+    metadata: input.metadata || {},
     success: input.success,
     error_message: input.errorMessage || null,
   };

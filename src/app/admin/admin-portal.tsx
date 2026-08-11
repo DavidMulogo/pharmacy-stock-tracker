@@ -38,6 +38,17 @@ type AdminApiResponse = {
   message?: string;
   pharmacy?: Pharmacy;
   pharmacies?: Pharmacy[];
+  users?: AdminPharmacyUser[];
+};
+
+type AdminPharmacyUser = {
+  id: string;
+  pharmacy_id: string;
+  full_name: string;
+  username: string;
+  role: string;
+  active: boolean;
+  last_login_at: string | null;
 };
 
 type RestoreCounts = Record<string, number>;
@@ -110,6 +121,10 @@ export function AdminPortal({
   const [form, setForm] = useState<PharmacyForm>(emptyForm);
   const [resetPassword, setResetPassword] = useState("");
   const [resetPharmacyId, setResetPharmacyId] = useState("");
+  const [staffPanelPharmacyId, setStaffPanelPharmacyId] = useState("");
+  const [pharmacyUsers, setPharmacyUsers] = useState<AdminPharmacyUser[]>([]);
+  const [resetStaffUserId, setResetStaffUserId] = useState("");
+  const [resetStaffPassword, setResetStaffPassword] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [deletePharmacyId, setDeletePharmacyId] = useState("");
   const [deleteConfirmationCode, setDeleteConfirmationCode] = useState("");
@@ -361,9 +376,55 @@ export function AdminPortal({
 
       setResetPharmacyId("");
       setResetPassword("");
-      setMessage("Pharmacy password reset.");
+      setMessage(result.message || "Owner password reset.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to reset password.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function toggleStaffPanel(pharmacyId: string) {
+    if (staffPanelPharmacyId === pharmacyId) {
+      setStaffPanelPharmacyId("");
+      setPharmacyUsers([]);
+      setResetStaffUserId("");
+      setResetStaffPassword("");
+      return;
+    }
+    setMessage("");
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/admin/pharmacy-users?pharmacy_id=${encodeURIComponent(pharmacyId)}`, { credentials: "include" });
+      const result = (await response.json()) as AdminApiResponse;
+      if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to load pharmacy users."));
+      setStaffPanelPharmacyId(pharmacyId);
+      setPharmacyUsers(result.users || []);
+      setResetStaffUserId("");
+      setResetStaffPassword("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to load pharmacy users.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function submitStaffPasswordReset(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/admin/pharmacy-users", {
+        method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: resetStaffUserId, password: resetStaffPassword }),
+      });
+      const result = (await response.json()) as AdminApiResponse & { user?: AdminPharmacyUser };
+      if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to reset staff password."));
+      setResetStaffUserId("");
+      setResetStaffPassword("");
+      setMessage(`Password reset for ${result.user?.full_name || "staff member"}. Existing sessions were signed out.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to reset staff password.");
     } finally {
       setIsLoading(false);
     }
@@ -676,7 +737,10 @@ export function AdminPortal({
                         </button>
                       )}
                       <button className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-800" type="button" onClick={() => setResetPharmacyId(pharmacy.id)}>
-                        Reset password
+                        Reset owner password
+                      </button>
+                      <button className="rounded-md border border-violet-300 bg-violet-50 px-3 py-2 text-sm font-bold text-violet-800" type="button" onClick={() => toggleStaffPanel(pharmacy.id)}>
+                        {staffPanelPharmacyId === pharmacy.id ? "Close staff access" : "Staff access"}
                       </button>
                       {isSuperAdmin(admin) ? (
                         <button
@@ -699,12 +763,44 @@ export function AdminPortal({
                         value={resetPassword}
                         onChange={(event) => setResetPassword(event.target.value)}
                         type="password"
-                        placeholder="New pharmacy password"
+                        placeholder="New owner password (8+ characters)"
                       />
                       <button className="rounded-md bg-blue-700 px-3 py-2 text-sm font-bold text-white" type="submit">
                         Save password
                       </button>
                     </form>
+                  ) : null}
+                  {staffPanelPharmacyId === pharmacy.id ? (
+                    <div className="mt-3 rounded-md border border-violet-200 bg-violet-50 p-3">
+                      <h4 className="font-black text-violet-950">Pharmacy user access</h4>
+                      <p className="mt-1 text-sm text-violet-800">Reset employee access only after verifying the support request. Password values are never displayed or logged.</p>
+                      <div className="mt-3 grid gap-2">
+                        {pharmacyUsers.map((user) => (
+                          <div key={user.id} className="rounded-md border border-violet-200 bg-white p-3">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="font-bold">{user.full_name}</p>
+                                <p className="text-sm text-slate-600">{user.username} · {user.role} · {user.active ? "Active" : "Inactive"}</p>
+                              </div>
+                              {user.role === "OWNER" ? (
+                                <span className="text-xs font-bold text-slate-500">Use Reset owner password</span>
+                              ) : (
+                                <button type="button" onClick={() => { setResetStaffUserId(user.id); setResetStaffPassword(""); }} className="rounded-md border border-violet-300 px-3 py-2 text-sm font-bold text-violet-800">
+                                  Reset password
+                                </button>
+                              )}
+                            </div>
+                            {resetStaffUserId === user.id ? (
+                              <form className="mt-3 flex flex-col gap-2 sm:flex-row" onSubmit={submitStaffPasswordReset}>
+                                <input type="password" minLength={8} maxLength={128} required value={resetStaffPassword} onChange={(event) => setResetStaffPassword(event.target.value)} placeholder="Temporary password (8+ characters)" className="rounded-md border border-violet-300 px-3 py-2" />
+                                <button disabled={isLoading || resetStaffPassword.length < 8} className="rounded-md bg-violet-700 px-3 py-2 text-sm font-bold text-white disabled:bg-slate-300" type="submit">Save and sign out user</button>
+                                <button type="button" onClick={() => { setResetStaffUserId(""); setResetStaffPassword(""); }} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold">Cancel</button>
+                              </form>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   ) : null}
                   {deletePharmacyId === pharmacy.id ? (
                     <form className="mt-3 grid gap-2 rounded-md border border-red-200 bg-red-50 p-3 sm:grid-cols-[1fr_auto_auto]" onSubmit={deletePermanently}>

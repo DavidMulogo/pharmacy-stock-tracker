@@ -28,6 +28,7 @@
 - Controlled Corrections v1 with soft sale voids, inventory-adjustment reversals, mandatory reasons, and correction audit events
 - Product Selling Prices v1 with owner-only normal unit/pack price editing and automatic price history
 - Final-total sale overrides so staff enter the exact negotiated line amount without calculating a per-unit override
+- Admin-assisted OWNER and employee password recovery with individual staff selection
 
 ### Improved
 
@@ -38,6 +39,7 @@
 - Dashboard day and month totals now use each pharmacy's configured timezone instead of the Vercel server timezone
 - Normal price changes apply only to future sales; historical sale lines retain their original price snapshots
 - Override reports now compare the normal line total with the exact overridden final total
+- Password resets now revoke the affected user sessions immediately
 - Sell product results now appear only after typing, are limited to 20 visible matches, and require explicit medicine selection
 - Mobile, tablet, and desktop Add Stock product selection now uses a searchable product picker with multi-word matching, bounded results, and explicit selection
 - Add Stock starts without an assumed product and keeps Save Batch disabled until a product is explicitly selected
@@ -63,6 +65,7 @@
 - Adjustment APIs derive pharmacy and staff identity from the session; service-role-only RPCs lock and revalidate tenant batches before reducing stock
 - Sale voids are limited to owners and pharmacists; adjustment reversals are owner-only; correction RPCs reject repeat actions under database locks
 - Normal price changes are owner-only, tenant-scoped, and atomically write both the product price and price-history record
+- Admin password-recovery audits store target account identifiers and roles but never passwords or password hashes
 
 ### Not Included
 

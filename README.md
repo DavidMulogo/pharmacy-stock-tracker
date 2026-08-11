@@ -18,6 +18,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - Owner-only onboarding checklist for new pharmacies.
 - In-app notifications for stock, expiry, and subscription alerts.
 - Owner-only activity logs for important staff and operational actions.
+- Admin-assisted password recovery for pharmacy owners and individual staff accounts, with session revocation and audit records.
 - Supabase SQL migration with generated columns and views for stock, expiry, and sales calculations.
 
 ## Setup

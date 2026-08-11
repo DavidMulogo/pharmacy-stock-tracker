@@ -80,6 +80,10 @@ Controlled corrections are soft state changes. Owners and pharmacists may void a
 
 Normal unit and pack prices live on the tenant-owned product. Only an authenticated `OWNER` can change them in v1. The API derives pharmacy and actor identity from the session and calls the service-role-only `update_product_selling_prices_v1` RPC. The RPC locks and revalidates the product, updates its normal prices, and inserts `product_price_history` in one transaction. Historical sales remain unchanged because every sale line stores the price used at checkout. The planned `IN_CHARGE` role will receive this permission in a later role migration.
 
+## Admin-Assisted Password Recovery
+
+The admin portal can reset an OWNER password through the pharmacy control or select an individual non-owner employee through Staff access. Server routes require an authenticated admin session, never return password hashes, and revoke every active session belonging to the affected account after reset. OWNER recovery also keeps the legacy `pharmacy_access` credential synchronized. `admin_activity_logs.metadata` records only target user ids, usernames, and roles; passwords and hashes are never audited.
+
 ## Backup
 
 The `/backup` area is restricted to pharmacy `OWNER` accounts. Backup APIs authenticate through the pharmacy session helper, derive `pharmacy_id` and actor identity from the session, and never accept tenant identifiers from the client.

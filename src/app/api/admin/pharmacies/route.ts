@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-session";
+import { recordAdminActivity } from "@/lib/admin-security";
 import { normalizePharmacyRow } from "@/lib/data";
 import { getAdminNotificationSummary } from "@/lib/notifications";
 import { getOnboardingSummary } from "@/lib/onboarding";
@@ -372,6 +373,12 @@ export async function PATCH(request: Request) {
     if (action === "reset-password") {
       const password = String(body.password || "");
       if (!password) return NextResponse.json({ error: "New password is required." }, { status: 400 });
+      if (password.length < 8) return NextResponse.json({ error: "New password must contain at least 8 characters." }, { status: 400 });
+      if (password.length > 128) return NextResponse.json({ error: "New password cannot exceed 128 characters." }, { status: 400 });
+
+      const pharmacyResult = await supabase.from("pharmacies").select("pharmacy_name").eq("id", id).maybeSingle();
+      if (pharmacyResult.error) throw pharmacyResult.error;
+      if (!pharmacyResult.data) return NextResponse.json({ error: "Pharmacy was not found." }, { status: 404 });
 
       const passwordHash = await bcrypt.hash(password, 12);
       console.info("[api/admin/pharmacies:PATCH] database operation: pharmacy_access update password", {
@@ -400,7 +407,17 @@ export async function PATCH(request: Request) {
         .select("id");
 
       if (ownerResult.error) throw ownerResult.error;
-      return NextResponse.json({ ok: true }, { status: 200 });
+      const ownerIds = (ownerResult.data || []).map((owner) => owner.id);
+      if (ownerIds.length === 0) return NextResponse.json({ error: "No owner account was found for this pharmacy." }, { status: 404 });
+
+      const sessionResult = await supabase.from("pharmacy_sessions").delete().in("pharmacy_user_id", ownerIds);
+      if (sessionResult.error) throw sessionResult.error;
+      await recordAdminActivity({
+        admin, action: "OWNER_PASSWORD_RESET", targetPharmacyId: id,
+        targetPharmacyName: pharmacyResult.data.pharmacy_name, success: true,
+        metadata: { target_user_ids: ownerIds, target_role: "OWNER" },
+      });
+      return NextResponse.json({ ok: true, message: "Owner password reset and active owner sessions signed out." }, { status: 200 });
     }
 
     if (action === "archive") {

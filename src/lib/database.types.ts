@@ -46,6 +46,7 @@ export type Database = {
           backup_checksum: string | null;
           restored_counts: Json;
           skipped_counts: Json;
+          metadata: Json;
           success: boolean;
           error_message: string | null;
           created_at: string;
@@ -60,6 +61,7 @@ export type Database = {
           backup_checksum?: string | null;
           restored_counts?: Json;
           skipped_counts?: Json;
+          metadata?: Json;
           success?: boolean;
           error_message?: string | null;
           created_at?: string;
