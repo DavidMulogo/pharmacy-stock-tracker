@@ -5,6 +5,7 @@
 ### Added
 
 - Approved commercial subscription definition for Starter, Business, future Multi-Branch, and Enterprise plans, including pilot pricing, entitlement boundaries, annual pricing, expiry policy, and data-safety rules; enforcement is not implemented yet
+- Subscription Entitlements v1 observation mode with legacy-plan migration, billing/pilot/founding/extension fields, central feature and usage calculations, Admin subscription controls, required change reasons, immutable history, and explicit rejection of premature enforcement
 - Onboarding v1 with owner-only setup checklist, persistent setup banner, server-calculated progress, and admin onboarding visibility
 - In-App Notifications v1 with stock, expiry, subscription alerts, unread counts, filters, read actions, and admin summary badges
 - Admin Security v1 with Change Password, stronger admin password policy, account lockout, session-version invalidation, secure one-time bootstrap, and admin login/logout/password audit events

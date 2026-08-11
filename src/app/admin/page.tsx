@@ -4,6 +4,7 @@ import { normalizePharmacyRow } from "@/lib/data";
 import { getAdminNotificationSummary } from "@/lib/notifications";
 import { getOnboardingSummary } from "@/lib/onboarding";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getPharmacyEntitlementObservationFromDatabase } from "@/lib/entitlements";
 import type { Metadata } from "next";
 import type { Pharmacy } from "@/lib/types";
 
@@ -29,6 +30,7 @@ async function getAdminPharmacies(): Promise<Pharmacy[]> {
         ...normalized,
         onboarding: await getOnboardingSummary(normalized.id),
         notification_summary: getAdminNotificationSummary(normalized),
+        entitlement_observation: await getPharmacyEntitlementObservationFromDatabase(normalized),
       };
     }),
   );

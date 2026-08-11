@@ -33,7 +33,7 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 
 ### Subscription Plans and Entitlements
 
-The Starter, Business, future Multi-Branch, and custom Enterprise commercial model is approved and documented in `docs/SUBSCRIPTION_PLANS.md`. Next, implement non-destructive server-side entitlements, usage limits, pilot/founding-customer terms, upgrade guidance, and the approved grace/read-only expiry states. Payment integration comes only after entitlement behavior is tested. No live feature gates are implied by the commercial definition alone.
+The Starter, Business, future Multi-Branch, and custom Enterprise commercial model is approved and documented in `docs/SUBSCRIPTION_PLANS.md`. Observation-mode Entitlements v1 now provides the plan data model, usage calculations, immutable change history, and Admin controls without blocking pharmacy features. Next, validate observations with pilot pharmacies before implementing any non-destructive feature gates or the approved grace/read-only expiry states. Payment integration comes only after entitlement behavior is tested.
 
 ### Advanced Reports
 

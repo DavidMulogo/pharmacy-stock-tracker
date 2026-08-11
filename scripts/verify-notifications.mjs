@@ -83,7 +83,7 @@ store.get("OUT_OF_STOCK:p1").read = true;
 assert.equal(store.get("OUT_OF_STOCK:p1").read, true, "Read action works");
 assert.equal(roleTypes.TECHNICIAN.includes("TRIAL_EXPIRING"), false, "Technician cannot access subscription alerts");
 
-const pharmacyBAlerts = generate({ pharmacy: { id: "pharmacy-b", plan: "BASIC" }, settings, products: [{ id: "p1", available_stock: 0, reorder_level: 2 }], batches: [] });
+const pharmacyBAlerts = generate({ pharmacy: { id: "pharmacy-b", plan: "STARTER" }, settings, products: [{ id: "p1", available_stock: 0, reorder_level: 2 }], batches: [] });
 assert.equal(pharmacyBAlerts[0].pharmacy_id, "pharmacy-b", "Pharmacy isolation derives alert tenant");
 
 const adminSummary = {

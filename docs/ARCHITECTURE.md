@@ -34,6 +34,8 @@ Subscription access is checked on login and existing session validation. The sys
 
 The approved future commercial model defines Starter at TZS 20,000/month, Business at TZS 45,000/month, Multi-Branch at TZS 90,000/month when branch functionality is ready, and custom Enterprise quotations. The entitlement matrix and non-destructive expiry policy live in `docs/SUBSCRIPTION_PLANS.md`. These definitions do not currently activate feature gates. Implementing them requires server-side entitlements, usage limits, grace/read-only states, audit events, and matching UI behavior. Until then, the existing subscription access checks remain authoritative.
 
+Entitlements v1 runs in observation mode. `getPharmacyEntitlementObservation` centrally calculates plan features and staff/product/branch limits, while Admin pharmacy responses show current usage and any condition that would be blocked under future enforcement. The `pharmacies.entitlement_mode` default is `OBSERVE`, and the Admin API rejects attempts to activate `ENFORCE` in v1. Subscription edits use the service-role-only `update_pharmacy_subscription_v1` RPC, require a reason, and atomically append immutable `pharmacy_subscription_history`. This observation layer does not override the existing trial/subscription login-expiry behavior.
+
 ## Pharmacy Settings
 
 Each pharmacy has one `pharmacy_settings` row containing business information, branding, inventory rules, sales rules, and localization. Settings APIs derive pharmacy ownership from the authenticated session.

@@ -6,9 +6,10 @@ import { recordAdminActivity } from "@/lib/admin-security";
 import { normalizePharmacyRow } from "@/lib/data";
 import { getAdminNotificationSummary } from "@/lib/notifications";
 import { getOnboardingSummary } from "@/lib/onboarding";
+import { getPharmacyEntitlementObservationFromDatabase } from "@/lib/entitlements";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
-import type { PharmacyPlan, PharmacyStatus } from "@/lib/types";
+import type { EntitlementMode, PharmacyBillingCycle, PharmacyPlan, PharmacyStatus } from "@/lib/types";
 
 type PharmacyInsert = Database["public"]["Tables"]["pharmacies"]["Insert"];
 type PharmacyUpdate = Database["public"]["Tables"]["pharmacies"]["Update"];
@@ -26,8 +27,9 @@ type AdminCreateStep =
   | "rollback_pharmacy_settings"
   | "rollback_pharmacies";
 
-const plans: PharmacyPlan[] = ["TRIAL", "BASIC", "PRO", "ENTERPRISE"];
+const plans: PharmacyPlan[] = ["TRIAL", "STARTER", "BUSINESS", "MULTI_BRANCH", "ENTERPRISE"];
 const statuses: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDED"];
+const billingCycles: PharmacyBillingCycle[] = ["MONTHLY", "ANNUAL", "CUSTOM"];
 const duplicateCodeMessage = "That pharmacy login code already exists. Please choose another code.";
 
 function optionalDate(value: unknown) {
@@ -43,6 +45,21 @@ function getValidatedPlan(value: unknown): PharmacyPlan {
 function getValidatedStatus(value: unknown): PharmacyStatus {
   const status = String(value || "TRIAL") as PharmacyStatus;
   return statuses.includes(status) ? status : "TRIAL";
+}
+
+function getOptionalBillingCycle(value: unknown): PharmacyBillingCycle | null {
+  const cycle = String(value || "") as PharmacyBillingCycle;
+  return billingCycles.includes(cycle) ? cycle : null;
+}
+
+function getEntitlementMode(value: unknown): EntitlementMode {
+  return value === "OBSERVE" ? "OBSERVE" : "OBSERVE";
+}
+
+function optionalNonNegativeNumber(value: unknown) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : Number.NaN;
 }
 
 function logServerError(message: string, error: unknown) {
@@ -202,7 +219,19 @@ export async function GET(request: Request) {
 
   try {
     const supabase = getSupabaseAdmin();
-    const showArchived = new URL(request.url).searchParams.get("archived") === "1";
+    const searchParams = new URL(request.url).searchParams;
+    const historyPharmacyId = searchParams.get("history");
+    if (historyPharmacyId) {
+      const historyResult = await supabase
+        .from("pharmacy_subscription_history")
+        .select("*")
+        .eq("pharmacy_id", historyPharmacyId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (historyResult.error) throw historyResult.error;
+      return NextResponse.json({ subscription_history: historyResult.data || [] }, { status: 200 });
+    }
+    const showArchived = searchParams.get("archived") === "1";
     let query = supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
     if (!showArchived) query = query.is("archived_at", null);
     const result = await query;
@@ -216,6 +245,7 @@ export async function GET(request: Request) {
           ...normalized,
           onboarding: await getOnboardingSummary(normalized.id),
           notification_summary: getAdminNotificationSummary(normalized),
+          entitlement_observation: await getPharmacyEntitlementObservationFromDatabase(normalized),
         };
       }),
     );
@@ -260,10 +290,10 @@ export async function POST(request: Request) {
       pharmacy_name: pharmacyName,
       owner_name: ownerName,
       phone,
-      plan: getValidatedPlan(body.plan),
-      status: getValidatedStatus(body.status),
-      trial_ends_at: optionalDate(body.trial_ends_at),
-      subscription_ends_at: optionalDate(body.subscription_ends_at),
+      plan: "TRIAL",
+      status: "TRIAL",
+      trial_ends_at: optionalDate(body.trial_ends_at) || new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      entitlement_mode: "OBSERVE",
     };
     failedStep = "insert_pharmacy";
     console.info("[api/admin/pharmacies:POST] creating pharmacy", {
@@ -369,6 +399,53 @@ export async function PATCH(request: Request) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    if (action === "subscription") {
+      const price = optionalNonNegativeNumber(body.agreed_price_tzs);
+      const reason = String(body.change_reason || "").trim();
+      if (!reason) return NextResponse.json({ error: "Enter a reason for the subscription change." }, { status: 400 });
+      if (Number.isNaN(price)) return NextResponse.json({ error: "Agreed price must be zero or a positive amount." }, { status: 400 });
+      if (body.entitlement_mode === "ENFORCE") {
+        return NextResponse.json({ error: "Enforcement is not available yet. Keep this pharmacy in observation mode." }, { status: 400 });
+      }
+
+      const rpcResult = await supabase.rpc("update_pharmacy_subscription_v1", {
+        p_pharmacy_id: id,
+        p_changed_by_admin: admin.username,
+        p_change_reason: reason,
+        p_plan: getValidatedPlan(body.plan),
+        p_status: getValidatedStatus(body.status),
+        p_billing_cycle: getOptionalBillingCycle(body.billing_cycle),
+        p_agreed_price_tzs: price,
+        p_trial_ends_at: optionalDate(body.trial_ends_at),
+        p_subscription_started_at: optionalDate(body.subscription_started_at),
+        p_subscription_ends_at: optionalDate(body.subscription_ends_at),
+        p_pilot_started_at: optionalDate(body.pilot_started_at),
+        p_pilot_ends_at: optionalDate(body.pilot_ends_at),
+        p_founding_price_ends_at: optionalDate(body.founding_price_ends_at),
+        p_grace_period_ends_at: optionalDate(body.grace_period_ends_at),
+        p_access_extension_ends_at: optionalDate(body.access_extension_ends_at),
+        p_entitlement_mode: getEntitlementMode(body.entitlement_mode),
+      });
+      if (rpcResult.error) throw rpcResult.error;
+
+      const updatedResult = await supabase.from("pharmacies").select("*").eq("id", id).single();
+      if (updatedResult.error) throw updatedResult.error;
+      const pharmacy = normalizePharmacyRow(updatedResult.data);
+      await recordAdminActivity({
+        admin,
+        action: "SUBSCRIPTION_UPDATED",
+        targetPharmacyId: id,
+        targetPharmacyName: pharmacy.pharmacy_name,
+        success: true,
+        metadata: { plan: pharmacy.plan, status: pharmacy.status, billing_cycle: pharmacy.billing_cycle, entitlement_mode: pharmacy.entitlement_mode, change_reason: reason },
+      });
+      revalidatePath("/admin");
+      return NextResponse.json({
+        pharmacy: { ...pharmacy, entitlement_observation: await getPharmacyEntitlementObservationFromDatabase(pharmacy) },
+        message: "Subscription saved in observation mode.",
+      });
+    }
 
     if (action === "reset-password") {
       const password = String(body.password || "");
@@ -490,10 +567,6 @@ export async function PATCH(request: Request) {
               pharmacy_name: String(body.pharmacy_name || "").trim(),
               owner_name: String(body.owner_name || "").trim(),
               phone: String(body.phone || "").trim(),
-              plan: getValidatedPlan(body.plan),
-              status: getValidatedStatus(body.status),
-              trial_ends_at: optionalDate(body.trial_ends_at),
-              subscription_ends_at: optionalDate(body.subscription_ends_at),
             };
 
     if (action === "update" && (!update.pharmacy_name || !update.owner_name || !update.phone)) {

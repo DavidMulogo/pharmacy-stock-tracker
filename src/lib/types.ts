@@ -3,8 +3,10 @@ export type StockStatus = "OUT OF STOCK" | "LOW STOCK" | "OK";
 export type ExpiryStatus = "EXPIRED" | "EXPIRING SOON" | "OK";
 export type SellingMode = "UNIT" | "PACK" | "BOTH";
 export type SellType = "UNIT" | "PACK";
-export type PharmacyPlan = "TRIAL" | "BASIC" | "PRO" | "ENTERPRISE";
+export type PharmacyPlan = "TRIAL" | "STARTER" | "BUSINESS" | "MULTI_BRANCH" | "ENTERPRISE";
 export type PharmacyStatus = "ACTIVE" | "TRIAL" | "EXPIRED" | "SUSPENDED";
+export type PharmacyBillingCycle = "MONTHLY" | "ANNUAL" | "CUSTOM";
+export type EntitlementMode = "OBSERVE" | "ENFORCE";
 export type PharmacyUserRole = "OWNER" | "IN_CHARGE" | "PHARMACIST" | "TECHNICIAN";
 export type ExpenseCategory = "Rent" | "Salary" | "Electricity" | "Water" | "Internet" | "Transport" | "Repairs" | "Supplies" | "Other";
 export type NotificationType = "LOW_STOCK" | "OUT_OF_STOCK" | "EXPIRING_SOON" | "EXPIRED_BATCH" | "TRIAL_EXPIRING" | "SUBSCRIPTION_EXPIRING" | "SUBSCRIPTION_EXPIRED";
@@ -23,11 +25,21 @@ export type Pharmacy = {
   plan: PharmacyPlan;
   status: PharmacyStatus;
   trial_ends_at: string | null;
+  billing_cycle: PharmacyBillingCycle | null;
+  agreed_price_tzs: number | null;
+  subscription_started_at: string | null;
   subscription_ends_at: string | null;
+  pilot_started_at: string | null;
+  pilot_ends_at: string | null;
+  founding_price_ends_at: string | null;
+  grace_period_ends_at: string | null;
+  access_extension_ends_at: string | null;
+  entitlement_mode: EntitlementMode;
   archived_at: string | null;
   created_at: string;
   onboarding?: OnboardingProgressSummary | null;
   notification_summary?: AdminNotificationSummary | null;
+  entitlement_observation?: import("@/lib/entitlements").EntitlementObservation | null;
 };
 
 export type Notification = {

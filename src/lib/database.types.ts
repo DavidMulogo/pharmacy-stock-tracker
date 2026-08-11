@@ -86,7 +86,16 @@ export type Database = {
           plan: PharmacyPlan;
           status: PharmacyStatus;
           trial_ends_at: string | null;
+          billing_cycle: import("@/lib/types").PharmacyBillingCycle | null;
+          agreed_price_tzs: number | null;
+          subscription_started_at: string | null;
           subscription_ends_at: string | null;
+          pilot_started_at: string | null;
+          pilot_ends_at: string | null;
+          founding_price_ends_at: string | null;
+          grace_period_ends_at: string | null;
+          access_extension_ends_at: string | null;
+          entitlement_mode: import("@/lib/types").EntitlementMode;
           archived_at: string | null;
           created_at: string;
         };
@@ -98,12 +107,51 @@ export type Database = {
           plan?: PharmacyPlan;
           status?: PharmacyStatus;
           trial_ends_at?: string | null;
+          billing_cycle?: import("@/lib/types").PharmacyBillingCycle | null;
+          agreed_price_tzs?: number | null;
+          subscription_started_at?: string | null;
           subscription_ends_at?: string | null;
+          pilot_started_at?: string | null;
+          pilot_ends_at?: string | null;
+          founding_price_ends_at?: string | null;
+          grace_period_ends_at?: string | null;
+          access_extension_ends_at?: string | null;
+          entitlement_mode?: import("@/lib/types").EntitlementMode;
           archived_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["pharmacies"]["Insert"]>;
         Relationships: [];
+      };
+      pharmacy_subscription_history: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          changed_by_admin: string;
+          change_reason: string;
+          previous_values: Json;
+          new_values: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          changed_by_admin: string;
+          change_reason: string;
+          previous_values?: Json;
+          new_values?: Json;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["pharmacy_subscription_history"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_subscription_history_pharmacy_id_fkey";
+            columns: ["pharmacy_id"];
+            isOneToOne: false;
+            referencedRelation: "pharmacies";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       pharmacy_access: {
         Row: {
@@ -870,6 +918,27 @@ export type Database = {
           p_target_pharmacy_id: string;
           p_backup: Json;
           p_fail_after?: string | null;
+        };
+        Returns: Json;
+      };
+      update_pharmacy_subscription_v1: {
+        Args: {
+          p_pharmacy_id: string;
+          p_changed_by_admin: string;
+          p_change_reason: string;
+          p_plan: PharmacyPlan;
+          p_status: PharmacyStatus;
+          p_billing_cycle: import("@/lib/types").PharmacyBillingCycle | null;
+          p_agreed_price_tzs: number | null;
+          p_trial_ends_at: string | null;
+          p_subscription_started_at: string | null;
+          p_subscription_ends_at: string | null;
+          p_pilot_started_at: string | null;
+          p_pilot_ends_at: string | null;
+          p_founding_price_ends_at: string | null;
+          p_grace_period_ends_at: string | null;
+          p_access_extension_ends_at: string | null;
+          p_entitlement_mode?: import("@/lib/types").EntitlementMode;
         };
         Returns: Json;
       };

@@ -1,6 +1,6 @@
 # PharmaStock Subscription Plans
 
-Status: approved commercial definition. Feature entitlements, grace periods, payment collection, and automatic plan enforcement described here are not implemented yet.
+Status: approved commercial definition. Observation-mode entitlement calculations and Admin management are implemented; feature blocking, grace periods, payment collection, and automatic plan enforcement are not implemented yet.
 
 ## Launch Plans
 
@@ -85,11 +85,9 @@ Security, tenant isolation, correct stock calculations, historical records, and 
 
 ## Implementation Boundary
 
-This document defines the approved product policy. The implementation phase still requires:
+This document defines the approved product policy. Observation-mode data, history, Admin controls, and entitlement calculations are implemented. The remaining implementation phase requires:
 
-- a stable plan and entitlement data model;
-- admin controls for plan, billing period, pilot, founding price, extension, and renewal dates;
-- server-side entitlement checks for every gated API;
+- server-side enforcement checks for every gated API;
 - matching UI visibility and upgrade messages;
 - grace-period and read-only session states;
 - usage-limit enforcement without destructive behavior;

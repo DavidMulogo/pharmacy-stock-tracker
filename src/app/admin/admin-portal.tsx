@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Pharmacy, PharmacyPlan, PharmacyStatus } from "@/lib/types";
+import type { EntitlementMode, Pharmacy, PharmacyBillingCycle, PharmacyPlan, PharmacyStatus } from "@/lib/types";
 
 type PharmacyForm = {
   id: string;
@@ -10,10 +10,24 @@ type PharmacyForm = {
   phone: string;
   pharmacy_code: string;
   password: string;
+};
+
+type SubscriptionForm = {
+  pharmacy_id: string;
   plan: PharmacyPlan;
   status: PharmacyStatus;
+  billing_cycle: "" | PharmacyBillingCycle;
+  agreed_price_tzs: string;
   trial_ends_at: string;
+  subscription_started_at: string;
   subscription_ends_at: string;
+  pilot_started_at: string;
+  pilot_ends_at: string;
+  founding_price_ends_at: string;
+  grace_period_ends_at: string;
+  access_extension_ends_at: string;
+  entitlement_mode: EntitlementMode;
+  change_reason: string;
 };
 
 const emptyForm: PharmacyForm = {
@@ -23,13 +37,27 @@ const emptyForm: PharmacyForm = {
   phone: "",
   pharmacy_code: "",
   password: "",
-  plan: "TRIAL",
-  status: "TRIAL",
-  trial_ends_at: "",
-  subscription_ends_at: "",
 };
 
-const planOptions: PharmacyPlan[] = ["TRIAL", "BASIC", "PRO", "ENTERPRISE"];
+const emptySubscriptionForm: SubscriptionForm = {
+  pharmacy_id: "",
+  plan: "TRIAL",
+  status: "TRIAL",
+  billing_cycle: "",
+  agreed_price_tzs: "",
+  trial_ends_at: "",
+  subscription_started_at: "",
+  subscription_ends_at: "",
+  pilot_started_at: "",
+  pilot_ends_at: "",
+  founding_price_ends_at: "",
+  grace_period_ends_at: "",
+  access_extension_ends_at: "",
+  entitlement_mode: "OBSERVE",
+  change_reason: "",
+};
+
+const planOptions: PharmacyPlan[] = ["TRIAL", "STARTER", "BUSINESS", "MULTI_BRANCH", "ENTERPRISE"];
 const statusOptions: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDED"];
 
 type AdminApiResponse = {
@@ -39,6 +67,16 @@ type AdminApiResponse = {
   pharmacy?: Pharmacy;
   pharmacies?: Pharmacy[];
   users?: AdminPharmacyUser[];
+  subscription_history?: SubscriptionHistory[];
+};
+
+type SubscriptionHistory = {
+  id: string;
+  changed_by_admin: string;
+  change_reason: string;
+  previous_values: Record<string, unknown>;
+  new_values: Record<string, unknown>;
+  created_at: string;
 };
 
 type AdminPharmacyUser = {
@@ -119,6 +157,8 @@ export function AdminPortal({
   const [password, setPassword] = useState("");
   const [query, setQuery] = useState("");
   const [form, setForm] = useState<PharmacyForm>(emptyForm);
+  const [subscriptionForm, setSubscriptionForm] = useState<SubscriptionForm>(emptySubscriptionForm);
+  const [subscriptionHistory, setSubscriptionHistory] = useState<SubscriptionHistory[]>([]);
   const [resetPassword, setResetPassword] = useState("");
   const [resetPharmacyId, setResetPharmacyId] = useState("");
   const [staffPanelPharmacyId, setStaffPanelPharmacyId] = useState("");
@@ -244,11 +284,41 @@ export function AdminPortal({
       phone: pharmacy.phone,
       pharmacy_code: "",
       password: "",
+    });
+  }
+
+  function editSubscription(pharmacy: Pharmacy) {
+    setSubscriptionForm({
+      pharmacy_id: pharmacy.id,
       plan: pharmacy.plan,
       status: pharmacy.status,
+      billing_cycle: pharmacy.billing_cycle || "",
+      agreed_price_tzs: pharmacy.agreed_price_tzs == null ? "" : String(pharmacy.agreed_price_tzs),
       trial_ends_at: toDateInput(pharmacy.trial_ends_at),
+      subscription_started_at: toDateInput(pharmacy.subscription_started_at),
       subscription_ends_at: toDateInput(pharmacy.subscription_ends_at),
+      pilot_started_at: toDateInput(pharmacy.pilot_started_at),
+      pilot_ends_at: toDateInput(pharmacy.pilot_ends_at),
+      founding_price_ends_at: toDateInput(pharmacy.founding_price_ends_at),
+      grace_period_ends_at: toDateInput(pharmacy.grace_period_ends_at),
+      access_extension_ends_at: toDateInput(pharmacy.access_extension_ends_at),
+      entitlement_mode: pharmacy.entitlement_mode,
+      change_reason: "",
     });
+    void loadSubscriptionHistory(pharmacy.id);
+    window.setTimeout(() => document.getElementById("subscription-management")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }
+
+  async function loadSubscriptionHistory(pharmacyId: string) {
+    try {
+      const response = await fetch(`/api/admin/pharmacies?history=${encodeURIComponent(pharmacyId)}`, { credentials: "include" });
+      const result = (await response.json()) as AdminApiResponse;
+      if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to load subscription history."));
+      setSubscriptionHistory(result.subscription_history || []);
+    } catch (error) {
+      setSubscriptionHistory([]);
+      setMessage(error instanceof Error ? error.message : "Unable to load subscription history.");
+    }
   }
 
   async function toggleArchived(value: boolean) {
@@ -298,6 +368,31 @@ export function AdminPortal({
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save pharmacy.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function submitSubscription(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/admin/pharmacies", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: subscriptionForm.pharmacy_id, action: "subscription", ...subscriptionForm }),
+      });
+      const result = (await response.json()) as AdminApiResponse;
+      if (!response.ok) throw new Error(getAdminResponseMessage(result, "Unable to update subscription."));
+      if (result.pharmacy) {
+        setPharmacies((current) => current.map((pharmacy) => pharmacy.id === result.pharmacy?.id ? result.pharmacy : pharmacy));
+        editSubscription(result.pharmacy);
+      }
+      setMessage(result.message || "Subscription updated.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to update subscription.");
     } finally {
       setIsLoading(false);
     }
@@ -567,10 +662,6 @@ export function AdminPortal({
             <Input label="Phone" value={form.phone} onChange={(value) => setForm({ ...form, phone: value })} />
             {!form.id ? <Input label="Login code" value={form.pharmacy_code} onChange={(value) => setForm({ ...form, pharmacy_code: value })} /> : null}
             {!form.id ? <Input label="Login password" value={form.password} onChange={(value) => setForm({ ...form, password: value })} type="password" /> : null}
-            <Select label="Plan" value={form.plan} options={planOptions} onChange={(value) => setForm({ ...form, plan: value as PharmacyPlan })} />
-            <Select label="Status" value={form.status} options={statusOptions} onChange={(value) => setForm({ ...form, status: value as PharmacyStatus })} />
-            <Input label="Trial ends" value={form.trial_ends_at} onChange={(value) => setForm({ ...form, trial_ends_at: value })} type="date" />
-            <Input label="Subscription ends" value={form.subscription_ends_at} onChange={(value) => setForm({ ...form, subscription_ends_at: value })} type="date" />
             <div className="flex gap-2 self-end lg:col-span-4">
               <button className="rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-300" disabled={isLoading} type="submit">
                 {form.id ? "Save Pharmacy" : "Create Pharmacy"}
@@ -582,6 +673,82 @@ export function AdminPortal({
               ) : null}
             </div>
           </form>
+        </section>
+
+        <section id="subscription-management" className="scroll-mt-4 rounded-lg border border-blue-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-bold">Subscription Management</h2>
+            <p className="text-sm font-semibold text-slate-600">
+              Observation mode calculates plan access and usage but does not block pharmacy features. Every saved change requires a reason and creates subscription history.
+            </p>
+          </div>
+          <Select
+            label="Pharmacy"
+            value={subscriptionForm.pharmacy_id}
+            options={["", ...pharmacies.map((pharmacy) => pharmacy.id)]}
+            onChange={(value) => {
+              const pharmacy = pharmacies.find((item) => item.id === value);
+              if (pharmacy) editSubscription(pharmacy);
+              else setSubscriptionForm(emptySubscriptionForm);
+            }}
+            optionLabels={{ "": "Choose pharmacy", ...Object.fromEntries(pharmacies.map((pharmacy) => [pharmacy.id, pharmacy.pharmacy_name])) }}
+          />
+          {subscriptionForm.pharmacy_id ? (
+            <form className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" onSubmit={submitSubscription}>
+              <Select label="Plan" value={subscriptionForm.plan} options={planOptions} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, plan: value as PharmacyPlan })} />
+              <Select label="Status" value={subscriptionForm.status} options={statusOptions} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, status: value as PharmacyStatus })} />
+              <Select label="Billing cycle" value={subscriptionForm.billing_cycle} options={["", "MONTHLY", "ANNUAL", "CUSTOM"]} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, billing_cycle: value as SubscriptionForm["billing_cycle"] })} optionLabels={{ "": "Not set" }} />
+              <Input label="Agreed price (TZS)" value={subscriptionForm.agreed_price_tzs} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, agreed_price_tzs: value })} type="number" />
+              <Input label="Trial ends" value={subscriptionForm.trial_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, trial_ends_at: value })} type="date" />
+              <Input label="Subscription starts" value={subscriptionForm.subscription_started_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, subscription_started_at: value })} type="date" />
+              <Input label="Subscription ends" value={subscriptionForm.subscription_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, subscription_ends_at: value })} type="date" />
+              <Input label="Pilot starts" value={subscriptionForm.pilot_started_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, pilot_started_at: value })} type="date" />
+              <Input label="Pilot ends" value={subscriptionForm.pilot_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, pilot_ends_at: value })} type="date" />
+              <Input label="Founding price ends" value={subscriptionForm.founding_price_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, founding_price_ends_at: value })} type="date" />
+              <Input label="Grace period ends" value={subscriptionForm.grace_period_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, grace_period_ends_at: value })} type="date" />
+              <Input label="Temporary extension ends" value={subscriptionForm.access_extension_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, access_extension_ends_at: value })} type="date" />
+              <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-3 text-sm font-bold text-blue-900">
+                Entitlement mode: OBSERVE
+                <span className="mt-1 block text-xs font-semibold">Enforcement cannot be activated in v1.</span>
+              </div>
+              <div className="lg:col-span-3">
+                <Input label="Required change reason" value={subscriptionForm.change_reason} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, change_reason: value })} />
+              </div>
+              {pharmacies.find((pharmacy) => pharmacy.id === subscriptionForm.pharmacy_id)?.entitlement_observation ? (
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm lg:col-span-4">
+                  {(() => {
+                    const observation = pharmacies.find((pharmacy) => pharmacy.id === subscriptionForm.pharmacy_id)?.entitlement_observation;
+                    if (!observation) return null;
+                    return (
+                      <>
+                        <p className="font-black text-blue-950">Observation: {observation.plan} · {observation.mode}</p>
+                        <p className="mt-1 text-blue-900">Active staff: {observation.usage.staff_accounts}{observation.limits.staff_accounts === null ? "" : ` / ${observation.limits.staff_accounts}`} · Products: {observation.usage.products}{observation.limits.products === null ? "" : ` / ${observation.limits.products}`}</p>
+                        <p className="mt-1 font-semibold text-blue-900">{observation.would_block.length ? `Would flag: ${observation.would_block.join(", ")}` : "No usage-limit conflicts detected."}</p>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : null}
+              <div className="flex gap-2 lg:col-span-4">
+                <button className="rounded-md bg-blue-700 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-300" disabled={isLoading || !subscriptionForm.change_reason.trim()} type="submit">Save Subscription</button>
+                <button className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold" type="button" onClick={() => setSubscriptionForm(emptySubscriptionForm)}>Cancel</button>
+              </div>
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3 lg:col-span-4">
+                <h3 className="font-black">Recent subscription history</h3>
+                <div className="mt-2 grid gap-2">
+                  {subscriptionHistory.length ? subscriptionHistory.map((entry) => (
+                    <div key={entry.id} className="rounded-md border border-slate-200 bg-white p-2 text-sm">
+                      <p className="font-bold">{entry.change_reason}</p>
+                      <p className="text-slate-600">{entry.changed_by_admin} · {new Date(entry.created_at).toLocaleString()}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-600">
+                        {String(entry.previous_values.plan || "-")} → {String(entry.new_values.plan || "-")} · {String(entry.previous_values.status || "-")} → {String(entry.new_values.status || "-")}
+                      </p>
+                    </div>
+                  )) : <p className="text-sm text-slate-500">No subscription changes recorded yet.</p>}
+                </div>
+              </div>
+            </form>
+          ) : null}
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -698,6 +865,14 @@ export function AdminPortal({
                       <p className="mt-1 text-sm font-semibold text-slate-700">
                         {pharmacy.plan} / {pharmacy.status}
                       </p>
+                      <p className="mt-1 text-xs font-bold text-blue-700">
+                        Entitlements: {pharmacy.entitlement_mode}
+                        {pharmacy.billing_cycle ? ` · ${pharmacy.billing_cycle}` : ""}
+                        {pharmacy.agreed_price_tzs == null ? "" : ` · TZS ${pharmacy.agreed_price_tzs.toLocaleString()}`}
+                      </p>
+                      {pharmacy.entitlement_observation?.would_block.length ? (
+                        <p className="mt-1 text-xs font-bold text-amber-700">Observation flags: {pharmacy.entitlement_observation.would_block.join(", ")}</p>
+                      ) : null}
                       {pharmacy.archived_at ? <p className="mt-1 text-xs font-bold uppercase text-rose-700">Archived</p> : null}
                       {pharmacy.onboarding ? (
                         <p className={`mt-2 w-fit rounded-full border px-2.5 py-1 text-xs font-black uppercase ${pharmacy.onboarding.completed ? "border-emerald-200 bg-emerald-100 text-emerald-800" : "border-blue-200 bg-blue-100 text-blue-800"}`}>
@@ -717,6 +892,9 @@ export function AdminPortal({
                     <div className="flex flex-wrap gap-2">
                       <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-bold" type="button" onClick={() => editPharmacy(pharmacy)}>
                         Edit
+                      </button>
+                      <button className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-800" type="button" onClick={() => editSubscription(pharmacy)}>
+                        Subscription
                       </button>
                       {pharmacy.status === "SUSPENDED" ? (
                         <button className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800" type="button" onClick={() => pharmacyAction(pharmacy.id, "reactivate")}>
