@@ -589,6 +589,7 @@ export type Database = {
           quantity_sold: number;
           default_price: number;
           override_price: number | null;
+          override_total: number | null;
           effective_price: number;
           final_selling_price: number | null;
           effective_selling_price: number;
@@ -611,6 +612,7 @@ export type Database = {
           quantity_sold: number;
           default_price: number;
           override_price?: number | null;
+          override_total?: number | null;
           effective_price?: number;
           final_selling_price?: number | null;
           created_at?: string;

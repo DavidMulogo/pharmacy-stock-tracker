@@ -43,8 +43,8 @@ type OverrideRow = {
   product: string;
   quantity_entered: number;
   sell_type: SellType;
-  default_price: number;
-  override_price: number;
+  default_total: number;
+  override_total: number;
   difference: number;
   created_at: string;
 };
@@ -138,8 +138,8 @@ function reportCsv(report: ReportData) {
   }
   if (report.type === "overrides") {
     return buildCsv(
-      ["Product", "Quantity", "Sell Type", "Default Price", "Override Price", "Difference", "Date"],
-      report.rows.map((row) => [row.product, row.quantity_entered, row.sell_type, row.default_price, row.override_price, row.difference, formatDateTime(row.created_at)]),
+      ["Product", "Quantity", "Sell Type", "Normal Total", "Override Final Total", "Difference", "Date"],
+      report.rows.map((row) => [row.product, row.quantity_entered, row.sell_type, row.default_total, row.override_total, row.difference, formatDateTime(row.created_at)]),
     );
   }
   if (report.type === "profit") {
@@ -393,7 +393,7 @@ function ReportHeader({ type }: { type: ReportData["type"] }) {
         : type === "expiry"
           ? ["Product", "Batch", "Expiry", "Status", "Days", "Remaining"]
           : type === "overrides"
-            ? ["Product", "Qty", "Default", "Override", "Difference", "Date"]
+            ? ["Product", "Qty", "Normal Total", "Override Total", "Difference", "Date"]
             : type === "profit"
               ? ["Date", "Category", "Description", "Amount"]
               : ["Actor", "Role", "Action", "Description", "Timestamp"];
@@ -468,8 +468,8 @@ function ReportRows({ report }: { report: ReportData }) {
       <tr key={row.id}>
         <Cell>{row.product}</Cell>
         <Cell>{`${row.quantity_entered} ${row.sell_type}`}</Cell>
-        <Cell>{formatTZS(row.default_price)}</Cell>
-        <Cell>{formatTZS(row.override_price)}</Cell>
+        <Cell>{formatTZS(row.default_total)}</Cell>
+        <Cell>{formatTZS(row.override_total)}</Cell>
         <Cell>{formatTZS(row.difference)}</Cell>
         <Cell>{formatDateTime(row.created_at)}</Cell>
       </tr>

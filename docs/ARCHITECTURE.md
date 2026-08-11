@@ -66,6 +66,8 @@ CSV export is intentionally audited with `REPORT_EXPORTED`; ordinary report view
 
 The authenticated `/api/sales` route accepts a bounded cart and calls the service-role-only `create_sale_transaction_v3` PostgreSQL RPC. The RPC derives all prices from tenant-owned products, validates selling modes and quantities, locks relevant inventory batches in a deterministic order, rechecks active adjustment-aware stock, inserts every sale line, allocates FEFO batches, and snapshots COGS. PostgreSQL rolls back the complete checkout if any line fails. Execute permission is revoked from `anon` and `authenticated`.
 
+Optional checkout overrides are exact final totals for a complete sale line. `sales.override_total` preserves the amount entered by staff, while `effective_price` retains a rounded per-entry equivalent for compatibility. The generated `total_sale` always prefers `override_total`, preventing division-rounding errors. Normal prices and historical sales remain unchanged.
+
 ## Inventory Adjustments
 
 `inventory_adjustments` stores immutable, tenant-scoped records for damaged, expired, supplier-returned, missing, internally used, and other stock reductions. Each reduction belongs to a specific inventory batch. Customer returns are recorded with a zero stock effect as quarantined stock and are never silently returned to sellable inventory.

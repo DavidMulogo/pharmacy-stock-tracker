@@ -10,7 +10,7 @@ type CartItemInput = {
   product_id: string;
   sell_type: SellType;
   quantity_entered: number;
-  override_price: number | null;
+  override_total: number | null;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -27,7 +27,8 @@ function parseCartItem(value: unknown, index: number): CartItemInput {
   const productId = String(item.product_id || "");
   const sellType = String(item.sell_type || "");
   const quantityEntered = Number(item.quantity_entered);
-  const overridePrice = item.override_price === "" || item.override_price == null ? null : Number(item.override_price);
+  const overrideTotalRaw = item.override_total === "" || item.override_total == null ? null : String(item.override_total).trim();
+  const overrideTotal = overrideTotalRaw === null ? null : Number(overrideTotalRaw);
 
   if (!UUID_PATTERN.test(productId)) {
     throw new Error(`Select a valid product for cart item ${index + 1}.`);
@@ -38,15 +39,15 @@ function parseCartItem(value: unknown, index: number): CartItemInput {
   if (!Number.isInteger(quantityEntered) || quantityEntered <= 0) {
     throw new Error(`Cart item ${index + 1} quantity must be a whole number greater than zero.`);
   }
-  if (overridePrice !== null && (!Number.isFinite(overridePrice) || overridePrice < 0)) {
-    throw new Error(`Cart item ${index + 1} override price must be zero or greater.`);
+  if (overrideTotalRaw !== null && (overrideTotal === null || !/^\d+(\.\d{1,2})?$/.test(overrideTotalRaw) || !Number.isFinite(overrideTotal) || overrideTotal > 9_999_999_999.99)) {
+    throw new Error(`Cart item ${index + 1} override final total must be a valid non-negative amount.`);
   }
 
   return {
     product_id: productId,
     sell_type: sellType,
     quantity_entered: quantityEntered,
-    override_price: overridePrice,
+    override_total: overrideTotal,
   };
 }
 
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
           product_id: body.product_id,
           sell_type: body.sell_type,
           quantity_entered: body.quantity_entered,
-          override_price: body.override_price,
+          override_total: body.override_total,
         }];
 
     if (rawItems.length === 0) {
@@ -123,7 +124,7 @@ export async function POST(request: Request) {
             total_sale: transaction.total_amount,
             product_ids: [...new Set(items.map((item) => item.product_id))],
             sale_ids: transaction.sale_ids,
-            price_override_count: items.filter((item) => item.override_price !== null).length,
+            price_override_count: items.filter((item) => item.override_total !== null).length,
           },
         },
       );

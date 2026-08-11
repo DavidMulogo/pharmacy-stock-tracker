@@ -17,6 +17,7 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 - Inventory adjustments for unfit, expired, damaged, missing, internally used, supplier-returned, and quarantined customer-return medicines
 - Controlled sale voids and inventory-adjustment reversals with role checks, reasons, and audit history
 - Owner-controlled normal selling-price changes with immutable automatic price history
+- Exact final-total overrides at checkout without dispenser-side per-unit calculations
 - Pharmacy archive, restore, and permanent delete controls
 - Business analytics with expenses, gross profit, net profit, and best-selling products
 - Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity exports

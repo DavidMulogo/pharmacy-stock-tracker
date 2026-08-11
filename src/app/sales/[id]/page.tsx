@@ -48,8 +48,8 @@ export default async function SaleDetail({
             <Metric label="Quantity" value={`${sale.quantity_entered} ${sale.sell_type === "PACK" ? "Pack" : "Unit"}`} />
             <Metric label="Units sold" value={String(sale.units_sold)} />
             <Metric label="Default price" value={formatTZS(sale.default_price)} />
-            <Metric label="Override price" value={sale.override_price == null ? "Not applied" : formatTZS(sale.override_price)} />
-            <Metric label="Effective price" value={formatTZS(sale.effective_price)} />
+            <Metric label="Override final total" value={sale.override_total == null ? "Not applied" : formatTZS(sale.override_total)} />
+            <Metric label="Equivalent price" value={formatTZS(sale.effective_price)} />
             <Metric label="Total sale" value={formatTZS(sale.total_sale)} />
             <Metric label="Override flag" value={sale.override_flag} />
             <Metric label="Date" value={formatDateTime(sale.created_at)} />

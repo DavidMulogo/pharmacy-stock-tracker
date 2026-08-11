@@ -214,9 +214,13 @@ async function getOverrideReport(pharmacyId: string, filters: ReportFilters) {
     product: productName(sale.product),
     quantity_entered: normalizeNumber(sale.quantity_entered),
     sell_type: sale.sell_type as SellType,
-    default_price: normalizeNumber(sale.default_price),
-    override_price: normalizeNumber(sale.override_price),
-    difference: normalizeNumber(sale.override_price) - normalizeNumber(sale.default_price),
+    default_total: normalizeNumber(sale.default_price) * normalizeNumber(sale.quantity_entered),
+    override_total: sale.override_total === null
+      ? normalizeNumber(sale.override_price) * normalizeNumber(sale.quantity_entered)
+      : normalizeNumber(sale.override_total),
+    difference: (sale.override_total === null
+      ? normalizeNumber(sale.override_price) * normalizeNumber(sale.quantity_entered)
+      : normalizeNumber(sale.override_total)) - normalizeNumber(sale.default_price) * normalizeNumber(sale.quantity_entered),
     created_at: sale.created_at,
   }));
 

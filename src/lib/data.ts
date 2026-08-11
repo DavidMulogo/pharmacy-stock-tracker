@@ -380,6 +380,7 @@ export async function getDashboardData(pharmacyId?: string, options: { includeFi
       quantity_sold: normalizeNumber(sale.quantity_sold),
       default_price: normalizeNumber(sale.default_price),
       override_price: sale.override_price === null ? null : normalizeNumber(sale.override_price),
+      override_total: sale.override_total === null ? null : normalizeNumber(sale.override_total),
       effective_price: normalizeNumber(sale.effective_price),
       final_selling_price: sale.final_selling_price === null ? null : normalizeNumber(sale.final_selling_price),
       effective_selling_price: normalizeNumber(sale.effective_selling_price),

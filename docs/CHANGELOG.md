@@ -27,6 +27,7 @@
 - Batch-safe adjustment RPC, immutable adjustment history, staff audit events, and adjustment-aware stock calculations
 - Controlled Corrections v1 with soft sale voids, inventory-adjustment reversals, mandatory reasons, and correction audit events
 - Product Selling Prices v1 with owner-only normal unit/pack price editing and automatic price history
+- Final-total sale overrides so staff enter the exact negotiated line amount without calculating a per-unit override
 
 ### Improved
 
@@ -36,6 +37,7 @@
 - Checkout no longer has PL/pgSQL record/column name collisions and never allocates a new sale to an expired batch
 - Dashboard day and month totals now use each pharmacy's configured timezone instead of the Vercel server timezone
 - Normal price changes apply only to future sales; historical sale lines retain their original price snapshots
+- Override reports now compare the normal line total with the exact overridden final total
 - Sell product results now appear only after typing, are limited to 20 visible matches, and require explicit medicine selection
 - Mobile, tablet, and desktop Add Stock product selection now uses a searchable product picker with multi-word matching, bounded results, and explicit selection
 - Add Stock starts without an assumed product and keeps Save Batch disabled until a product is explicitly selected

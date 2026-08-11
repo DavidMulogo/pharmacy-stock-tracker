@@ -32,7 +32,7 @@ type CartItem = {
   units_sold: number;
   unit_label: string;
   default_price: number;
-  override_price: number | null;
+  override_total: number | null;
   effective_price: number;
   total_sale: number;
 };
@@ -439,14 +439,16 @@ export function PharmacyApp({
     adjustmentNote.length > 500;
   const sellType: SellType = selectedProduct ? getProductSellType(selectedProduct, preferredSellType) : preferredSellType;
   const saleQuantity = Number(quantity);
-  const overridePriceNumber = overridePrice.trim() === "" ? null : Number(overridePrice);
-  const overridePriceInvalid = overridePriceNumber !== null && (!Number.isFinite(overridePriceNumber) || overridePriceNumber < 0);
+  const overrideTotalNumber = overridePrice.trim() === "" ? null : Number(overridePrice);
+  const overridePriceInvalid = overrideTotalNumber !== null && (!Number.isFinite(overrideTotalNumber) || overrideTotalNumber < 0);
   const selectedDefaultPrice =
     selectedProduct ? resolveDefaultPrice(selectedProduct, sellType) : null;
-  const effectiveSellingPrice = selectedProduct && !overridePriceInvalid ? overridePriceNumber ?? selectedDefaultPrice : null;
+  const effectiveSellingPrice = selectedProduct && !overridePriceInvalid && Number.isFinite(saleQuantity) && saleQuantity > 0
+    ? overrideTotalNumber === null ? selectedDefaultPrice : overrideTotalNumber / saleQuantity
+    : null;
   const saleTotal =
     Number.isFinite(saleQuantity) && saleQuantity > 0 && !overridePriceInvalid && effectiveSellingPrice != null
-      ? saleQuantity * effectiveSellingPrice
+      ? overrideTotalNumber ?? saleQuantity * effectiveSellingPrice
       : 0;
   const unitsToDeduct =
     selectedProduct && Number.isFinite(saleQuantity) && saleQuantity > 0
@@ -878,8 +880,8 @@ export function PharmacyApp({
       return;
     }
     if (overridePriceInvalid) {
-      setSaleMessage("Override price must be zero or greater.");
-      setToast({ message: "Check the override price before saving.", type: "error" });
+      setSaleMessage("Override final total must be zero or greater.");
+      setToast({ message: "Check the override final total before saving.", type: "error" });
       return;
     }
     if (selectedDefaultPrice == null) {
@@ -903,7 +905,7 @@ export function PharmacyApp({
       units_sold: unitsToDeduct,
       unit_label: sellType === "PACK" ? selectedProduct.pack_type : selectedProduct.base_unit,
       default_price: selectedDefaultPrice,
-      override_price: overridePriceNumber,
+      override_total: overrideTotalNumber,
       effective_price: effectiveSellingPrice ?? selectedDefaultPrice,
       total_sale: saleTotal,
     };
@@ -913,7 +915,7 @@ export function PharmacyApp({
         (item) =>
           item.product_id === cartItem.product_id &&
           item.sell_type === cartItem.sell_type &&
-          item.override_price === cartItem.override_price,
+          item.override_total === null && cartItem.override_total === null,
       );
 
       if (existingIndex < 0) return [...current, cartItem];
@@ -969,7 +971,10 @@ export function PharmacyApp({
               ...item,
               quantity_entered: nextQuantity,
               units_sold: nextUnits,
-              total_sale: nextQuantity * item.effective_price,
+              override_total: item.override_total === null ? null : Math.round((item.override_total / item.quantity_entered) * nextQuantity * 100) / 100,
+              total_sale: item.override_total === null
+                ? nextQuantity * item.effective_price
+                : Math.round((item.override_total / item.quantity_entered) * nextQuantity * 100) / 100,
             }
           : item,
       );
@@ -999,7 +1004,7 @@ export function PharmacyApp({
             product_id: item.product_id,
             sell_type: item.sell_type,
             quantity_entered: item.quantity_entered,
-            override_price: item.override_price,
+            override_total: item.override_total,
           })),
         }),
       });
@@ -1322,7 +1327,7 @@ export function PharmacyApp({
       downloadCsv(
         "sales.csv",
         buildCsv(
-          ["product_name", "sell_type", "quantity_entered", "units_sold", "default_price", "override_price", "effective_price", "total_sale", "override_flag", "created_at"],
+          ["product_name", "sell_type", "quantity_entered", "units_sold", "default_price", "override_price", "override_total", "effective_price", "total_sale", "override_flag", "created_at"],
           dashboardData.sales.map((sale) => [
             sale.product.product_name,
             sale.sell_type,
@@ -1330,6 +1335,7 @@ export function PharmacyApp({
             sale.units_sold,
             sale.default_price,
             sale.override_price,
+            sale.override_total,
             sale.effective_price,
             sale.total_sale,
             sale.override_flag,
@@ -1778,7 +1784,7 @@ export function PharmacyApp({
                     />
                   </label>
                   <label className="block text-sm font-semibold">
-                    Override selling price
+                    Override final total
                     <input
                       type="number"
                       min="0"
@@ -1789,7 +1795,7 @@ export function PharmacyApp({
                       className="mt-1 w-full rounded-md border border-slate-300 px-3 py-3 text-base outline-none focus:border-emerald-600"
                     />
                     <span className="mt-1 block text-xs font-medium text-slate-500">
-                      {sellType === "PACK" ? "Price per pack" : "Price per unit"}
+                      Optional final amount for this whole line, not the price per {sellType === "PACK" ? "pack" : "unit"}.
                     </span>
                   </label>
                   <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
@@ -1798,7 +1804,9 @@ export function PharmacyApp({
                       <span className="text-xl font-bold text-emerald-950">{formatTZS(saleTotal)}</span>
                     </div>
                     <p className="mt-1 text-xs font-medium text-emerald-800">
-                      {quantity || "0"} x {formatOptionalTZS(effectiveSellingPrice)}
+                      {overrideTotalNumber === null
+                        ? `${quantity || "0"} x ${formatOptionalTZS(effectiveSellingPrice)}`
+                        : `Normal ${formatTZS((Number.isFinite(saleQuantity) ? saleQuantity : 0) * (selectedDefaultPrice ?? 0))} → overridden final total`}
                     </p>
                     <p className="mt-1 text-xs font-medium text-emerald-800">
                       Units deducted: {unitsToDeduct}
@@ -1821,7 +1829,7 @@ export function PharmacyApp({
                   ) : null}
                   {overridePriceInvalid ? (
                     <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
-                      Override price must be zero or greater.
+                      Override final total must be zero or greater.
                     </p>
                   ) : null}
                   {selectedDefaultPrice == null ? (
@@ -1868,8 +1876,8 @@ export function PharmacyApp({
                         <div>
                           <p className="font-bold">{item.product_name}</p>
                           <p className="mt-1 text-sm text-slate-600">
-                            {item.sell_type === "PACK" ? "Pack" : "Unit"} · {formatTZS(item.effective_price)} each
-                            {item.override_price !== null ? " · Price overridden" : ""}
+                            {item.sell_type === "PACK" ? "Pack" : "Unit"} · Normal {formatTZS(item.default_price)} each
+                            {item.override_total !== null ? " · Final total overridden" : ""}
                           </p>
                         </div>
                         <p className="text-lg font-black">{formatTZS(item.total_sale)}</p>

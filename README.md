@@ -4,7 +4,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 
 ## Features
 
-- Multi-item Sell cart with product search, quantity controls, optional per-item price overrides, and one atomic checkout.
+- Multi-item Sell cart with product search, quantity controls, optional exact final-total overrides, and one atomic checkout.
 - Products screen with available stock and stock status.
 - Product detail pages with batches, sales, owner-controlled normal selling-price changes, and automatic price history.
 - Add Stock screen for recording inventory batches.
