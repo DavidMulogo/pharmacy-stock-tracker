@@ -22,6 +22,12 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - Zanzibar-oriented `IN_CHARGE` role for daily sales, stock, pricing, corrections, operational reports, and ordinary staff password support.
 - Supabase SQL migration with generated columns and views for stock, expiry, and sales calculations.
 
+## Subscription Product Definition
+
+The approved commercial model is Starter at TZS 20,000/month, Business at TZS 45,000/month, future Multi-Branch at TZS 90,000/month, and custom Enterprise pricing. A 30-day assisted pilot uses Business capabilities. The complete entitlement, founding-customer, annual-pricing, expiry, downgrade, and data-protection policy is documented in `docs/SUBSCRIPTION_PLANS.md`.
+
+This is currently a product definition, not active feature gating. The existing application must continue to behave according to its current subscription code until server-side entitlements and the approved grace/read-only states are implemented and verified.
+
 ## Setup
 
 1. Install dependencies:
@@ -117,8 +123,9 @@ All product stock, expiry, and sales totals are fetched from Supabase on the ser
 
 The `/reports` page is protected by the pharmacy staff session. The server derives `pharmacy_id` from the authenticated session for every report API request.
 
-- `OWNER`: all reports, including staff activity.
-- `PHARMACIST`: sales, inventory, expiry, price overrides, and expenses/profit.
+- `OWNER`: all reports, including expenses/profit and staff activity.
+- `IN_CHARGE`: sales, inventory, expiry, and price overrides.
+- `PHARMACIST`: inventory and expiry only.
 - `TECHNICIAN`: inventory and expiry only.
 
 CSV export logs a `REPORT_EXPORTED` activity event. Viewing reports and changing filters are not logged.
@@ -144,8 +151,9 @@ Notifications sync when the dashboard or notifications page loads and when a use
 
 Role access:
 
-- `OWNER`: all notifications
-- `PHARMACIST`: inventory, expiry, and subscription notifications
+- `OWNER`: inventory, expiry, and subscription notifications
+- `IN_CHARGE`: inventory and expiry notifications only
+- `PHARMACIST`: inventory and expiry notifications only
 - `TECHNICIAN`: inventory and expiry notifications only
 
 ## Backup
@@ -168,7 +176,7 @@ Apply `supabase/migrations/028_inventory_adjustments.sql` before deploying this 
 
 ## Controlled Corrections
 
-Owners and pharmacists can void a completed sale with a required reason. Voiding keeps the original transaction and COGS history for audit, removes its lines from revenue and profit calculations, and returns its allocated quantities to sellable stock. A transaction can be voided only once.
+Owners and In-Charge staff can void a completed sale with a required reason. Voiding keeps the original transaction and COGS history for audit, removes its lines from revenue and profit calculations, and returns its allocated quantities to sellable stock. A transaction can be voided only once.
 
 Owners can reverse an inventory adjustment with a required reason. Reversal preserves the original adjustment record and restores stock only when that adjustment originally reduced sellable stock; quarantined customer returns remain non-sellable. A correction can be reversed only once.
 

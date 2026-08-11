@@ -32,6 +32,8 @@ Admin login protection is stored on `admin_users` through `failed_login_attempts
 
 Subscription access is checked on login and existing session validation. The system blocks suspended accounts, expired trials, expired paid subscriptions, and explicit expired status. Allowed accounts near expiry can show warning banners in the app.
 
+The approved future commercial model defines Starter at TZS 20,000/month, Business at TZS 45,000/month, Multi-Branch at TZS 90,000/month when branch functionality is ready, and custom Enterprise quotations. The entitlement matrix and non-destructive expiry policy live in `docs/SUBSCRIPTION_PLANS.md`. These definitions do not currently activate feature gates. Implementing them requires server-side entitlements, usage limits, grace/read-only states, audit events, and matching UI behavior. Until then, the existing subscription access checks remain authoritative.
+
 ## Pharmacy Settings
 
 Each pharmacy has one `pharmacy_settings` row containing business information, branding, inventory rules, sales rules, and localization. Settings APIs derive pharmacy ownership from the authenticated session.

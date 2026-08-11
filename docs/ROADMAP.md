@@ -31,9 +31,9 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 
 ## Next Phases
 
-### Subscription Pricing Controls
+### Subscription Plans and Entitlements
 
-Add subscription entitlement rules for optional sale-price overrides while keeping normal product prices centrally managed by Owners and In-Charge staff.
+The Starter, Business, future Multi-Branch, and custom Enterprise commercial model is approved and documented in `docs/SUBSCRIPTION_PLANS.md`. Next, implement non-destructive server-side entitlements, usage limits, pilot/founding-customer terms, upgrade guidance, and the approved grace/read-only expiry states. Payment integration comes only after entitlement behavior is tested. No live feature gates are implied by the commercial definition alone.
 
 ### Advanced Reports
 

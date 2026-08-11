@@ -4,6 +4,7 @@
 
 ### Added
 
+- Approved commercial subscription definition for Starter, Business, future Multi-Branch, and Enterprise plans, including pilot pricing, entitlement boundaries, annual pricing, expiry policy, and data-safety rules; enforcement is not implemented yet
 - Onboarding v1 with owner-only setup checklist, persistent setup banner, server-calculated progress, and admin onboarding visibility
 - In-App Notifications v1 with stock, expiry, subscription alerts, unread counts, filters, read actions, and admin summary badges
 - Admin Security v1 with Change Password, stronger admin password policy, account lockout, session-version invalidation, secure one-time bootstrap, and admin login/logout/password audit events
@@ -14,7 +15,7 @@
 - Admin Restore v1 for merge-only backup recovery
 - Admin restore audit log table and `BACKUP_RESTORED` admin action
 - Business analytics with sales, gross profit, expenses, net profit, and best-selling products
-- Expense ledger for owners and pharmacists
+- Owner-only expense ledger
 - Tenant-scoped activity log migration and audit helper
 - Owner-only activity viewer with action, staff, and date filters
 - Audit events for login/logout, sales, stock receipts, CSV imports, expenses, settings, and staff management
@@ -65,8 +66,8 @@
 - Restore writes run through a service-role-only PostgreSQL RPC for atomic rollback on failure
 - Cart checkout derives pharmacy and staff identity from the session; the database revalidates tenant products, prices, selling modes, and stock under batch locks
 - Adjustment APIs derive pharmacy and staff identity from the session; service-role-only RPCs lock and revalidate tenant batches before reducing stock
-- Sale voids are limited to owners and pharmacists; adjustment reversals are owner-only; correction RPCs reject repeat actions under database locks
-- Normal price changes are owner-only, tenant-scoped, and atomically write both the product price and price-history record
+- Sale voids are limited to Owners and In-Charge staff; adjustment reversals are Owner-only; correction RPCs reject repeat actions under database locks
+- Normal price changes are limited to Owners and In-Charge staff, tenant-scoped, and atomically write both the product price and price-history record
 - Admin password-recovery audits store target account identifiers and roles but never passwords or password hashes
 
 ### Not Included
