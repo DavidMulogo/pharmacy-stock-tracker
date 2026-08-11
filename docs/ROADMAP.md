@@ -19,6 +19,7 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 - Owner-controlled normal selling-price changes with immutable automatic price history
 - Exact final-total overrides at checkout without dispenser-side per-unit calculations
 - Admin-assisted owner and employee password recovery with session revocation and audit history
+- Zanzibar-oriented In-Charge operational role with strict separation from owner financial and account controls
 - Pharmacy archive, restore, and permanent delete controls
 - Business analytics with expenses, gross profit, net profit, and best-selling products
 - Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity exports
@@ -30,9 +31,9 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 
 ## Next Phases
 
-### Roles and Pricing Controls
+### Subscription Pricing Controls
 
-Add a dedicated `IN_CHARGE` operational role and grant it controlled price-management rights. Add subscription entitlement rules for optional sale-price overrides while keeping normal product prices centrally managed.
+Add subscription entitlement rules for optional sale-price overrides while keeping normal product prices centrally managed by Owners and In-Charge staff.
 
 ### Advanced Reports
 

@@ -29,6 +29,7 @@
 - Product Selling Prices v1 with owner-only normal unit/pack price editing and automatic price history
 - Final-total sale overrides so staff enter the exact negotiated line amount without calculating a per-unit override
 - Admin-assisted OWNER and employee password recovery with individual staff selection
+- Dedicated `IN_CHARGE` role with one active In-Charge per pharmacy and operational management permissions
 
 ### Improved
 
@@ -40,6 +41,7 @@
 - Normal price changes apply only to future sales; historical sale lines retain their original price snapshots
 - Override reports now compare the normal line total with the exact overridden final total
 - Password resets now revoke the affected user sessions immediately
+- Financial dashboards, expenses, settings, backups, subscription alerts, and activity logs are now explicitly OWNER-only
 - Sell product results now appear only after typing, are limited to 20 visible matches, and require explicit medicine selection
 - Mobile, tablet, and desktop Add Stock product selection now uses a searchable product picker with multi-word matching, bounded results, and explicit selection
 - Add Stock starts without an assumed product and keeps Save Batch disabled until a product is explicitly selected

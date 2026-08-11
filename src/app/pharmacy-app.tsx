@@ -540,7 +540,7 @@ export function PharmacyApp({
     () => new Set(dashboardData.batches.map((batch) => getImportBatchKey(batch.product_id, batch.batch_number, batch.expiry_date))),
     [dashboardData.batches],
   );
-  const canViewFinancials = activeUser?.role === "OWNER" || activeUser?.role === "PHARMACIST";
+  const canViewFinancials = activeUser?.role === "OWNER";
   const showOnboardingBanner = activeUser?.role === "OWNER" && initialOnboarding && !initialOnboarding.completed;
   const kpiCards = useMemo(
     () => [
@@ -1399,9 +1399,7 @@ export function PharmacyApp({
                 </div>
                 {activePharmacyId && !isDebugMode ? (
                   <div className="grid grid-cols-2 gap-2 sm:flex">
-                    <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/settings">
-                      Settings
-                    </Link>
+                    {activeUser?.role === "OWNER" ? <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/settings">Settings</Link> : null}
                     <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/reports">
                       Reports
                     </Link>
@@ -1432,6 +1430,7 @@ export function PharmacyApp({
                         </Link>
                       </>
                     ) : null}
+                    {activeUser?.role === "IN_CHARGE" ? <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/staff">Staff</Link> : null}
                     <button
                       type="button"
                       onClick={logoutPharmacy}
@@ -2419,7 +2418,7 @@ export function PharmacyApp({
                     Voided {formatDateTime(transaction.voidedAt)} · {transaction.voidReason}
                   </p>
                 ) : null}
-                {(activeUser?.role === "OWNER" || activeUser?.role === "PHARMACIST") && !transaction.voidedAt ? (
+                {(activeUser?.role === "OWNER" || activeUser?.role === "IN_CHARGE") && !transaction.voidedAt ? (
                   voidTargetKey === transaction.key ? (
                     <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3">
                       <p className="text-sm font-black text-rose-900">Void the entire transaction?</p>

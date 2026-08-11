@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     await syncNotificationsForPharmacy(session.pharmacy);
-    const data = await getDashboardData(session.pharmacy.id, { includeFinancials: session.role !== "TECHNICIAN" });
+    const data = await getDashboardData(session.pharmacy.id, { includeFinancials: session.role === "OWNER" });
     return NextResponse.json({ data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load pharmacy data.";

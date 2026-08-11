@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   const session = await authenticatePharmacyFromSessionCookie();
   if (!session) redirect("/");
+  if (session.role !== "OWNER") redirect("/");
 
   const settings = await getPharmacySettings(session.pharmacy.id, session.pharmacy.pharmacy_name);
 

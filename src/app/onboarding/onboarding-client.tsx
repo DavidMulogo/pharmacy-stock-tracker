@@ -20,7 +20,7 @@ type StaffForm = {
   role: PharmacyUserRole;
 };
 
-const roleOptions: PharmacyUserRole[] = ["PHARMACIST", "TECHNICIAN", "OWNER"];
+const roleOptions: PharmacyUserRole[] = ["IN_CHARGE", "PHARMACIST", "TECHNICIAN", "OWNER"];
 
 function Input({
   label,
@@ -352,7 +352,7 @@ export function OnboardingClient({
                 </div>
               ))}
               <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-900">
-                OWNER manages the pharmacy and reports. PHARMACIST can sell, manage stock, and view financial operations. TECHNICIAN can sell and check stock without expense or profit access.
+                OWNER controls the business and finances. IN_CHARGE manages daily sales, stock, pricing, and ordinary staff access. PHARMACIST and TECHNICIAN can sell and handle stock without financial control.
               </div>
               <button className="w-fit rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 disabled:bg-slate-100" disabled={isSaving} type="button" onClick={() => reviewStep("staff")}>
                 Skip for Now

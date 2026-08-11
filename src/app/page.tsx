@@ -14,7 +14,7 @@ export default async function Home() {
   const initialPharmacyId = session?.pharmacy.id || (isDebugMode ? pharmacies[0]?.id || "" : "");
   if (session) await syncNotificationsForPharmacy(session.pharmacy);
   const [data, onboarding, notificationCounts] = await Promise.all([
-    getDashboardData(initialPharmacyId, { includeFinancials: session?.role !== "TECHNICIAN" }),
+    getDashboardData(initialPharmacyId, { includeFinancials: session?.role === "OWNER" }),
     session?.role === "OWNER" ? getOnboardingSummary(session.pharmacy.id) : Promise.resolve(null),
     session ? getNotificationCounts(session.pharmacy.id, session.role) : Promise.resolve(null),
   ]);

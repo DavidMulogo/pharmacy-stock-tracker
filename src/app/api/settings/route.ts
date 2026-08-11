@@ -35,6 +35,7 @@ export async function GET() {
   try {
     const session = await authenticatePharmacyFromSessionCookie();
     if (!session) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    if (session.role !== "OWNER") return NextResponse.json({ error: "Only the pharmacy owner can view settings." }, { status: 403 });
 
     const settings = await getPharmacySettings(session.pharmacy.id, session.pharmacy.pharmacy_name);
     return NextResponse.json({ settings }, { status: 200 });
@@ -48,6 +49,7 @@ export async function PATCH(request: Request) {
   try {
     const session = await authenticatePharmacyFromSessionCookie();
     if (!session) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    if (session.role !== "OWNER") return NextResponse.json({ error: "Only the pharmacy owner can update settings." }, { status: 403 });
 
     const body = await request.json();
     const update: PharmacySettingsUpdate = {

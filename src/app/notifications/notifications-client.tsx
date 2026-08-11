@@ -47,7 +47,7 @@ export function NotificationsClient({
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const visibleFilters = useMemo(
-    () => filters.filter((item) => role !== "TECHNICIAN" || !["subscription"].includes(item.id)),
+    () => filters.filter((item) => role === "OWNER" || !["subscription"].includes(item.id)),
     [role],
   );
 

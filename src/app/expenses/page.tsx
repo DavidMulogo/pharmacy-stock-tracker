@@ -15,7 +15,7 @@ export default async function ExpensesPage() {
   const session = await authenticatePharmacyFromSessionCookie();
   if (!session) redirect("/");
 
-  if (session.role === "TECHNICIAN") {
+  if (session.role !== "OWNER") {
     return (
       <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-6 sm:px-6">
@@ -30,7 +30,7 @@ export default async function ExpensesPage() {
           </header>
           <section className="rounded-lg border border-rose-200 bg-rose-50 p-5 text-rose-950">
             <h2 className="text-lg font-bold">Access restricted</h2>
-            <p className="mt-2 text-sm font-semibold">Technicians cannot view expenses or net profit.</p>
+            <p className="mt-2 text-sm font-semibold">Only the pharmacy owner can view expenses or net profit.</p>
           </section>
         </div>
       </main>

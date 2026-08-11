@@ -24,7 +24,8 @@ type SaleWithProductRow = SaleRow & {
 
 const reportPermissions = {
   OWNER: ["sales", "inventory", "expiry", "overrides", "profit", "activity"],
-  PHARMACIST: ["sales", "inventory", "expiry", "overrides", "profit"],
+  IN_CHARGE: ["sales", "inventory", "expiry", "overrides"],
+  PHARMACIST: ["inventory", "expiry"],
   TECHNICIAN: ["inventory", "expiry"],
 } satisfies Record<PharmacyUserRole, ReportType[]>;
 

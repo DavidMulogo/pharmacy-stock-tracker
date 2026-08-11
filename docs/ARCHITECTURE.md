@@ -18,7 +18,7 @@ Pharmacy staff log in with pharmacy code, username, and password. The pharmacy c
 
 ## Staff Login
 
-Staff accounts live in `pharmacy_users` and belong to one pharmacy. Roles include `OWNER`, `PHARMACIST`, and `TECHNICIAN`. Owners can manage staff. Sessions include pharmacy id, staff user id, and role for future auditing.
+Staff accounts live in `pharmacy_users` and belong to one pharmacy. Roles include `OWNER`, `IN_CHARGE`, `PHARMACIST`, and `TECHNICIAN`. Owners manage roles and staffing; one active In-Charge may handle defined daily operations. Sessions include pharmacy id, staff user id, and role for auditing.
 
 ## Sessions
 
@@ -54,8 +54,9 @@ The `/reports` area is a protected pharmacy staff surface. Report APIs authentic
 
 Report access by role:
 
-- `OWNER`: sales, inventory, expiry, price overrides, expenses/profit, and staff activity
-- `PHARMACIST`: sales, inventory, expiry, price overrides, and expenses/profit
+- `OWNER`: all reports, including expenses/profit and staff activity
+- `IN_CHARGE`: sales, inventory, expiry, and price overrides
+- `PHARMACIST`: inventory and expiry only
 - `TECHNICIAN`: inventory and expiry only
 
 CSV export is intentionally audited with `REPORT_EXPORTED`; ordinary report views and filter changes are not logged.
@@ -74,11 +75,15 @@ Optional checkout overrides are exact final totals for a complete sale line. `sa
 
 The authenticated `/api/inventory-adjustments` route derives pharmacy and staff identity from the session and calls the service-role-only `create_inventory_adjustment_v2` RPC. The RPC locks the selected batch, accounts for active FEFO allocations and active earlier adjustments, rejects excessive quantities, and inserts the record atomically. Product and batch stock views subtract active reduction adjustments, and sale checkout rechecks those adjusted totals.
 
-Controlled corrections are soft state changes. Owners and pharmacists may void a transaction or legacy sale; owners may reverse an inventory adjustment. Required reasons, actor ids, and timestamps are retained on the original records. Stock views, checkout, notifications, dashboard metrics, and reports ignore voided sales and reversed adjustments. Service-role-only RPCs lock records and reject repeat corrections.
+Controlled corrections are soft state changes. Owners and In-Charge staff may void a transaction or legacy sale; owners may reverse an inventory adjustment. Required reasons, actor ids, and timestamps are retained on the original records. Stock views, checkout, notifications, dashboard metrics, and reports ignore voided sales and reversed adjustments. Service-role-only RPCs lock records and reject repeat corrections.
 
 ## Product Selling Prices
 
-Normal unit and pack prices live on the tenant-owned product. Only an authenticated `OWNER` can change them in v1. The API derives pharmacy and actor identity from the session and calls the service-role-only `update_product_selling_prices_v1` RPC. The RPC locks and revalidates the product, updates its normal prices, and inserts `product_price_history` in one transaction. Historical sales remain unchanged because every sale line stores the price used at checkout. The planned `IN_CHARGE` role will receive this permission in a later role migration.
+Normal unit and pack prices live on the tenant-owned product. An authenticated `OWNER` or `IN_CHARGE` can change them. The API derives pharmacy and actor identity from the session and calls the service-role-only `update_product_selling_prices_v1` RPC. The RPC locks and revalidates the product, updates its normal prices, and inserts `product_price_history` in one transaction. Historical sales remain unchanged because every sale line stores the price used at checkout.
+
+## In-Charge Operations
+
+Each pharmacy may have one active `IN_CHARGE`. This account handles daily sales oversight, stock and product workflows, normal price changes, sale voids, operational reports, and password resets for Pharmacist and Technician accounts. It cannot create or deactivate staff, reset an Owner or another In-Charge, view expenses/profit, change pharmacy settings, access backups/activity logs, or manage subscriptions. The `PHARMACIST` title does not automatically grant financial or correction authority.
 
 ## Admin-Assisted Password Recovery
 

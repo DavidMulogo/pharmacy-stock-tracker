@@ -18,7 +18,8 @@
     "verify:inventory-adjustments": "node scripts/verify-inventory-adjustments.mjs",
     "verify:controlled-corrections": "node scripts/verify-controlled-corrections.mjs",
     "verify:product-pricing": "node scripts/verify-product-pricing.mjs",
-    "verify:admin-password-recovery": "node scripts/verify-admin-password-recovery.mjs"
+    "verify:admin-password-recovery": "node scripts/verify-admin-password-recovery.mjs",
+    "verify:in-charge-role": "node scripts/verify-in-charge-role.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

@@ -22,7 +22,8 @@ export default async function ProductDetail({
   if (!detail) notFound();
 
   const { product, batches, sales } = detail;
-  const priceHistoryResult = session.role === "OWNER"
+  const canManagePrices = session.role === "OWNER" || session.role === "IN_CHARGE";
+  const priceHistoryResult = canManagePrices
     ? await getSupabaseAdmin()
         .from("product_price_history")
         .select("id, old_unit_price, new_unit_price, old_pack_price, new_pack_price, created_at, changed_by_user:pharmacy_users!product_price_history_changed_by_fkey(full_name)")
@@ -72,7 +73,7 @@ export default async function ProductDetail({
             <Metric label="Created" value={formatDate(product.created_at)} />
           </div>
           {!product.reorder_level_configured ? <ReorderLevelForm productId={product.id} initialReorderLevel={product.reorder_level} /> : null}
-          {session.role === "OWNER" ? (
+          {canManagePrices ? (
             <PriceEditor
               productId={product.id}
               sellingMode={product.selling_mode}
@@ -83,7 +84,7 @@ export default async function ProductDetail({
           ) : null}
         </section>
 
-        {session.role === "OWNER" ? (
+        {canManagePrices ? (
           <section className="mt-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold">Price history</h2>
             <p className="mt-1 text-sm text-slate-600">Automatic record of changes to this product&apos;s normal selling prices.</p>

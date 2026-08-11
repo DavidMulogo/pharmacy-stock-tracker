@@ -19,6 +19,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - In-app notifications for stock, expiry, and subscription alerts.
 - Owner-only activity logs for important staff and operational actions.
 - Admin-assisted password recovery for pharmacy owners and individual staff accounts, with session revocation and audit records.
+- Zanzibar-oriented `IN_CHARGE` role for daily sales, stock, pricing, corrections, operational reports, and ordinary staff password support.
 - Supabase SQL migration with generated columns and views for stock, expiry, and sales calculations.
 
 ## Setup

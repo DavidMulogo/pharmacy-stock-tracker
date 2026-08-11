@@ -31,8 +31,8 @@ async function requireExpenseAccess() {
   if (!session) {
     return { response: NextResponse.json({ error: "Authentication required." }, { status: 401 }) };
   }
-  if (session.role === "TECHNICIAN") {
-    return { response: NextResponse.json({ error: "Technicians cannot view or add expenses." }, { status: 403 }) };
+  if (session.role !== "OWNER") {
+    return { response: NextResponse.json({ error: "Only the pharmacy owner can view or add expenses." }, { status: 403 }) };
   }
   return { session };
 }

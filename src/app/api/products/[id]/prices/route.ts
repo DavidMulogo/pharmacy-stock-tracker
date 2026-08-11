@@ -19,7 +19,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const session = await authenticatePharmacyFromSessionCookie();
     if (!session) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-    if (session.role !== "OWNER") return NextResponse.json({ error: "Only the pharmacy owner can change normal selling prices." }, { status: 403 });
+    if (session.role !== "OWNER" && session.role !== "IN_CHARGE") return NextResponse.json({ error: "Only the Owner or In-Charge can change normal selling prices." }, { status: 403 });
 
     const { id } = await params;
     const body = await request.json();

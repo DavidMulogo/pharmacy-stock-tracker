@@ -23,7 +23,7 @@ for (const pattern of [
 ]) assert.match(migration, pattern);
 
 assert.match(voidRoute, /authenticatePharmacyFromSessionCookie/);
-assert.match(voidRoute, /OWNER|PHARMACIST/);
+assert.match(voidRoute, /OWNER|IN_CHARGE/);
 assert.doesNotMatch(voidRoute, /body\.pharmacy_id/);
 assert.match(reverseRoute, /authenticatePharmacyFromSessionCookie/);
 assert.match(reverseRoute, /role !== "OWNER"/);

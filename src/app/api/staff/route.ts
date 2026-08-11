@@ -10,7 +10,7 @@ import { recordActivity } from "@/lib/activity-log";
 type PharmacyUserInsert = Database["public"]["Tables"]["pharmacy_users"]["Insert"];
 type PharmacyUserUpdate = Database["public"]["Tables"]["pharmacy_users"]["Update"];
 
-const roles: PharmacyUserRole[] = ["OWNER", "PHARMACIST", "TECHNICIAN"];
+const roles: PharmacyUserRole[] = ["OWNER", "IN_CHARGE", "PHARMACIST", "TECHNICIAN"];
 
 function text(value: unknown) {
   return String(value || "").trim();
@@ -21,19 +21,19 @@ function getRole(value: unknown): PharmacyUserRole {
   return roles.includes(role) ? role : "TECHNICIAN";
 }
 
-async function requireOwner() {
+async function requireStaffAccess() {
   const session = await authenticatePharmacyFromSessionCookie();
   if (!session) {
     return { response: NextResponse.json({ error: "Authentication required." }, { status: 401 }) };
   }
-  if (session.role !== "OWNER") {
-    return { response: NextResponse.json({ error: "Only pharmacy owners can manage staff." }, { status: 403 }) };
+  if (session.role !== "OWNER" && session.role !== "IN_CHARGE") {
+    return { response: NextResponse.json({ error: "Only Owners and In-Charge staff can access staff accounts." }, { status: 403 }) };
   }
   return { session };
 }
 
 export async function GET() {
-  const auth = await requireOwner();
+  const auth = await requireStaffAccess();
   if (auth.response) return auth.response;
 
   try {
@@ -53,8 +53,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireOwner();
+  const auth = await requireStaffAccess();
   if (auth.response) return auth.response;
+  if (auth.session.role !== "OWNER") return NextResponse.json({ error: "Only pharmacy owners can create staff accounts." }, { status: 403 });
 
   try {
     const body = await request.json();
@@ -95,13 +96,17 @@ export async function POST(request: Request) {
     revalidatePath("/staff");
     return NextResponse.json({ user: normalizePharmacyUser(result.data) }, { status: 201 });
   } catch (error) {
+    const databaseError = error as { code?: string; message?: string };
+    if (databaseError.code === "23505" && databaseError.message?.includes("pharmacy_users_one_active_in_charge_idx")) {
+      return NextResponse.json({ error: "This pharmacy already has an active In-Charge." }, { status: 409 });
+    }
     const message = error instanceof Error ? error.message : "Unable to create staff user.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireOwner();
+  const auth = await requireStaffAccess();
   if (auth.response) return auth.response;
 
   try {
@@ -122,7 +127,17 @@ export async function PATCH(request: Request) {
     if (action === "reset-password") {
       const password = String(body.password || "");
       if (!password) return NextResponse.json({ error: "New password is required." }, { status: 400 });
+      if (password.length < 8 || password.length > 128) return NextResponse.json({ error: "New password must contain 8 to 128 characters." }, { status: 400 });
 
+      const targetResult = await supabase.from("pharmacy_users").select("id, role").eq("id", id).eq("pharmacy_id", auth.session.pharmacy.id).maybeSingle();
+      if (targetResult.error) throw targetResult.error;
+      if (!targetResult.data) return NextResponse.json({ error: "Staff account was not found." }, { status: 404 });
+      if (targetResult.data.role === "OWNER") {
+        return NextResponse.json({ error: "Owner password recovery must be handled through PharmaStock Admin so legacy owner access stays synchronized." }, { status: 400 });
+      }
+      if (auth.session.role === "IN_CHARGE" && !["PHARMACIST", "TECHNICIAN"].includes(targetResult.data.role)) {
+        return NextResponse.json({ error: "In-Charge staff can reset only Pharmacist and Technician passwords." }, { status: 403 });
+      }
       const passwordHash = await bcrypt.hash(password, 12);
       const result = await supabase
         .from("pharmacy_users")
@@ -133,6 +148,8 @@ export async function PATCH(request: Request) {
         .single();
 
       if (result.error) throw result.error;
+      const sessionResult = await supabase.from("pharmacy_sessions").delete().eq("pharmacy_user_id", result.data.id);
+      if (sessionResult.error) throw sessionResult.error;
       await recordActivity(
         { pharmacyId: auth.session.pharmacy.id, userId: auth.session.user.id, name: auth.session.user.full_name, role: auth.session.role },
         {
@@ -144,6 +161,8 @@ export async function PATCH(request: Request) {
       );
       return NextResponse.json({ user: normalizePharmacyUser(result.data) }, { status: 200 });
     }
+
+    if (auth.session.role !== "OWNER") return NextResponse.json({ error: "Only pharmacy owners can create, edit, activate, or deactivate staff." }, { status: 403 });
 
     const update: PharmacyUserUpdate =
       action === "deactivate"
@@ -186,6 +205,10 @@ export async function PATCH(request: Request) {
     revalidatePath("/staff");
     return NextResponse.json({ user: normalizePharmacyUser(result.data) }, { status: 200 });
   } catch (error) {
+    const databaseError = error as { code?: string; message?: string };
+    if (databaseError.code === "23505" && databaseError.message?.includes("pharmacy_users_one_active_in_charge_idx")) {
+      return NextResponse.json({ error: "This pharmacy already has an active In-Charge. Deactivate or reassign that account first." }, { status: 409 });
+    }
     const message = error instanceof Error ? error.message : "Unable to update staff user.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

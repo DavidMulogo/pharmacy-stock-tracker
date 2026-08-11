@@ -7,8 +7,8 @@ import { recordActivity } from "@/lib/activity-log";
 export async function POST(request: Request) {
   const session = await authenticatePharmacyFromSessionCookie();
   if (!session) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  if (session.role !== "OWNER" && session.role !== "PHARMACIST") {
-    return NextResponse.json({ error: "Only Owners and Pharmacists can void sales." }, { status: 403 });
+  if (session.role !== "OWNER" && session.role !== "IN_CHARGE") {
+    return NextResponse.json({ error: "Only Owners and In-Charge staff can void sales." }, { status: 403 });
   }
 
   try {

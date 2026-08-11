@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default async function StaffPage() {
   const session = await authenticatePharmacyFromSessionCookie();
   if (!session) redirect("/");
-  if (session.role !== "OWNER") redirect("/");
+  if (session.role !== "OWNER" && session.role !== "IN_CHARGE") redirect("/");
 
   const supabase = getSupabaseAdmin();
   const result = await supabase
@@ -37,7 +37,7 @@ export default async function StaffPage() {
             Back to POS
           </Link>
         </header>
-        <StaffManager currentUserId={session.user.id} initialStaff={(result.data || []).map(normalizePharmacyUser)} />
+        <StaffManager currentUserId={session.user.id} currentRole={session.role} initialStaff={(result.data || []).map(normalizePharmacyUser)} />
       </div>
     </main>
   );
