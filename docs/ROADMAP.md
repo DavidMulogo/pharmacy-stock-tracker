@@ -16,6 +16,7 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 - Atomic multi-item sales cart with FEFO batch allocation and immutable COGS
 - Inventory adjustments for unfit, expired, damaged, missing, internally used, supplier-returned, and quarantined customer-return medicines
 - Controlled sale voids and inventory-adjustment reversals with role checks, reasons, and audit history
+- Owner-controlled normal selling-price changes with immutable automatic price history
 - Pharmacy archive, restore, and permanent delete controls
 - Business analytics with expenses, gross profit, net profit, and best-selling products
 - Reports v1 with sales, inventory, expiry, price override, expenses/profit, and staff activity exports
@@ -27,6 +28,10 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 
 ## Next Phases
 
+### Roles and Pricing Controls
+
+Add a dedicated `IN_CHARGE` operational role and grant it controlled price-management rights. Add subscription entitlement rules for optional sale-price overrides while keeping normal product prices centrally managed.
+
 ### Advanced Reports
 
 Expand Reports v1 with supplier and purchase reports after supplier and purchasing modules exist, plus scheduled report delivery and deeper valuation options.
@@ -37,7 +42,7 @@ Expand Admin Restore v1 with richer conflict review, correction- and transaction
 
 ### Onboarding
 
-Expand Onboarding v1 with richer import templates, guided first-sale checks, sample products, and admin-side onboarding nudges.
+Expand Onboarding v1 with a master medicine catalog picker alongside CSV and manual entry, guided first-sale checks, and admin-side onboarding nudges.
 
 ### Notifications
 

@@ -11,6 +11,7 @@ const actionLabels: Record<ActivityLogAction, string> = {
   SALE_VOIDED: "Sale voided",
   STOCK_ADDED: "Stock added",
   INVENTORY_ADJUSTED: "Inventory adjusted",
+  PRODUCT_PRICE_UPDATED: "Product price updated",
   INVENTORY_ADJUSTMENT_REVERSED: "Inventory adjustment reversed",
   PRODUCTS_IMPORTED: "Products imported",
   STOCK_IMPORTED: "Stock imported",

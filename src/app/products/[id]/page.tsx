@@ -4,6 +4,8 @@ import { getProductDetail } from "@/lib/data";
 import { formatDate, formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 import { ReorderLevelForm } from "@/app/products/reorder-level-form";
+import { PriceEditor } from "@/app/products/price-editor";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,17 @@ export default async function ProductDetail({
   if (!detail) notFound();
 
   const { product, batches, sales } = detail;
+  const priceHistoryResult = session.role === "OWNER"
+    ? await getSupabaseAdmin()
+        .from("product_price_history")
+        .select("id, old_unit_price, new_unit_price, old_pack_price, new_pack_price, created_at, changed_by_user:pharmacy_users!product_price_history_changed_by_fkey(full_name)")
+        .eq("pharmacy_id", session.pharmacy.id)
+        .eq("product_id", product.id)
+        .order("created_at", { ascending: false })
+        .limit(10)
+    : { data: [], error: null };
+  if (priceHistoryResult.error) throw priceHistoryResult.error;
+  const priceHistory = priceHistoryResult.data || [];
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-950 sm:px-6">
@@ -59,7 +72,33 @@ export default async function ProductDetail({
             <Metric label="Created" value={formatDate(product.created_at)} />
           </div>
           {!product.reorder_level_configured ? <ReorderLevelForm productId={product.id} initialReorderLevel={product.reorder_level} /> : null}
+          {session.role === "OWNER" ? (
+            <PriceEditor
+              productId={product.id}
+              sellingMode={product.selling_mode}
+              unitsPerPack={product.units_per_pack}
+              initialUnitPrice={product.default_unit_price}
+              initialPackPrice={product.default_pack_price}
+            />
+          ) : null}
         </section>
+
+        {session.role === "OWNER" ? (
+          <section className="mt-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold">Price history</h2>
+            <p className="mt-1 text-sm text-slate-600">Automatic record of changes to this product&apos;s normal selling prices.</p>
+            <div className="mt-3 grid gap-3">
+              {priceHistory.length === 0 ? <p className="text-sm text-slate-600">No price changes recorded yet.</p> : priceHistory.map((change) => {
+                const changedBy = Array.isArray(change.changed_by_user) ? change.changed_by_user[0] : change.changed_by_user;
+                return <div key={change.id} className="rounded-md border border-slate-200 p-3">
+                  <p className="font-semibold">Unit: {formatOptionalTZS(change.old_unit_price)} → {formatOptionalTZS(change.new_unit_price)}</p>
+                  <p className="font-semibold">Pack: {formatOptionalTZS(change.old_pack_price)} → {formatOptionalTZS(change.new_pack_price)}</p>
+                  <p className="mt-1 text-sm text-slate-600">{formatDateTime(change.created_at)}{changedBy?.full_name ? ` · ${changedBy.full_name}` : ""}</p>
+                </div>;
+              })}
+            </div>
+          </section>
+        ) : null}
 
         <section className="mt-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-bold">Batches</h2>

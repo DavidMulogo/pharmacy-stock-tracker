@@ -396,6 +396,36 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
         Relationships: [];
       };
+      product_price_history: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          product_id: string;
+          changed_by: string | null;
+          old_unit_price: number | null;
+          new_unit_price: number | null;
+          old_pack_price: number | null;
+          new_pack_price: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          product_id: string;
+          changed_by?: string | null;
+          old_unit_price?: number | null;
+          new_unit_price?: number | null;
+          old_pack_price?: number | null;
+          new_pack_price?: number | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["product_price_history"]["Insert"]>;
+        Relationships: [
+          { foreignKeyName: "product_price_history_pharmacy_id_fkey"; columns: ["pharmacy_id"]; isOneToOne: false; referencedRelation: "pharmacies"; referencedColumns: ["id"] },
+          { foreignKeyName: "product_price_history_product_id_fkey"; columns: ["product_id"]; isOneToOne: false; referencedRelation: "products"; referencedColumns: ["id"] },
+          { foreignKeyName: "product_price_history_changed_by_fkey"; columns: ["changed_by"]; isOneToOne: false; referencedRelation: "pharmacy_users"; referencedColumns: ["id"] },
+        ];
+      };
       inventory_batches: {
         Row: {
           id: string;
@@ -825,6 +855,10 @@ export type Database = {
       };
       reverse_inventory_adjustment_v1: {
         Args: { p_pharmacy_id: string; p_reversed_by: string; p_adjustment_id: string; p_reason: string };
+        Returns: Json;
+      };
+      update_product_selling_prices_v1: {
+        Args: { p_pharmacy_id: string; p_changed_by: string; p_product_id: string; p_unit_price: number | null; p_pack_price: number | null };
         Returns: Json;
       };
       restore_pharmastock_backup_v1: {

@@ -74,6 +74,10 @@ The authenticated `/api/inventory-adjustments` route derives pharmacy and staff 
 
 Controlled corrections are soft state changes. Owners and pharmacists may void a transaction or legacy sale; owners may reverse an inventory adjustment. Required reasons, actor ids, and timestamps are retained on the original records. Stock views, checkout, notifications, dashboard metrics, and reports ignore voided sales and reversed adjustments. Service-role-only RPCs lock records and reject repeat corrections.
 
+## Product Selling Prices
+
+Normal unit and pack prices live on the tenant-owned product. Only an authenticated `OWNER` can change them in v1. The API derives pharmacy and actor identity from the session and calls the service-role-only `update_product_selling_prices_v1` RPC. The RPC locks and revalidates the product, updates its normal prices, and inserts `product_price_history` in one transaction. Historical sales remain unchanged because every sale line stores the price used at checkout. The planned `IN_CHARGE` role will receive this permission in a later role migration.
+
 ## Backup
 
 The `/backup` area is restricted to pharmacy `OWNER` accounts. Backup APIs authenticate through the pharmacy session helper, derive `pharmacy_id` and actor identity from the session, and never accept tenant identifiers from the client.

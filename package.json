@@ -16,7 +16,8 @@
     "verify:reorder-level": "node scripts/verify-reorder-level.mjs",
     "verify:sale-cart": "node scripts/verify-sale-cart.mjs",
     "verify:inventory-adjustments": "node scripts/verify-inventory-adjustments.mjs",
-    "verify:controlled-corrections": "node scripts/verify-controlled-corrections.mjs"
+    "verify:controlled-corrections": "node scripts/verify-controlled-corrections.mjs",
+    "verify:product-pricing": "node scripts/verify-product-pricing.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
