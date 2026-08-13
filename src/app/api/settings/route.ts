@@ -52,6 +52,10 @@ export async function PATCH(request: Request) {
     if (session.role !== "OWNER") return NextResponse.json({ error: "Only the pharmacy owner can update settings." }, { status: 403 });
 
     const body = await request.json();
+    const receiptPaperSize = text(body.receipt_paper_size) || "THERMAL_80MM";
+    if (!['THERMAL_58MM', 'THERMAL_80MM', 'A4'].includes(receiptPaperSize)) {
+      return NextResponse.json({ error: "Choose a valid receipt paper layout." }, { status: 400 });
+    }
     const update: PharmacySettingsUpdate = {
       registration_number: text(body.registration_number),
       license_number: text(body.license_number),
@@ -63,6 +67,7 @@ export async function PATCH(request: Request) {
       receipt_header: text(body.receipt_header),
       receipt_footer: text(body.receipt_footer),
       receipt_prefix: text(body.receipt_prefix) || "RCP",
+      receipt_paper_size: receiptPaperSize as PharmacySettingsUpdate["receipt_paper_size"],
       expiry_warning_days: Math.floor(nonNegativeNumber(body.expiry_warning_days, "Expiry warning days")),
       allow_negative_stock: booleanValue(body.allow_negative_stock),
       allow_duplicate_batches: booleanValue(body.allow_duplicate_batches),

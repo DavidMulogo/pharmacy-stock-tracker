@@ -18,6 +18,7 @@ function toFormState(settings: PharmacySettings): SettingsFormState {
     receipt_header: settings.receipt_header,
     receipt_footer: settings.receipt_footer,
     receipt_prefix: settings.receipt_prefix,
+    receipt_paper_size: settings.receipt_paper_size,
     expiry_warning_days: settings.expiry_warning_days,
     allow_negative_stock: settings.allow_negative_stock,
     allow_duplicate_batches: settings.allow_duplicate_batches,
@@ -135,11 +136,21 @@ export function SettingsForm({ initialSettings }: { initialSettings: PharmacySet
         <TextArea label="Address" value={form.address} onChange={(value) => update("address", value)} />
       </Section>
 
-      <Section title="Branding">
-        <Input label="Logo URL" value={form.logo_url} onChange={(value) => update("logo_url", value)} />
+      <Section title="Receipt Branding">
         <Input label="Receipt prefix" value={form.receipt_prefix} onChange={(value) => update("receipt_prefix", value)} />
         <Input label="Receipt header" value={form.receipt_header} onChange={(value) => update("receipt_header", value)} />
         <Input label="Receipt footer" value={form.receipt_footer} onChange={(value) => update("receipt_footer", value)} />
+        <label className="block text-sm font-semibold text-slate-800">
+          Receipt paper layout
+          <select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base outline-none focus:border-emerald-600" value={form.receipt_paper_size} onChange={(event) => update("receipt_paper_size", event.target.value as SettingsFormState["receipt_paper_size"])}>
+            <option value="THERMAL_58MM">58 mm thermal</option>
+            <option value="THERMAL_80MM">80 mm thermal</option>
+            <option value="A4">A4 / standard printer</option>
+          </select>
+        </label>
+        <p className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-900">
+          The receipt also uses the address, region, district, and email saved under Business Information.
+        </p>
       </Section>
 
       <Section title="Inventory Settings">

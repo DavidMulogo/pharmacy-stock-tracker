@@ -270,6 +270,7 @@ export type Database = {
           receipt_header: string;
           receipt_footer: string;
           receipt_prefix: string;
+          receipt_paper_size: "THERMAL_58MM" | "THERMAL_80MM" | "A4";
           low_stock_threshold: number;
           expiry_warning_days: number;
           allow_negative_stock: boolean;
@@ -295,6 +296,7 @@ export type Database = {
           receipt_header?: string;
           receipt_footer?: string;
           receipt_prefix?: string;
+          receipt_paper_size?: "THERMAL_58MM" | "THERMAL_80MM" | "A4";
           low_stock_threshold?: number;
           expiry_warning_days?: number;
           allow_negative_stock?: boolean;

@@ -24,6 +24,7 @@ export function normalizePharmacySettings(row: PharmacySettingsRow): PharmacySet
     receipt_header: row.receipt_header || "",
     receipt_footer: row.receipt_footer || "",
     receipt_prefix: row.receipt_prefix || "",
+    receipt_paper_size: row.receipt_paper_size || "THERMAL_80MM",
     expiry_warning_days: normalizeNumber(row.expiry_warning_days),
     allow_negative_stock: Boolean(row.allow_negative_stock),
     allow_duplicate_batches: Boolean(row.allow_duplicate_batches),

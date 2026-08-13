@@ -167,6 +167,7 @@ export type PharmacySettings = {
   receipt_header: string;
   receipt_footer: string;
   receipt_prefix: string;
+  receipt_paper_size: "THERMAL_58MM" | "THERMAL_80MM" | "A4";
   expiry_warning_days: number;
   allow_negative_stock: boolean;
   allow_duplicate_batches: boolean;
