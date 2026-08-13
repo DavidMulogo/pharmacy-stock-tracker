@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import { authenticatePharmacyFromSessionCookie } from "@/lib/pharmacy-session";
 import { recordActivity } from "@/lib/activity-log";
+import { calculateBatchCosts } from "@/lib/inventory-cost";
 
 type BatchInsert = Database["public"]["Tables"]["inventory_batches"]["Insert"];
 
@@ -30,7 +31,10 @@ export async function POST(request: Request) {
     const batchNumber = String(body.batch_number || "").trim();
     const expiryDate = String(body.expiry_date || "");
     const packsReceived = Number(body.packs_received);
-    const buyingPricePerPack = Number(body.buying_price_per_pack ?? body.buying_price);
+    const hasTotalPurchaseAmount = body.total_purchase_amount !== undefined && body.total_purchase_amount !== null;
+    const totalPurchaseAmountBlank = hasTotalPurchaseAmount && String(body.total_purchase_amount).trim() === "";
+    const totalPurchaseAmount = hasTotalPurchaseAmount ? Number(body.total_purchase_amount) : null;
+    const legacyBuyingPricePerPack = Number(body.buying_price_per_pack ?? body.buying_price);
 
     if (!productId) {
       return NextResponse.json({ error: "Select a product before adding stock." }, { status: 400 });
@@ -48,7 +52,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Packs received must be a whole number greater than zero." }, { status: 400 });
     }
 
-    if (!Number.isFinite(buyingPricePerPack) || buyingPricePerPack < 0) {
+    if (hasTotalPurchaseAmount && (totalPurchaseAmountBlank || totalPurchaseAmount === null || !Number.isFinite(totalPurchaseAmount) || totalPurchaseAmount < 0)) {
+      return NextResponse.json({ error: "Total purchase amount must be zero or greater." }, { status: 400 });
+    }
+
+    if (!hasTotalPurchaseAmount && (!Number.isFinite(legacyBuyingPricePerPack) || legacyBuyingPricePerPack < 0)) {
       return NextResponse.json({ error: "Buying price per pack must be zero or greater." }, { status: 400 });
     }
 
@@ -61,6 +69,13 @@ export async function POST(request: Request) {
       .single();
 
     if (productResult.error) throw productResult.error;
+    const calculatedCosts = totalPurchaseAmount === null
+      ? null
+      : calculateBatchCosts(totalPurchaseAmount, packsReceived, productResult.data.units_per_pack);
+    if (hasTotalPurchaseAmount && !calculatedCosts) {
+      return NextResponse.json({ error: "Unable to calculate stock buying costs." }, { status: 400 });
+    }
+    const buyingPricePerPack = calculatedCosts?.buyingPricePerPack ?? legacyBuyingPricePerPack;
 
     const existingBatchResult = await supabase
       .from("inventory_batches")
@@ -107,7 +122,14 @@ export async function POST(request: Request) {
         entityType: "inventory_batch",
         entityId: result.data.id,
         description: `Added ${packsReceived} pack${packsReceived === 1 ? "" : "s"} of batch ${batchNumber}.`,
-        metadata: { product_id: productId, batch_number: batchNumber, expiry_date: expiryDate, packs_received: packsReceived },
+        metadata: {
+          product_id: productId,
+          batch_number: batchNumber,
+          expiry_date: expiryDate,
+          packs_received: packsReceived,
+          total_purchase_amount: hasTotalPurchaseAmount ? totalPurchaseAmount : buyingPricePerPack * packsReceived,
+          buying_price_per_pack: buyingPricePerPack,
+        },
       },
     );
     revalidatePath("/");

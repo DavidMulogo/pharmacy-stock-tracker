@@ -49,6 +49,8 @@
 - Sell product results now appear only after typing, are limited to 20 visible matches, and require explicit medicine selection
 - Mobile, tablet, and desktop Add Stock product selection now uses a searchable product picker with multi-word matching, bounded results, and explicit selection
 - Add Stock starts without an assumed product and keeps Save Batch disabled until a product is explicitly selected
+- Add Stock now accepts the supplier's total purchase amount and calculates buying cost per pack and per unit automatically
+- Completed Product and Opening Stock onboarding steps no longer show redundant workflow-review actions
 - Sales report transaction counts now group cart lines under their customer transaction
 
 ### Security

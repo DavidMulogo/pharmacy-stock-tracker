@@ -458,9 +458,6 @@ export function OnboardingClient({
                   {catalogOpen ? "Close Medicine Catalogue" : "Choose from Medicine Catalogue"}
                 </button>
                 <Link className="rounded-md border border-emerald-300 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/">Manual / CSV</Link>
-                <button className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 disabled:bg-slate-100" disabled={isSaving} type="button" onClick={() => reviewStep("products")}>
-                  Mark Workflow Reviewed
-                </button>
               </div>
             </div>
             {catalogOpen ? (
@@ -509,9 +506,6 @@ export function OnboardingClient({
             <p className="text-sm font-bold text-slate-700">Inventory batch count: {progress.inventory_batch_count}</p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Link className="rounded-md bg-emerald-700 px-4 py-3 text-center text-sm font-bold text-white" href="/">Open Add Stock / CSV</Link>
-              <button className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 disabled:bg-slate-100" disabled={isSaving} type="button" onClick={() => reviewStep("opening_stock")}>
-                Mark Workflow Reviewed
-              </button>
             </div>
           </div>
         </StepShell>

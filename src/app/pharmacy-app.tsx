@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
+import { calculateBatchCosts } from "@/lib/inventory-cost";
 import { ReorderLevelForm } from "@/app/products/reorder-level-form";
 import { resolveDefaultPrice } from "@/lib/pricing";
 import { getPharmacyExpiryWarning } from "@/lib/subscription";
@@ -373,7 +374,7 @@ export function PharmacyApp({
   const [batchNumber, setBatchNumber] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [packsReceived, setPacksReceived] = useState("");
-  const [buyingPricePerPack, setBuyingPricePerPack] = useState("");
+  const [totalPurchaseAmount, setTotalPurchaseAmount] = useState("");
   const [isSavingSale, setIsSavingSale] = useState(false);
   const [isSavingStock, setIsSavingStock] = useState(false);
   const [adjustmentProductSearch, setAdjustmentProductSearch] = useState("");
@@ -477,9 +478,15 @@ export function PharmacyApp({
     selectedProduct.available_stock <= 0;
   const cartTotal = cartItems.reduce((total, item) => total + item.total_sale, 0);
   const packsReceivedNumber = Number(packsReceived);
-  const buyingPricePerPackNumber = Number(buyingPricePerPack);
+  const totalPurchaseAmountNumber = Number(totalPurchaseAmount);
   const packsReceivedInvalid = !Number.isInteger(packsReceivedNumber) || packsReceivedNumber <= 0;
-  const buyingPricePerPackInvalid = !Number.isFinite(buyingPricePerPackNumber) || buyingPricePerPackNumber < 0;
+  const totalPurchaseAmountInvalid =
+    totalPurchaseAmount.trim() === "" ||
+    !Number.isFinite(totalPurchaseAmountNumber) ||
+    totalPurchaseAmountNumber < 0;
+  const calculatedBatchCosts = batchProduct
+    ? calculateBatchCosts(totalPurchaseAmountNumber, packsReceivedNumber, batchProduct.units_per_pack)
+    : null;
   const expiryDateInvalid = expiryDate !== "" && !isValidIsoDate(expiryDate);
   const expiryBatches = useMemo(() => {
     const text = expirySearch.trim().toLowerCase();
@@ -653,7 +660,7 @@ export function PharmacyApp({
     !expiryDate ||
     expiryDateInvalid ||
     packsReceivedInvalid ||
-    buyingPricePerPackInvalid ||
+    totalPurchaseAmountInvalid ||
     stockBatchDuplicate;
   const saveStockDisabled = isSavingStock || !activePharmacyId || stockFormInvalid;
   const activePharmacy = pharmacies.find((pharmacy) => pharmacy.id === activePharmacyId) || null;
@@ -1071,7 +1078,7 @@ export function PharmacyApp({
           batch_number: batchNumber,
           expiry_date: expiryDate,
           packs_received: packsReceived,
-          buying_price_per_pack: buyingPricePerPack,
+          total_purchase_amount: totalPurchaseAmount,
         }),
       });
       const result = await response.json();
@@ -1090,7 +1097,7 @@ export function PharmacyApp({
       setBatchNumber("");
       setExpiryDate("");
       setPacksReceived("");
-      setBuyingPricePerPack("");
+      setTotalPurchaseAmount("");
       setStockConfirmation(confirmation);
       setToast({ message: confirmation, type: "success" });
       await loadPharmacyData(activePharmacyId);
@@ -2067,9 +2074,11 @@ export function PharmacyApp({
               <Input label="Batch number" value={batchNumber} onChange={setBatchNumber} />
               <Input label="Expiry date" value={expiryDate} onChange={setExpiryDate} type="date" />
               <Input label="Packs received" value={packsReceived} onChange={setPacksReceived} type="number" min="1" />
-              <Input label="Buying price per pack" value={buyingPricePerPack} onChange={setBuyingPricePerPack} type="number" min="0" step="0.01" />
-              <div className="rounded-md bg-slate-50 p-3 text-sm sm:col-span-2">
-                Units per pack: <strong>{batchProduct?.units_per_pack || 0}</strong>
+              <Input label="Total purchase amount (TZS)" value={totalPurchaseAmount} onChange={setTotalPurchaseAmount} type="number" min="0" step="0.01" />
+              <div className="grid gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm sm:col-span-2 sm:grid-cols-3">
+                <p>Units per pack<br /><strong>{batchProduct?.units_per_pack || 0}</strong></p>
+                <p>Calculated cost per pack<br /><strong>{calculatedBatchCosts === null ? "-" : formatTZS(calculatedBatchCosts.buyingPricePerPack)}</strong></p>
+                <p>Calculated cost per unit<br /><strong>{calculatedBatchCosts === null ? "-" : formatTZS(calculatedBatchCosts.buyingPricePerUnit)}</strong></p>
               </div>
               {expiryDateInvalid ? (
                 <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 sm:col-span-2">
@@ -2081,9 +2090,9 @@ export function PharmacyApp({
                   Packs received must be a whole number greater than zero.
                 </p>
               ) : null}
-              {buyingPricePerPack !== "" && buyingPricePerPackInvalid ? (
+              {totalPurchaseAmount !== "" && totalPurchaseAmountInvalid ? (
                 <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 sm:col-span-2">
-                  Buying price per pack must be zero or greater.
+                  Total purchase amount must be zero or greater.
                 </p>
               ) : null}
               {stockBatchDuplicate ? (
