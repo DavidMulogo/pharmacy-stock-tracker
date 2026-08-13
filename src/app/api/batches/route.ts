@@ -31,6 +31,9 @@ export async function POST(request: Request) {
     const batchNumber = String(body.batch_number || "").trim();
     const expiryDate = String(body.expiry_date || "");
     const packsReceived = Number(body.packs_received);
+    const requestedUnitsPerPack = body.units_per_pack === undefined || body.units_per_pack === null
+      ? null
+      : Number(body.units_per_pack);
     const hasTotalPurchaseAmount = body.total_purchase_amount !== undefined && body.total_purchase_amount !== null;
     const totalPurchaseAmountBlank = hasTotalPurchaseAmount && String(body.total_purchase_amount).trim() === "";
     const totalPurchaseAmount = hasTotalPurchaseAmount ? Number(body.total_purchase_amount) : null;
@@ -52,6 +55,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Packs received must be a whole number greater than zero." }, { status: 400 });
     }
 
+    if (requestedUnitsPerPack !== null && (!Number.isInteger(requestedUnitsPerPack) || requestedUnitsPerPack <= 0)) {
+      return NextResponse.json({ error: "Units in each received pack must be a whole number greater than zero." }, { status: 400 });
+    }
+
     if (hasTotalPurchaseAmount && (totalPurchaseAmountBlank || totalPurchaseAmount === null || !Number.isFinite(totalPurchaseAmount) || totalPurchaseAmount < 0)) {
       return NextResponse.json({ error: "Total purchase amount must be zero or greater." }, { status: 400 });
     }
@@ -69,9 +76,10 @@ export async function POST(request: Request) {
       .single();
 
     if (productResult.error) throw productResult.error;
+    const unitsPerPack = requestedUnitsPerPack ?? productResult.data.units_per_pack;
     const calculatedCosts = totalPurchaseAmount === null
       ? null
-      : calculateBatchCosts(totalPurchaseAmount, packsReceived, productResult.data.units_per_pack);
+      : calculateBatchCosts(totalPurchaseAmount, packsReceived, unitsPerPack);
     if (hasTotalPurchaseAmount && !calculatedCosts) {
       return NextResponse.json({ error: "Unable to calculate stock buying costs." }, { status: 400 });
     }
@@ -98,7 +106,7 @@ export async function POST(request: Request) {
       batch_number: batchNumber,
       expiry_date: expiryDate,
       packs_received: packsReceived,
-      units_per_pack: productResult.data.units_per_pack,
+      units_per_pack: unitsPerPack,
       buying_price_per_pack: buyingPricePerPack,
       buying_price: buyingPricePerPack,
     };
@@ -127,6 +135,7 @@ export async function POST(request: Request) {
           batch_number: batchNumber,
           expiry_date: expiryDate,
           packs_received: packsReceived,
+          units_per_pack: unitsPerPack,
           total_purchase_amount: hasTotalPurchaseAmount ? totalPurchaseAmount : buyingPricePerPack * packsReceived,
           buying_price_per_pack: buyingPricePerPack,
         },

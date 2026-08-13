@@ -374,6 +374,7 @@ export function PharmacyApp({
   const [batchNumber, setBatchNumber] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [packsReceived, setPacksReceived] = useState("");
+  const [receivedUnitsPerPack, setReceivedUnitsPerPack] = useState("");
   const [totalPurchaseAmount, setTotalPurchaseAmount] = useState("");
   const [isSavingSale, setIsSavingSale] = useState(false);
   const [isSavingStock, setIsSavingStock] = useState(false);
@@ -478,14 +479,19 @@ export function PharmacyApp({
     selectedProduct.available_stock <= 0;
   const cartTotal = cartItems.reduce((total, item) => total + item.total_sale, 0);
   const packsReceivedNumber = Number(packsReceived);
+  const receivedUnitsPerPackNumber = Number(receivedUnitsPerPack);
   const totalPurchaseAmountNumber = Number(totalPurchaseAmount);
   const packsReceivedInvalid = !Number.isInteger(packsReceivedNumber) || packsReceivedNumber <= 0;
+  const receivedUnitsPerPackInvalid =
+    receivedUnitsPerPack.trim() === "" ||
+    !Number.isInteger(receivedUnitsPerPackNumber) ||
+    receivedUnitsPerPackNumber <= 0;
   const totalPurchaseAmountInvalid =
     totalPurchaseAmount.trim() === "" ||
     !Number.isFinite(totalPurchaseAmountNumber) ||
     totalPurchaseAmountNumber < 0;
   const calculatedBatchCosts = batchProduct
-    ? calculateBatchCosts(totalPurchaseAmountNumber, packsReceivedNumber, batchProduct.units_per_pack)
+    ? calculateBatchCosts(totalPurchaseAmountNumber, packsReceivedNumber, receivedUnitsPerPackNumber)
     : null;
   const expiryDateInvalid = expiryDate !== "" && !isValidIsoDate(expiryDate);
   const expiryBatches = useMemo(() => {
@@ -660,6 +666,7 @@ export function PharmacyApp({
     !expiryDate ||
     expiryDateInvalid ||
     packsReceivedInvalid ||
+    receivedUnitsPerPackInvalid ||
     totalPurchaseAmountInvalid ||
     stockBatchDuplicate;
   const saveStockDisabled = isSavingStock || !activePharmacyId || stockFormInvalid;
@@ -1078,6 +1085,7 @@ export function PharmacyApp({
           batch_number: batchNumber,
           expiry_date: expiryDate,
           packs_received: packsReceived,
+          units_per_pack: receivedUnitsPerPack,
           total_purchase_amount: totalPurchaseAmount,
         }),
       });
@@ -1097,6 +1105,7 @@ export function PharmacyApp({
       setBatchNumber("");
       setExpiryDate("");
       setPacksReceived("");
+      setReceivedUnitsPerPack("");
       setTotalPurchaseAmount("");
       setStockConfirmation(confirmation);
       setToast({ message: confirmation, type: "success" });
@@ -2018,6 +2027,7 @@ export function PharmacyApp({
                     onChange={(event) => {
                       setBatchProductSearch(event.target.value);
                       setBatchProductId("");
+                      setReceivedUnitsPerPack("");
                       setIsBatchProductPickerOpen(true);
                     }}
                     placeholder="Search product, generic, brand, or strength"
@@ -2034,6 +2044,7 @@ export function PharmacyApp({
                       onClick={() => {
                         setBatchProductSearch("");
                         setBatchProductId("");
+                        setReceivedUnitsPerPack("");
                         setIsBatchProductPickerOpen(true);
                       }}
                       className="absolute right-2 top-1/2 min-h-10 min-w-10 -translate-y-1/2 rounded-md text-xl font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
@@ -2055,6 +2066,7 @@ export function PharmacyApp({
                         onSelect={() => {
                           setBatchProductId(product.id);
                           setBatchProductSearch(product.product_name);
+                          setReceivedUnitsPerPack(String(product.units_per_pack));
                           setIsBatchProductPickerOpen(false);
                           setStockMessage("");
                         }}
@@ -2074,9 +2086,10 @@ export function PharmacyApp({
               <Input label="Batch number" value={batchNumber} onChange={setBatchNumber} />
               <Input label="Expiry date" value={expiryDate} onChange={setExpiryDate} type="date" />
               <Input label="Packs received" value={packsReceived} onChange={setPacksReceived} type="number" min="1" />
+              <Input label="Units in each received pack" value={receivedUnitsPerPack} onChange={setReceivedUnitsPerPack} type="number" min="1" step="1" />
               <Input label="Total purchase amount (TZS)" value={totalPurchaseAmount} onChange={setTotalPurchaseAmount} type="number" min="0" step="0.01" />
               <div className="grid gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm sm:col-span-2 sm:grid-cols-3">
-                <p>Units per pack<br /><strong>{batchProduct?.units_per_pack || 0}</strong></p>
+                <p>Total units received<br /><strong>{packsReceivedInvalid || receivedUnitsPerPackInvalid ? "-" : packsReceivedNumber * receivedUnitsPerPackNumber}</strong></p>
                 <p>Calculated cost per pack<br /><strong>{calculatedBatchCosts === null ? "-" : formatTZS(calculatedBatchCosts.buyingPricePerPack)}</strong></p>
                 <p>Calculated cost per unit<br /><strong>{calculatedBatchCosts === null ? "-" : formatTZS(calculatedBatchCosts.buyingPricePerUnit)}</strong></p>
               </div>
@@ -2088,6 +2101,11 @@ export function PharmacyApp({
               {packsReceived !== "" && packsReceivedInvalid ? (
                 <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 sm:col-span-2">
                   Packs received must be a whole number greater than zero.
+                </p>
+              ) : null}
+              {receivedUnitsPerPack !== "" && receivedUnitsPerPackInvalid ? (
+                <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 sm:col-span-2">
+                  Units in each received pack must be a whole number greater than zero.
                 </p>
               ) : null}
               {totalPurchaseAmount !== "" && totalPurchaseAmountInvalid ? (
