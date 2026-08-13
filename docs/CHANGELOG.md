@@ -34,6 +34,7 @@
 - Final-total sale overrides so staff enter the exact negotiated line amount without calculating a per-unit override
 - Admin-assisted OWNER and employee password recovery with individual staff selection
 - Dedicated `IN_CHARGE` role with one active In-Charge per pharmacy and operational management permissions
+- Printable Sales Receipt v1 with pharmacy identity, transaction reference, itemized lines, totals, void status, and browser/thermal-printer-friendly output
 
 ### Improved
 

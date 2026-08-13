@@ -471,3 +471,39 @@ export async function getSaleDetail(id: string, pharmacyId?: string) {
   const sale = data.sales.find((item) => item.id === id);
   return sale ? { sale } : null;
 }
+
+export async function getSaleTransactionReceipt(id: string, pharmacyId: string) {
+  const supabase = getSupabaseAdmin();
+  const [transactionResult, linesResult] = await Promise.all([
+    supabase.from("sale_transactions").select("*").eq("id", id).eq("pharmacy_id", pharmacyId).maybeSingle(),
+    supabase
+      .from("sales")
+      .select("*, product:products(product_name)")
+      .eq("transaction_id", id)
+      .eq("pharmacy_id", pharmacyId)
+      .order("line_number", { ascending: true }),
+  ]);
+
+  if (transactionResult.error) throw transactionResult.error;
+  if (linesResult.error) throw linesResult.error;
+  if (!transactionResult.data) return null;
+
+  return {
+    transaction: {
+      ...transactionResult.data,
+      item_count: normalizeNumber(transactionResult.data.item_count),
+      total_amount: normalizeNumber(transactionResult.data.total_amount),
+    },
+    lines: (linesResult.data || []).map((line) => {
+      const product = Array.isArray(line.product) ? line.product[0] : line.product;
+      return {
+        id: line.id,
+        product_name: product?.product_name || "Product",
+        sell_type: line.sell_type,
+        quantity_entered: normalizeNumber(line.quantity_entered),
+        effective_price: normalizeNumber(line.effective_price),
+        total_sale: normalizeNumber(line.total_sale),
+      };
+    }),
+  };
+}

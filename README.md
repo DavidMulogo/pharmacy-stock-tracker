@@ -10,6 +10,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - Add Stock screen for recording inventory batches from the supplier total and received pack size, with automatic per-pack and per-unit buying-cost calculations.
 - Expiry screen showing only expired and expiring-soon batches.
 - Sales history with sale detail pages.
+- Printable transaction receipts available after checkout and from sales history.
 - Controlled sale voids and inventory-adjustment reversals with mandatory reasons and audit history.
 - Business analytics and an expense ledger with role-aware financial visibility.
 - Reports for sales, inventory, expiry, price overrides, expenses/profit, and staff activity with CSV export.

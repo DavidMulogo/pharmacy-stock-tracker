@@ -365,6 +365,7 @@ export function PharmacyApp({
   const [overridePrice, setOverridePrice] = useState("");
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [saleMessage, setSaleMessage] = useState("");
+  const [lastCompletedTransactionId, setLastCompletedTransactionId] = useState("");
   const [toast, setToast] = useState<Toast | null>(null);
   const [stockMessage, setStockMessage] = useState("");
   const [stockConfirmation, setStockConfirmation] = useState("");
@@ -1032,6 +1033,7 @@ export function PharmacyApp({
       }
 
       const completedItemCount = cartItems.length;
+      setLastCompletedTransactionId(result.transaction.id);
       setCartItems([]);
       setSelectedProductId("");
       setQuery("");
@@ -1871,6 +1873,17 @@ export function PharmacyApp({
             </section>
 
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
+              {lastCompletedTransactionId ? (
+                <div className="mb-4 flex flex-col gap-3 rounded-md border border-emerald-300 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-black text-emerald-900">Sale completed successfully.</p>
+                    <p className="text-sm font-semibold text-emerald-800">Transaction #{lastCompletedTransactionId.slice(0, 8).toUpperCase()}</p>
+                  </div>
+                  <Link className="rounded-md bg-emerald-700 px-4 py-3 text-center font-bold text-white" href={`/sales/receipt/${lastCompletedTransactionId}`}>
+                    View / Print Receipt
+                  </Link>
+                </div>
+              ) : null}
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-bold">Current Sale</h2>
@@ -2440,6 +2453,11 @@ export function PharmacyApp({
                   <Metric label="Total units" value={String(transaction.unitsSold)} />
                   <Metric label="Transaction total" value={formatTZS(transaction.totalSale)} />
                 </div>
+                {transaction.transactionId ? (
+                  <Link className="mt-4 inline-block rounded-md border border-emerald-300 bg-white px-4 py-2 text-sm font-bold text-emerald-800" href={`/sales/receipt/${transaction.transactionId}`}>
+                    View / Print Receipt
+                  </Link>
+                ) : null}
                 {transaction.voidedAt ? (
                   <p className="mt-3 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
                     Voided {formatDateTime(transaction.voidedAt)} · {transaction.voidReason}
