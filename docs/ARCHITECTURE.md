@@ -46,6 +46,8 @@ Each pharmacy can have one `pharmacy_onboarding` row. It stores when setup steps
 
 The `/onboarding` page and `/api/onboarding` are OWNER-only and derive pharmacy and actor identity from the pharmacy session. Existing pharmacies are not blocked from selling or stock work; incomplete setup appears as a persistent guidance banner for Owners. Admin pharmacy lists show computed onboarding progress, but admin users cannot falsely mark product or stock requirements complete.
 
+Master Medicine Catalogue v1 stores reusable medicine identity and packaging templates in `master_medicines`. It does not contain pharmacy buying costs, selling prices, batch numbers, quantities, or expiry dates. Owners may select templates through the Owner-only `/api/onboarding/catalog` route, enter their pharmacy's selling prices and reorder levels, and create tenant-owned products linked by `master_medicine_id`. A partial unique index prevents the same pharmacy from importing one catalogue medicine twice. Manual product creation and CSV import remain separate supported workflows; opening-stock batches are still received afterward.
+
 ## Notifications
 
 Notifications are tenant-scoped rows in `notifications` with deterministic `pharmacy_id + dedupe_key` uniqueness. The server synchronizes alerts from real product stock, batch expiry, pharmacy settings, and subscription state. Conditions that remain active update `last_seen_at`; conditions that disappear are marked `RESOLVED`; returning conditions reactivate through the same dedupe key.
@@ -119,6 +121,7 @@ The actual restore write uses the `restore_pharmastock_backup_v1` PostgreSQL RPC
 - `pharmacy_onboarding`: tenant-scoped setup review and completion timestamps
 - `notifications`: tenant-scoped in-app alert inbox with active, unread, and resolved states
 - `products`: pharmacy-scoped product catalog
+- `master_medicines`: global product-definition templates without pharmacy commercial or stock data
 - `inventory_batches`: pharmacy-scoped stock receiving batches
 - `inventory_adjustments`: immutable batch-scoped stock reductions and quarantined customer returns
 - `sale_transactions`: one customer checkout and its total

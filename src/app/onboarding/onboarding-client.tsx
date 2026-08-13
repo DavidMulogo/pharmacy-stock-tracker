@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { formatDate } from "@/lib/format";
-import type { OnboardingProgress, OnboardingStepId, Pharmacy, PharmacySettings, PharmacyUser, PharmacyUserRole } from "@/lib/types";
+import type { MasterMedicine, OnboardingProgress, OnboardingStepId, Pharmacy, PharmacySettings, PharmacyUser, PharmacyUserRole } from "@/lib/types";
 
 type Notice = { type: "success" | "error"; message: string };
 type ProfileForm = Pick<Pharmacy, "pharmacy_name" | "owner_name" | "phone"> &
@@ -19,6 +19,7 @@ type StaffForm = {
   password: string;
   role: PharmacyUserRole;
 };
+type CatalogSelection = { default_unit_price: string; default_pack_price: string; reorder_level: string };
 
 const roleOptions: PharmacyUserRole[] = ["IN_CHARGE", "PHARMACIST", "TECHNICIAN", "OWNER"];
 
@@ -136,6 +137,12 @@ export function OnboardingClient({
   const [staffForm, setStaffForm] = useState<StaffForm>({ full_name: "", username: "", password: "", role: "PHARMACIST" });
   const [notice, setNotice] = useState<Notice | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [catalog, setCatalog] = useState<MasterMedicine[]>([]);
+  const [catalogImportedIds, setCatalogImportedIds] = useState<string[]>([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogSelections, setCatalogSelections] = useState<Record<string, CatalogSelection>>({});
 
   const currentStep = useMemo(() => {
     if (!isReviewed(progress, "profile")) return "profile";
@@ -144,6 +151,15 @@ export function OnboardingClient({
     if (progress.inventory_batch_count <= 0) return "opening_stock";
     return progress.completed ? "done" : "subscription";
   }, [progress]);
+
+  const filteredCatalog = useMemo(() => {
+    const terms = catalogSearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    if (!terms.length) return catalog;
+    return catalog.filter((medicine) => {
+      const haystack = `${medicine.product_name} ${medicine.generic_name} ${medicine.strength} ${medicine.dosage_form}`.toLowerCase();
+      return terms.every((term) => haystack.includes(term));
+    });
+  }, [catalog, catalogSearch]);
 
   function stepStatus(step: OnboardingStepId, complete: boolean) {
     if (complete) return "completed";
@@ -266,6 +282,64 @@ export function OnboardingClient({
     }
   }
 
+  async function openCatalog() {
+    setCatalogOpen(true);
+    if (catalogLoaded) return;
+    setIsSaving(true);
+    setNotice(null);
+    try {
+      const response = await fetch("/api/onboarding/catalog");
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to load medicine catalogue.");
+      setCatalog(result.medicines as MasterMedicine[]);
+      setCatalogImportedIds(result.imported_ids as string[]);
+      setCatalogLoaded(true);
+    } catch (error) {
+      setNotice({ type: "error", message: error instanceof Error ? error.message : "Unable to load medicine catalogue." });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function toggleCatalogMedicine(medicine: MasterMedicine) {
+    setCatalogSelections((current) => {
+      if (current[medicine.id]) {
+        const next = { ...current };
+        delete next[medicine.id];
+        return next;
+      }
+      return { ...current, [medicine.id]: { default_unit_price: "", default_pack_price: "", reorder_level: "0" } };
+    });
+  }
+
+  function updateCatalogSelection(id: string, field: keyof CatalogSelection, value: string) {
+    setCatalogSelections((current) => ({ ...current, [id]: { ...current[id], [field]: value } }));
+  }
+
+  async function importCatalogMedicines() {
+    setIsSaving(true);
+    setNotice(null);
+    try {
+      const selections = Object.entries(catalogSelections).map(([master_medicine_id, values]) => ({ master_medicine_id, ...values }));
+      const response = await fetch("/api/onboarding/catalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selections }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to add catalogue medicines.");
+      setProgress(result.progress as OnboardingProgress);
+      setCatalogImportedIds((current) => [...new Set([...current, ...Object.keys(catalogSelections)])]);
+      setCatalogSelections({});
+      setNotice({ type: "success", message: `Added ${result.imported} medicine${result.imported === 1 ? "" : "s"}. Next, receive their stock batches.` });
+      router.refresh();
+    } catch (error) {
+      setNotice({ type: "error", message: error instanceof Error ? error.message : "Unable to add catalogue medicines." });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <header className="border-b border-slate-200 bg-white">
@@ -375,15 +449,58 @@ export function OnboardingClient({
           </div>
         </StepShell>
 
-        <StepShell title="4. Products" detail="Add at least one product manually or import products from CSV before completion." status={stepStatus("products", progress.product_count > 0)}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-bold text-slate-700">Product count: {progress.product_count}</p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Link className="rounded-md bg-emerald-700 px-4 py-3 text-center text-sm font-bold text-white" href="/">Open Products / CSV</Link>
-              <button className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 disabled:bg-slate-100" disabled={isSaving} type="button" onClick={() => reviewStep("products")}>
-                Mark Workflow Reviewed
-              </button>
+        <StepShell title="4. Products" detail="Choose common medicines from PharmaStock, import CSV, or add products manually." status={stepStatus("products", progress.product_count > 0)}>
+          <div className="grid gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-bold text-slate-700">Product count: {progress.product_count}</p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button className="rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-300" disabled={isSaving} type="button" onClick={() => void (catalogOpen ? setCatalogOpen(false) : openCatalog())}>
+                  {catalogOpen ? "Close Medicine Catalogue" : "Choose from Medicine Catalogue"}
+                </button>
+                <Link className="rounded-md border border-emerald-300 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/">Manual / CSV</Link>
+                <button className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 disabled:bg-slate-100" disabled={isSaving} type="button" onClick={() => reviewStep("products")}>
+                  Mark Workflow Reviewed
+                </button>
+              </div>
             </div>
+            {catalogOpen ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-950">
+                  PharmaStock supplies medicine names and usual packaging only. Enter this pharmacy&apos;s selling prices. Buying cost, batch number, quantity, and expiry are recorded later under Opening Stock.
+                </div>
+                <input className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base outline-none focus:border-emerald-600" value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="Search medicine, generic name, strength, or dosage form" />
+                <p className="mt-2 text-sm font-bold text-slate-700">{filteredCatalog.length} medicines · {Object.keys(catalogSelections).length} selected</p>
+                <div className="mt-3 grid max-h-[34rem] gap-2 overflow-y-auto pr-1">
+                  {filteredCatalog.map((medicine) => {
+                    const imported = catalogImportedIds.includes(medicine.id);
+                    const selected = catalogSelections[medicine.id];
+                    return (
+                      <div key={medicine.id} className={`rounded-md border p-3 ${imported ? "border-slate-200 bg-slate-100" : selected ? "border-emerald-400 bg-white" : "border-emerald-100 bg-white"}`}>
+                        <div className="flex items-start gap-3">
+                          <input className="mt-1 h-5 w-5 accent-emerald-700" checked={Boolean(selected)} disabled={imported} onChange={() => toggleCatalogMedicine(medicine)} type="checkbox" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold">{medicine.product_name}</p>
+                            <p className="text-sm font-semibold text-slate-600">{medicine.generic_name} · {medicine.dosage_form} · {medicine.units_per_pack} {medicine.base_unit}{medicine.units_per_pack === 1 ? "" : "s"}/{medicine.pack_type}</p>
+                            {imported ? <p className="mt-1 text-xs font-black uppercase text-slate-500">Already added</p> : null}
+                          </div>
+                        </div>
+                        {selected ? (
+                          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                            {medicine.default_selling_mode !== "PACK" ? <Input label={`Price per ${medicine.base_unit}`} value={selected.default_unit_price} onChange={(value) => updateCatalogSelection(medicine.id, "default_unit_price", value)} type="number" /> : null}
+                            {medicine.default_selling_mode !== "UNIT" ? <Input label={`Price per ${medicine.pack_type}`} value={selected.default_pack_price} onChange={(value) => updateCatalogSelection(medicine.id, "default_pack_price", value)} type="number" /> : null}
+                            <Input label={`Low-stock level (${medicine.base_unit}s)`} value={selected.reorder_level} onChange={(value) => updateCatalogSelection(medicine.id, "reorder_level", value)} type="number" />
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                  {catalogLoaded && !filteredCatalog.length ? <p className="rounded-md bg-white p-3 text-sm font-semibold text-slate-600">No matching medicine. Add it manually or use CSV.</p> : null}
+                </div>
+                <button className="mt-3 rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-300" disabled={isSaving || Object.keys(catalogSelections).length === 0} type="button" onClick={importCatalogMedicines}>
+                  Add {Object.keys(catalogSelections).length || "Selected"} Medicine{Object.keys(catalogSelections).length === 1 ? "" : "s"}
+                </button>
+              </div>
+            ) : null}
           </div>
         </StepShell>
 

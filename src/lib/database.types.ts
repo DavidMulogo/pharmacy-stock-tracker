@@ -412,6 +412,7 @@ export type Database = {
         Row: {
           id: string;
           pharmacy_id: string | null;
+          master_medicine_id: string | null;
           product_name: string;
           generic_name: string;
           brand_name: string;
@@ -429,6 +430,7 @@ export type Database = {
         Insert: {
           id?: string;
           pharmacy_id?: string | null;
+          master_medicine_id?: string | null;
           product_name: string;
           generic_name: string;
           brand_name: string;
@@ -444,6 +446,42 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
+        Relationships: [
+          { foreignKeyName: "products_master_medicine_id_fkey"; columns: ["master_medicine_id"]; isOneToOne: false; referencedRelation: "master_medicines"; referencedColumns: ["id"] },
+        ];
+      };
+      master_medicines: {
+        Row: {
+          id: string;
+          product_name: string;
+          generic_name: string;
+          brand_name: string;
+          strength: string;
+          dosage_form: string;
+          base_unit: string;
+          pack_type: string;
+          units_per_pack: number;
+          default_selling_mode: SellingMode;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_name: string;
+          generic_name: string;
+          brand_name?: string;
+          strength?: string;
+          dosage_form: string;
+          base_unit: string;
+          pack_type: string;
+          units_per_pack: number;
+          default_selling_mode?: SellingMode;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["master_medicines"]["Insert"]>;
         Relationships: [];
       };
       product_price_history: {

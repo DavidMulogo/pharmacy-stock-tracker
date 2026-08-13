@@ -16,6 +16,7 @@ A mobile-first pharmacy stock tracking MVP built with Next.js, TypeScript, Tailw
 - Owner-only backup export and backup validation for pharmacy data.
 - Admin-only merge restore for validated pharmacy backups.
 - Owner-only onboarding checklist for new pharmacies.
+- Master medicine catalogue onboarding alongside manual product entry and CSV import.
 - In-app notifications for stock, expiry, and subscription alerts.
 - Owner-only activity logs for important staff and operational actions.
 - Admin-assisted password recovery for pharmacy owners and individual staff accounts, with session revocation and audit records.

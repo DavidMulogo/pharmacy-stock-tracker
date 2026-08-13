@@ -45,7 +45,7 @@ Expand Admin Restore v1 with richer conflict review, correction- and transaction
 
 ### Onboarding
 
-Expand Onboarding v1 with a master medicine catalog picker alongside CSV and manual entry, guided first-sale checks, and admin-side onboarding nudges.
+Master Medicine Catalogue v1 now lets Owners select common medicine definitions alongside the existing CSV and manual paths, then supply pharmacy-specific prices before receiving stock batches. Expand it with Admin catalogue maintenance, broader reviewed Tanzania/Zanzibar medicine data, guided first-sale checks, and admin-side onboarding nudges.
 
 ### Notifications
 
