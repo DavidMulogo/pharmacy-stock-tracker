@@ -951,7 +951,7 @@ export function PharmacyApp({
     setOverridePrice("");
     setQuery("");
     setSaleMessage(`${selectedProduct.product_name} added to the cart.`);
-    if (window.matchMedia("(max-width: 767px)").matches) {
+    if (window.matchMedia("(max-width: 900px), (pointer: coarse) and (max-width: 1180px)").matches) {
       window.setTimeout(() => {
         const search = document.getElementById("sell-product-search") as HTMLInputElement | null;
         search?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1582,7 +1582,7 @@ export function PharmacyApp({
         </div>
       </header>
 
-      <section className="mx-auto max-w-6xl px-4 py-6 pb-28 sm:px-6 sm:pb-6">
+      <section className="pilot-mobile-safe-content mx-auto max-w-6xl px-4 py-6 sm:px-6">
         {!activePharmacyId && !isDebugMode ? (
           <EmptyState text="Log in with a pharmacy code or pharmacy name to view pharmacy records." />
         ) : null}
@@ -1965,7 +1965,7 @@ export function PharmacyApp({
             </section>
 
             {cartItems.length > 0 ? (
-              <div className="fixed inset-x-3 bottom-[4.75rem] z-40 flex items-center gap-3 rounded-lg border border-emerald-300 bg-white p-3 shadow-xl sm:hidden">
+              <div className="pilot-mobile-flex fixed inset-x-3 bottom-[4.75rem] z-40 items-center gap-3 rounded-lg border border-emerald-300 bg-white p-3 shadow-xl">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-bold text-slate-600">{cartItems.length} item{cartItems.length === 1 ? "" : "s"} in current sale</p>
                   <p className="text-lg font-black text-emerald-800">{formatTZS(cartTotal)}</p>
@@ -2588,7 +2588,7 @@ export function PharmacyApp({
       </section>
 
       {activePharmacyId || isDebugMode ? (
-        <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-slate-300 bg-white px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-4px_14px_rgba(15,23,42,0.12)] sm:hidden" aria-label="Quick pharmacy navigation">
+        <nav className="pilot-mobile-grid fixed inset-x-0 bottom-0 z-50 grid-cols-5 border-t border-slate-300 bg-white px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-4px_14px_rgba(15,23,42,0.12)]" aria-label="Quick pharmacy navigation">
           {([
             ["dashboard", "Home"],
             ["sell", "Sell"],

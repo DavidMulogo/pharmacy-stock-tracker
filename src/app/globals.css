@@ -23,3 +23,22 @@ input,
 select {
   font: inherit;
 }
+
+.pilot-mobile-flex,
+.pilot-mobile-grid {
+  display: none;
+}
+
+@media (max-width: 900px), (pointer: coarse) and (max-width: 1180px) {
+  .pilot-mobile-flex {
+    display: flex;
+  }
+
+  .pilot-mobile-grid {
+    display: grid;
+  }
+
+  .pilot-mobile-safe-content {
+    padding-bottom: 7rem;
+  }
+}
