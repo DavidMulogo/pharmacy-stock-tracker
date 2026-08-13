@@ -951,6 +951,13 @@ export function PharmacyApp({
     setOverridePrice("");
     setQuery("");
     setSaleMessage(`${selectedProduct.product_name} added to the cart.`);
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      window.setTimeout(() => {
+        const search = document.getElementById("sell-product-search") as HTMLInputElement | null;
+        search?.scrollIntoView({ behavior: "smooth", block: "center" });
+        search?.focus({ preventScroll: true });
+      }, 50);
+    }
   }
 
   function removeCartItem(itemId: string) {
@@ -1555,13 +1562,13 @@ export function PharmacyApp({
             ) : null}
           </div>
           {activePharmacyId || isDebugMode ? (
-            <nav className="grid grid-cols-2 gap-2 sm:flex">
+            <nav className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap" aria-label="All pharmacy workflows">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`rounded-md border px-3 py-2 text-sm font-semibold transition ${
+                  className={`shrink-0 rounded-md border px-3 py-2 text-sm font-semibold transition ${
                     activeTab === tab.id
                       ? "border-emerald-700 bg-emerald-700 text-white"
                       : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300"
@@ -1575,7 +1582,7 @@ export function PharmacyApp({
         </div>
       </header>
 
-      <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <section className="mx-auto max-w-6xl px-4 py-6 pb-28 sm:px-6 sm:pb-6">
         {!activePharmacyId && !isDebugMode ? (
           <EmptyState text="Log in with a pharmacy code or pharmacy name to view pharmacy records." />
         ) : null}
@@ -1720,6 +1727,7 @@ export function PharmacyApp({
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <h2 className="text-lg font-bold">Sell</h2>
               <input
+                id="sell-product-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search product, generic, or brand"
@@ -1955,6 +1963,18 @@ export function PharmacyApp({
                 Stock is rechecked and the entire cart is saved together.
               </p>
             </section>
+
+            {cartItems.length > 0 ? (
+              <div className="fixed inset-x-3 bottom-[4.75rem] z-40 flex items-center gap-3 rounded-lg border border-emerald-300 bg-white p-3 shadow-xl sm:hidden">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-bold text-slate-600">{cartItems.length} item{cartItems.length === 1 ? "" : "s"} in current sale</p>
+                  <p className="text-lg font-black text-emerald-800">{formatTZS(cartTotal)}</p>
+                </div>
+                <button type="button" disabled={isSavingSale} onClick={completeSale} className="min-h-12 rounded-md bg-emerald-700 px-4 text-sm font-black text-white disabled:bg-slate-300">
+                  {isSavingSale ? "Saving..." : "Complete Sale"}
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -2566,6 +2586,22 @@ export function PharmacyApp({
           </>
         ) : null}
       </section>
+
+      {activePharmacyId || isDebugMode ? (
+        <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-slate-300 bg-white px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-4px_14px_rgba(15,23,42,0.12)] sm:hidden" aria-label="Quick pharmacy navigation">
+          {([
+            ["dashboard", "Home"],
+            ["sell", "Sell"],
+            ["stock", "Stock"],
+            ["adjust", "Adjust"],
+            ["products", "Products"],
+          ] as const).map(([id, label]) => (
+            <button key={id} type="button" onClick={() => { setActiveTab(id); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={`min-h-14 rounded-md px-1 text-xs font-black ${activeTab === id ? "bg-emerald-700 text-white" : "text-slate-700"}`}>
+              {label}
+            </button>
+          ))}
+        </nav>
+      ) : null}
     </main>
   );
 }

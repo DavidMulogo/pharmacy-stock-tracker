@@ -36,6 +36,7 @@
 - Dedicated `IN_CHARGE` role with one active In-Charge per pharmacy and operational management permissions
 - Printable Sales Receipt v1 with pharmacy identity, transaction reference, itemized lines, totals, void status, and browser/thermal-printer-friendly output
 - Owner-controlled receipt branding using saved business contact details, custom header/footer/prefix, and 58 mm, 80 mm, or A4 print layouts
+- Pilot Mobile Workflow v1 with compact navigation, mobile bottom shortcuts, automatic return to medicine search after cart entry, and a persistent quick-checkout action
 
 ### Improved
 
