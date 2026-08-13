@@ -30,6 +30,8 @@ type AdminCreateStep =
 const plans: PharmacyPlan[] = ["TRIAL", "STARTER", "BUSINESS", "MULTI_BRANCH", "ENTERPRISE"];
 const statuses: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDED"];
 const billingCycles: PharmacyBillingCycle[] = ["MONTHLY", "ANNUAL", "CUSTOM"];
+type SubscriptionPreset = "PILOT_30" | "STARTER_MONTHLY" | "STARTER_ANNUAL" | "BUSINESS_MONTHLY" | "BUSINESS_ANNUAL" | "CUSTOM";
+const subscriptionPresets: SubscriptionPreset[] = ["PILOT_30", "STARTER_MONTHLY", "STARTER_ANNUAL", "BUSINESS_MONTHLY", "BUSINESS_ANNUAL", "CUSTOM"];
 const duplicateCodeMessage = "That pharmacy login code already exists. Please choose another code.";
 
 function optionalDate(value: unknown) {
@@ -60,6 +62,67 @@ function optionalNonNegativeNumber(value: unknown) {
   if (value === null || value === undefined || String(value).trim() === "") return null;
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 ? number : Number.NaN;
+}
+
+function requiredDate(value: unknown) {
+  const text = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const date = new Date(`${text}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function addDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
+function addMonths(date: Date, months: number) {
+  const result = new Date(date);
+  const day = result.getUTCDate();
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(day, lastDay));
+  return result;
+}
+
+function resolveSubscriptionPreset(body: Record<string, unknown>) {
+  const preset = String(body.preset || "") as SubscriptionPreset;
+  if (!subscriptionPresets.includes(preset)) return { error: "Choose a valid subscription type." } as const;
+  const start = requiredDate(body.start_date);
+  if (!start) return { error: "Choose a valid subscription start date." } as const;
+
+  if (preset === "CUSTOM") {
+    return {
+      values: {
+        plan: getValidatedPlan(body.plan), status: getValidatedStatus(body.status), billingCycle: getOptionalBillingCycle(body.billing_cycle),
+        trialEndsAt: optionalDate(body.trial_ends_at), subscriptionStartedAt: optionalDate(body.subscription_started_at) || start.toISOString(),
+        subscriptionEndsAt: optionalDate(body.subscription_ends_at), pilotStartedAt: optionalDate(body.pilot_started_at),
+        pilotEndsAt: optionalDate(body.pilot_ends_at), foundingPriceEndsAt: optionalDate(body.founding_price_ends_at),
+        gracePeriodEndsAt: optionalDate(body.grace_period_ends_at), accessExtensionEndsAt: optionalDate(body.access_extension_ends_at),
+      },
+    } as const;
+  }
+
+  if (preset === "PILOT_30") {
+    const end = addDays(start, 30);
+    return { values: {
+      plan: "TRIAL" as PharmacyPlan, status: "TRIAL" as PharmacyStatus, billingCycle: null, trialEndsAt: end.toISOString(),
+      subscriptionStartedAt: null, subscriptionEndsAt: null, pilotStartedAt: start.toISOString(), pilotEndsAt: end.toISOString(),
+      foundingPriceEndsAt: null, gracePeriodEndsAt: addDays(end, 7).toISOString(), accessExtensionEndsAt: optionalDate(body.access_extension_ends_at),
+    } } as const;
+  }
+
+  const annual = preset.endsWith("ANNUAL");
+  const plan: PharmacyPlan = preset.startsWith("STARTER") ? "STARTER" : "BUSINESS";
+  const end = addMonths(start, annual ? 12 : 1);
+  return { values: {
+    plan, status: "ACTIVE" as PharmacyStatus, billingCycle: annual ? "ANNUAL" as PharmacyBillingCycle : "MONTHLY" as PharmacyBillingCycle,
+    trialEndsAt: null, subscriptionStartedAt: start.toISOString(), subscriptionEndsAt: end.toISOString(), pilotStartedAt: null,
+    pilotEndsAt: null, foundingPriceEndsAt: optionalDate(body.founding_price_ends_at), gracePeriodEndsAt: addDays(end, 7).toISOString(),
+    accessExtensionEndsAt: optionalDate(body.access_extension_ends_at),
+  } } as const;
 }
 
 function logServerError(message: string, error: unknown) {
@@ -408,23 +471,26 @@ export async function PATCH(request: Request) {
       if (body.entitlement_mode === "ENFORCE") {
         return NextResponse.json({ error: "Enforcement is not available yet. Keep this pharmacy in observation mode." }, { status: 400 });
       }
+      const resolved = resolveSubscriptionPreset(body as Record<string, unknown>);
+      if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: 400 });
+      const subscription = resolved.values;
 
       const rpcResult = await supabase.rpc("update_pharmacy_subscription_v1", {
         p_pharmacy_id: id,
         p_changed_by_admin: admin.username,
         p_change_reason: reason,
-        p_plan: getValidatedPlan(body.plan),
-        p_status: getValidatedStatus(body.status),
-        p_billing_cycle: getOptionalBillingCycle(body.billing_cycle),
+        p_plan: subscription.plan,
+        p_status: subscription.status,
+        p_billing_cycle: subscription.billingCycle,
         p_agreed_price_tzs: price,
-        p_trial_ends_at: optionalDate(body.trial_ends_at),
-        p_subscription_started_at: optionalDate(body.subscription_started_at),
-        p_subscription_ends_at: optionalDate(body.subscription_ends_at),
-        p_pilot_started_at: optionalDate(body.pilot_started_at),
-        p_pilot_ends_at: optionalDate(body.pilot_ends_at),
-        p_founding_price_ends_at: optionalDate(body.founding_price_ends_at),
-        p_grace_period_ends_at: optionalDate(body.grace_period_ends_at),
-        p_access_extension_ends_at: optionalDate(body.access_extension_ends_at),
+        p_trial_ends_at: subscription.trialEndsAt,
+        p_subscription_started_at: subscription.subscriptionStartedAt,
+        p_subscription_ends_at: subscription.subscriptionEndsAt,
+        p_pilot_started_at: subscription.pilotStartedAt,
+        p_pilot_ends_at: subscription.pilotEndsAt,
+        p_founding_price_ends_at: subscription.foundingPriceEndsAt,
+        p_grace_period_ends_at: subscription.gracePeriodEndsAt,
+        p_access_extension_ends_at: subscription.accessExtensionEndsAt,
         p_entitlement_mode: getEntitlementMode(body.entitlement_mode),
       });
       if (rpcResult.error) throw rpcResult.error;

@@ -19,5 +19,11 @@ assert.match(engine, /staff_accounts: 3, products: 1_000/, "Starter limits are r
 assert.match(engine, /staff_accounts: 10, products: null/, "Business limits are represented");
 assert.match(route, /Enforcement is not available yet/, "Admin API rejects premature enforcement");
 assert.match(route, /action: "SUBSCRIPTION_UPDATED"/, "Admin subscription changes are audited");
+for (const preset of ["PILOT_30", "STARTER_MONTHLY", "STARTER_ANNUAL", "BUSINESS_MONTHLY", "BUSINESS_ANNUAL", "CUSTOM"]) {
+  assert.match(route, new RegExp(`"${preset}"`), `Admin API recognizes ${preset}`);
+}
+assert.match(route, /const end = addDays\(start, 30\)/, "Pilot end is calculated by the server");
+assert.match(route, /const end = addMonths\(start, annual \? 12 : 1\)/, "Paid subscription end is calculated by the server");
+assert.match(route, /gracePeriodEndsAt: addDays\(end, 7\)/, "Standard grace date is calculated by the server");
 
 console.log("Subscription entitlements observation-mode verification passed.");

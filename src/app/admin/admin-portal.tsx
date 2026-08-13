@@ -14,6 +14,9 @@ type PharmacyForm = {
 
 type SubscriptionForm = {
   pharmacy_id: string;
+  preset: SubscriptionPreset;
+  start_date: string;
+  show_advanced: boolean;
   plan: PharmacyPlan;
   status: PharmacyStatus;
   billing_cycle: "" | PharmacyBillingCycle;
@@ -30,6 +33,8 @@ type SubscriptionForm = {
   change_reason: string;
 };
 
+type SubscriptionPreset = "PILOT_30" | "STARTER_MONTHLY" | "STARTER_ANNUAL" | "BUSINESS_MONTHLY" | "BUSINESS_ANNUAL" | "CUSTOM";
+
 const emptyForm: PharmacyForm = {
   id: "",
   pharmacy_name: "",
@@ -41,6 +46,9 @@ const emptyForm: PharmacyForm = {
 
 const emptySubscriptionForm: SubscriptionForm = {
   pharmacy_id: "",
+  preset: "PILOT_30",
+  start_date: "",
+  show_advanced: false,
   plan: "TRIAL",
   status: "TRIAL",
   billing_cycle: "",
@@ -59,6 +67,32 @@ const emptySubscriptionForm: SubscriptionForm = {
 
 const planOptions: PharmacyPlan[] = ["TRIAL", "STARTER", "BUSINESS", "MULTI_BRANCH", "ENTERPRISE"];
 const statusOptions: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDED"];
+const presetOptions: SubscriptionPreset[] = ["PILOT_30", "STARTER_MONTHLY", "STARTER_ANNUAL", "BUSINESS_MONTHLY", "BUSINESS_ANNUAL", "CUSTOM"];
+const presetLabels: Record<SubscriptionPreset, string> = {
+  PILOT_30: "30-day Business Pilot",
+  STARTER_MONTHLY: "Starter Monthly — TZS 20,000",
+  STARTER_ANNUAL: "Starter Annual — TZS 200,000",
+  BUSINESS_MONTHLY: "Business Monthly — TZS 45,000",
+  BUSINESS_ANNUAL: "Business Annual — TZS 450,000",
+  CUSTOM: "Custom arrangement",
+};
+
+function todayInput() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function inferPreset(pharmacy: Pharmacy): SubscriptionPreset {
+  if (pharmacy.status === "TRIAL" || pharmacy.plan === "TRIAL") return "PILOT_30";
+  if (pharmacy.plan === "STARTER" && pharmacy.billing_cycle === "MONTHLY") return "STARTER_MONTHLY";
+  if (pharmacy.plan === "STARTER" && pharmacy.billing_cycle === "ANNUAL") return "STARTER_ANNUAL";
+  if (pharmacy.plan === "BUSINESS" && pharmacy.billing_cycle === "MONTHLY") return "BUSINESS_MONTHLY";
+  if (pharmacy.plan === "BUSINESS" && pharmacy.billing_cycle === "ANNUAL") return "BUSINESS_ANNUAL";
+  return "CUSTOM";
+}
+
+function presetPrice(preset: SubscriptionPreset) {
+  return ({ PILOT_30: "0", STARTER_MONTHLY: "20000", STARTER_ANNUAL: "200000", BUSINESS_MONTHLY: "45000", BUSINESS_ANNUAL: "450000", CUSTOM: "" })[preset];
+}
 
 type AdminApiResponse = {
   admin?: { username: string; fullName: string | null; role: string };
@@ -290,6 +324,9 @@ export function AdminPortal({
   function editSubscription(pharmacy: Pharmacy) {
     setSubscriptionForm({
       pharmacy_id: pharmacy.id,
+      preset: inferPreset(pharmacy),
+      start_date: toDateInput(pharmacy.pilot_started_at || pharmacy.subscription_started_at) || todayInput(),
+      show_advanced: false,
       plan: pharmacy.plan,
       status: pharmacy.status,
       billing_cycle: pharmacy.billing_cycle || "",
@@ -695,25 +732,46 @@ export function AdminPortal({
           />
           {subscriptionForm.pharmacy_id ? (
             <form className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" onSubmit={submitSubscription}>
-              <Select label="Plan" value={subscriptionForm.plan} options={planOptions} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, plan: value as PharmacyPlan })} />
-              <Select label="Status" value={subscriptionForm.status} options={statusOptions} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, status: value as PharmacyStatus })} />
-              <Select label="Billing cycle" value={subscriptionForm.billing_cycle} options={["", "MONTHLY", "ANNUAL", "CUSTOM"]} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, billing_cycle: value as SubscriptionForm["billing_cycle"] })} optionLabels={{ "": "Not set" }} />
-              <Input label="Agreed price (TZS)" value={subscriptionForm.agreed_price_tzs} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, agreed_price_tzs: value })} type="number" />
-              <Input label="Trial ends" value={subscriptionForm.trial_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, trial_ends_at: value })} type="date" />
-              <Input label="Subscription starts" value={subscriptionForm.subscription_started_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, subscription_started_at: value })} type="date" />
-              <Input label="Subscription ends" value={subscriptionForm.subscription_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, subscription_ends_at: value })} type="date" />
-              <Input label="Pilot starts" value={subscriptionForm.pilot_started_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, pilot_started_at: value })} type="date" />
-              <Input label="Pilot ends" value={subscriptionForm.pilot_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, pilot_ends_at: value })} type="date" />
-              <Input label="Founding price ends" value={subscriptionForm.founding_price_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, founding_price_ends_at: value })} type="date" />
-              <Input label="Grace period ends" value={subscriptionForm.grace_period_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, grace_period_ends_at: value })} type="date" />
-              <Input label="Temporary extension ends" value={subscriptionForm.access_extension_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, access_extension_ends_at: value })} type="date" />
-              <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-3 text-sm font-bold text-blue-900">
-                Entitlement mode: OBSERVE
-                <span className="mt-1 block text-xs font-semibold">Enforcement cannot be activated in v1.</span>
+              <div className="sm:col-span-2">
+                <Select
+                  label="Subscription type"
+                  value={subscriptionForm.preset}
+                  options={presetOptions}
+                  onChange={(value) => {
+                    const preset = value as SubscriptionPreset;
+                    setSubscriptionForm({ ...subscriptionForm, preset, agreed_price_tzs: presetPrice(preset), show_advanced: preset === "CUSTOM" });
+                  }}
+                  optionLabels={presetLabels}
+                />
               </div>
-              <div className="lg:col-span-3">
+              <Input label="Start date" value={subscriptionForm.start_date} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, start_date: value })} type="date" />
+              <Input label="Agreed price (TZS)" value={subscriptionForm.agreed_price_tzs} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, agreed_price_tzs: value })} type="number" />
+              <div className="lg:col-span-4">
                 <Input label="Required change reason" value={subscriptionForm.change_reason} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, change_reason: value })} />
               </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-3 text-sm lg:col-span-4">
+                <p className="font-bold text-blue-900">Observation mode · No pharmacy features will be blocked.</p>
+                <button className="rounded-md border border-blue-300 bg-white px-3 py-2 text-sm font-bold text-blue-800" type="button" onClick={() => setSubscriptionForm({ ...subscriptionForm, show_advanced: !subscriptionForm.show_advanced })}>
+                  {subscriptionForm.show_advanced ? "Hide advanced options" : "Advanced options"}
+                </button>
+              </div>
+              {subscriptionForm.show_advanced ? (
+                <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-4">
+                  {subscriptionForm.preset === "CUSTOM" ? (
+                    <>
+                      <Select label="Plan" value={subscriptionForm.plan} options={planOptions} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, plan: value as PharmacyPlan })} />
+                      <Select label="Status" value={subscriptionForm.status} options={statusOptions} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, status: value as PharmacyStatus })} />
+                      <Select label="Billing cycle" value={subscriptionForm.billing_cycle} options={["", "MONTHLY", "ANNUAL", "CUSTOM"]} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, billing_cycle: value as SubscriptionForm["billing_cycle"] })} optionLabels={{ "": "Not set" }} />
+                      <Input label="Trial ends" value={subscriptionForm.trial_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, trial_ends_at: value })} type="date" />
+                      <Input label="Subscription ends" value={subscriptionForm.subscription_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, subscription_ends_at: value })} type="date" />
+                      <Input label="Pilot ends" value={subscriptionForm.pilot_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, pilot_ends_at: value })} type="date" />
+                    </>
+                  ) : null}
+                  <Input label="Founding price ends" value={subscriptionForm.founding_price_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, founding_price_ends_at: value })} type="date" />
+                  {subscriptionForm.preset === "CUSTOM" ? <Input label="Grace period ends" value={subscriptionForm.grace_period_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, grace_period_ends_at: value })} type="date" /> : null}
+                  <Input label="Temporary extension ends" value={subscriptionForm.access_extension_ends_at} onChange={(value) => setSubscriptionForm({ ...subscriptionForm, access_extension_ends_at: value })} type="date" />
+                </div>
+              ) : null}
               {pharmacies.find((pharmacy) => pharmacy.id === subscriptionForm.pharmacy_id)?.entitlement_observation ? (
                 <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm lg:col-span-4">
                   {(() => {
