@@ -21,7 +21,9 @@
     "verify:admin-password-recovery": "node scripts/verify-admin-password-recovery.mjs",
     "verify:in-charge-role": "node scripts/verify-in-charge-role.mjs",
     "verify:subscription-entitlements": "node scripts/verify-subscription-entitlements.mjs",
-    "verify:master-catalog": "node scripts/verify-master-catalog.mjs"
+    "verify:master-catalog": "node scripts/verify-master-catalog.mjs",
+    "verify:pilot-seed": "node scripts/verify-pilot-seed.mjs",
+    "seed:pilot": "node scripts/seed-pilot-pharmacy.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

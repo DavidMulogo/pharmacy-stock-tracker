@@ -62,6 +62,22 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## Fresh Pilot Pharmacy
+
+Preview the isolated pilot seed without changing the database:
+
+```bash
+npm run seed:pilot -- --name "Zanzibar Pilot Pharmacy" --code "ZNZ-PILOT-01"
+```
+
+Create it only after reviewing the plan:
+
+```bash
+node scripts/seed-pilot-pharmacy.mjs --apply --name "Zanzibar Pilot Pharmacy" --code "ZNZ-PILOT-01" --owner "Pilot Pharmacy Owner" --phone "255700000001"
+```
+
+The command prints one-time temporary staff credentials. It creates realistic settings, five staff roles/accounts, 20 master-catalogue products, and 40 opening batches. It intentionally leaves sales, expenses, corrections, and feedback empty so pilot analytics begin cleanly.
+
 ## Admin Security
 
 Admin accounts live in `admin_users` and use bcrypt password hashes. The `/admin` portal includes Change Password, requires strong passwords, locks accounts after repeated failed logins, and invalidates old admin cookies after password changes.

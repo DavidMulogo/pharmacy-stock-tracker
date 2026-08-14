@@ -38,6 +38,7 @@
 - Owner-controlled receipt branding using saved business contact details, custom header/footer/prefix, and 58 mm, 80 mm, or A4 print layouts
 - Pilot Mobile Workflow v1 with compact navigation, mobile bottom shortcuts, automatic return to medicine search after cart entry, and a persistent quick-checkout action
 - Mobile workflow controls now detect touch devices as well as viewport width, preventing iPhones, zoomed browsers, and tablets from incorrectly hiding checkout/navigation controls
+- Safe fresh-pilot seeding command with dry-run default, duplicate protection, generated staff credentials, subscription observation mode, realistic master-catalogue products/opening batches, and rollback on failure
 
 ### Improved
 
