@@ -24,6 +24,7 @@
     "verify:master-catalog": "node scripts/verify-master-catalog.mjs",
     "verify:pilot-seed": "node scripts/verify-pilot-seed.mjs",
     "verify:pilot-inventory": "node scripts/verify-pilot-inventory.mjs",
+    "verify:pilot-feedback": "node scripts/verify-pilot-feedback.mjs",
     "seed:pilot": "node scripts/seed-pilot-pharmacy.mjs",
     "seed:pilot-inventory": "node scripts/seed-pilot-inventory.mjs"
   },

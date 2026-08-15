@@ -28,6 +28,31 @@ export type NotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
 export type NotificationStatus = "ACTIVE" | "RESOLVED";
 export type ActivityLogAction = "LOGIN" | "LOGOUT" | "SALE_CREATED" | "SALE_VOIDED" | "STOCK_ADDED" | "INVENTORY_ADJUSTED" | "INVENTORY_ADJUSTMENT_REVERSED" | "PRODUCT_PRICE_UPDATED" | "PRODUCTS_IMPORTED" | "STOCK_IMPORTED" | "EXPENSE_CREATED" | "SETTINGS_UPDATED" | "STAFF_CREATED" | "STAFF_UPDATED" | "STAFF_DEACTIVATED" | "STAFF_REACTIVATED" | "STAFF_PASSWORD_RESET" | "REPORT_EXPORTED" | "BACKUP_EXPORTED" | "BACKUP_VALIDATED" | "ONBOARDING_STARTED" | "ONBOARDING_STEP_REVIEWED" | "ONBOARDING_COMPLETED";
 export type InventoryAdjustmentReason = "DAMAGED" | "EXPIRED" | "CUSTOMER_RETURN" | "SUPPLIER_RETURN" | "MISSING" | "INTERNAL_USE" | "OTHER";
+export type PilotFeedbackCategory = "BUG" | "CONFUSING" | "SLOW" | "SUGGESTION" | "OTHER";
+export type PilotFeedbackPriority = "LOW" | "NORMAL" | "HIGH" | "BLOCKER";
+export type PilotFeedbackStatus = "NEW" | "REVIEWING" | "PLANNED" | "RESOLVED" | "CLOSED";
+
+export type PilotFeedback = {
+  id: string;
+  pharmacy_id: string;
+  submitted_by: string | null;
+  reporter_name: string;
+  reporter_role: string;
+  category: PilotFeedbackCategory;
+  priority: PilotFeedbackPriority;
+  workflow: string;
+  title: string;
+  description: string;
+  page_path: string;
+  user_agent: string;
+  status: PilotFeedbackStatus;
+  admin_notes: string;
+  reviewed_by_admin: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  pharmacy_name?: string;
+};
 
 export type OnboardingStepId = "profile" | "business_rules" | "staff" | "products" | "opening_stock" | "subscription";
 

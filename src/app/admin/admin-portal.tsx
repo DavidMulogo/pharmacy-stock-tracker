@@ -660,9 +660,10 @@ export function AdminPortal({
               Logged in as {admin?.fullName || admin?.username || "Admin"}
             </p>
           </div>
-          <button className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800" type="button" onClick={logout}>
-            Log out
-          </button>
+          <div className="flex gap-2">
+            <a className="rounded-md border border-blue-300 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800" href="/admin/feedback">Pilot Feedback</a>
+            <button className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800" type="button" onClick={logout}>Log out</button>
+          </div>
         </div>
       </header>
 

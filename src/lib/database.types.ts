@@ -1,4 +1,4 @@
-import type { ActivityLogAction, ExpenseCategory, ExpiryStatus, InventoryAdjustmentReason, NotificationSeverity, NotificationStatus, NotificationType, OverrideFlag, PharmacyPlan, PharmacyStatus, PharmacyUserRole, SellingMode, SellType, StockStatus } from "@/lib/types";
+import type { ActivityLogAction, ExpenseCategory, ExpiryStatus, InventoryAdjustmentReason, NotificationSeverity, NotificationStatus, NotificationType, OverrideFlag, PharmacyPlan, PharmacyStatus, PharmacyUserRole, PilotFeedbackCategory, PilotFeedbackPriority, PilotFeedbackStatus, SellingMode, SellType, StockStatus } from "@/lib/types";
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -516,6 +516,53 @@ export type Database = {
           { foreignKeyName: "product_price_history_pharmacy_id_fkey"; columns: ["pharmacy_id"]; isOneToOne: false; referencedRelation: "pharmacies"; referencedColumns: ["id"] },
           { foreignKeyName: "product_price_history_product_id_fkey"; columns: ["product_id"]; isOneToOne: false; referencedRelation: "products"; referencedColumns: ["id"] },
           { foreignKeyName: "product_price_history_changed_by_fkey"; columns: ["changed_by"]; isOneToOne: false; referencedRelation: "pharmacy_users"; referencedColumns: ["id"] },
+        ];
+      };
+      pilot_feedback: {
+        Row: {
+          id: string;
+          pharmacy_id: string;
+          submitted_by: string | null;
+          reporter_name: string;
+          reporter_role: string;
+          category: PilotFeedbackCategory;
+          priority: PilotFeedbackPriority;
+          workflow: string;
+          title: string;
+          description: string;
+          page_path: string;
+          user_agent: string;
+          status: PilotFeedbackStatus;
+          admin_notes: string;
+          reviewed_by_admin: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pharmacy_id: string;
+          submitted_by?: string | null;
+          reporter_name: string;
+          reporter_role: string;
+          category: PilotFeedbackCategory;
+          priority?: PilotFeedbackPriority;
+          workflow: string;
+          title: string;
+          description: string;
+          page_path?: string;
+          user_agent?: string;
+          status?: PilotFeedbackStatus;
+          admin_notes?: string;
+          reviewed_by_admin?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["pilot_feedback"]["Insert"]>;
+        Relationships: [
+          { foreignKeyName: "pilot_feedback_pharmacy_id_fkey"; columns: ["pharmacy_id"]; isOneToOne: false; referencedRelation: "pharmacies"; referencedColumns: ["id"] },
+          { foreignKeyName: "pilot_feedback_submitted_by_fkey"; columns: ["submitted_by"]; isOneToOne: false; referencedRelation: "pharmacy_users"; referencedColumns: ["id"] },
         ];
       };
       inventory_batches: {

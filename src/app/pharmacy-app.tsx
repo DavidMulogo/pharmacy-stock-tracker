@@ -1456,6 +1456,7 @@ export function PharmacyApp({
                       </>
                     ) : null}
                     {activeUser?.role === "IN_CHARGE" ? <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/staff">Staff</Link> : null}
+                    <Link className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-center text-sm font-bold text-blue-800" href="/feedback">Feedback</Link>
                     <button
                       type="button"
                       onClick={logoutPharmacy}

@@ -42,6 +42,7 @@
 - Expanded searchable master medicine catalogue with categories and more than 170 common medicines and pharmacy supplies; unselected entries remain global suggestions and never become tenant inventory
 - Dry-run-first pilot retail inventory loader with realistic prices, costs, reorder levels, quantities, batches, expiry dates, empty-tenant protection, and rollback on partial failure
 - Explicit pilot inventory merge mode that preserves existing product prices and batches while filling only missing catalogue products and stockless products
+- Pilot Feedback v1 with staff submissions, workflow and device context, privacy guidance, role-aware pharmacy history, and an Admin status/response queue
 
 ### Improved
 

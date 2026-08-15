@@ -4,6 +4,8 @@ PharmaStock is moving from an MVP pharmacy stock tracker into a multi-pharmacy S
 
 ## Completed Foundation
 
+- Pilot feedback and issue reporting with Admin triage and pharmacy-visible responses
+
 - Multi-pharmacy SaaS data separation
 - Admin portal for pharmacy management
 - Admin Security v1 with strong password changes, account lockout, secure bootstrap, and admin session invalidation
