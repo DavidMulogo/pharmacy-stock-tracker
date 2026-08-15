@@ -77,9 +77,10 @@ const INVENTORY = [
 ];
 
 function parseArgs(argv) {
-  const values = { apply: false, code: "ZNZ-PILOT-01" };
+  const values = { apply: false, merge: false, code: "ZNZ-PILOT-01" };
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] === "--apply") values.apply = true;
+    else if (argv[index] === "--merge") values.merge = true;
     else if (argv[index] === "--code") values.code = argv[++index];
     else throw new Error(`Unknown argument: ${argv[index]}`);
   }
@@ -137,9 +138,10 @@ async function main() {
   );
   if (!access?.pharmacy_id) throw new Error("No pharmacy matches that code.");
   const pharmacyId = access.pharmacy_id;
-  const countResult = await supabase.from("products").select("id", { count: "exact", head: true }).eq("pharmacy_id", pharmacyId);
-  if (countResult.error) throw new Error(`Check existing products: ${countResult.error.message}`);
-  if ((countResult.count || 0) > 0) throw new Error("This pharmacy already has products. Nothing was added; the pilot inventory loader only runs on an empty catalogue.");
+  const existingProducts = await expectData(supabase.from("products").select("*").eq("pharmacy_id", pharmacyId), "Check existing products");
+  if (existingProducts.length > 0 && !args.merge) {
+    throw new Error("This pharmacy already has products. Nothing was added. Re-run with --merge to preserve existing data and add only missing pilot inventory.");
+  }
 
   const names = INVENTORY.map((item) => item[0]);
   const masters = await expectData(supabase.from("master_medicines").select("*").in("product_name", names).eq("active", true), "Load master catalogue");
@@ -151,7 +153,13 @@ async function main() {
 
   let createdProductIds = [];
   try {
-    const productsPayload = INVENTORY.map(([name, unitPrice, packPrice, reorder]) => {
+    const existingByMaster = new Map(existingProducts.filter((product) => product.master_medicine_id).map((product) => [product.master_medicine_id, product]));
+    const existingByName = new Map(existingProducts.map((product) => [product.product_name.trim().toLowerCase(), product]));
+    const missingConfig = INVENTORY.filter(([name]) => {
+      const master = masterByName.get(name);
+      return !existingByMaster.has(master.id) && !existingByName.has(name.trim().toLowerCase());
+    });
+    const productsPayload = missingConfig.map(([name, unitPrice, packPrice, reorder]) => {
       const master = masterByName.get(name);
       return {
         pharmacy_id: pharmacyId,
@@ -170,12 +178,22 @@ async function main() {
         reorder_level: reorder,
       };
     });
-    const products = await expectData(supabase.from("products").insert(productsPayload).select("*"), "Create pilot products");
-    createdProductIds = products.map((product) => product.id);
+    const createdProducts = productsPayload.length
+      ? await expectData(supabase.from("products").insert(productsPayload).select("*"), "Create pilot products")
+      : [];
+    createdProductIds = createdProducts.map((product) => product.id);
+    const products = [...existingProducts, ...createdProducts].filter((product) => configByProductName(INVENTORY).has(product.product_name.trim().toLowerCase()));
+    const existingBatches = products.length
+      ? await expectData(supabase.from("inventory_batches").select("product_id").eq("pharmacy_id", pharmacyId).in("product_id", products.map((product) => product.id)), "Check existing batches")
+      : [];
+    const productsWithBatches = new Set(existingBatches.map((batch) => batch.product_id));
     const configByName = new Map(INVENTORY.map((item) => [item[0], item]));
     const today = new Date();
-    const batches = products.flatMap((product, index) => {
-      const [, , , , packs, packCost, secondBatch] = configByName.get(product.product_name);
+    const productsNeedingStock = products.filter((product) => !productsWithBatches.has(product.id));
+    const batches = productsNeedingStock.flatMap((product) => {
+      const config = configByName.get(product.product_name) || configByProductName(INVENTORY).get(product.product_name.trim().toLowerCase());
+      const index = INVENTORY.indexOf(config);
+      const [, , , , packs, packCost, secondBatch] = config;
       const nearExpiry = index === 26;
       const first = {
         pharmacy_id: pharmacyId,
@@ -197,13 +215,18 @@ async function main() {
         buying_price_per_pack: Math.round(packCost * 1.06),
       }];
     });
-    await expectData(supabase.from("inventory_batches").insert(batches), "Create pilot opening batches");
-    console.log(`Pilot inventory created successfully: ${products.length} products and ${batches.length} batches.`);
+    if (batches.length) await expectData(supabase.from("inventory_batches").insert(batches), "Create pilot opening batches");
+    console.log(`Pilot inventory merge completed: ${createdProducts.length} products and ${batches.length} batches added.`);
+    console.log(`Preserved existing data: ${existingProducts.length} products and ${existingBatches.length} batches were not changed.`);
     console.log("No sales, expenses, corrections, or feedback were created.");
   } catch (error) {
     if (createdProductIds.length) await supabase.from("products").delete().in("id", createdProductIds);
     throw error;
   }
+}
+
+function configByProductName(config) {
+  return new Map(config.map((item) => [item[0].trim().toLowerCase(), item]));
 }
 
 main().catch((error) => {

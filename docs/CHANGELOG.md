@@ -41,6 +41,7 @@
 - Safe fresh-pilot seeding command with dry-run default, duplicate protection, generated staff credentials, subscription observation mode, empty product/inventory state for real onboarding, and rollback on failure
 - Expanded searchable master medicine catalogue with categories and more than 170 common medicines and pharmacy supplies; unselected entries remain global suggestions and never become tenant inventory
 - Dry-run-first pilot retail inventory loader with realistic prices, costs, reorder levels, quantities, batches, expiry dates, empty-tenant protection, and rollback on partial failure
+- Explicit pilot inventory merge mode that preserves existing product prices and batches while filling only missing catalogue products and stockless products
 
 ### Improved
 

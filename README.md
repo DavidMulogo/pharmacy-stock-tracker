@@ -85,6 +85,12 @@ npm run seed:pilot-inventory -- --code "ZNZ-PILOT-01"
 npm run seed:pilot-inventory -- --apply --code "ZNZ-PILOT-01"
 ```
 
+If a demonstration pharmacy already contains products, use the explicit `--merge` flag. Existing products, prices, and batches are preserved; only missing configured products and stockless configured products are populated:
+
+```bash
+npm run seed:pilot-inventory -- --apply --merge --code "ZNZ-PILOT-01"
+```
+
 ## Admin Security
 
 Admin accounts live in `admin_users` and use bcrypt password hashes. The `/admin` portal includes Change Password, requires strong passwords, locks accounts after repeated failed logins, and invalidates old admin cookies after password changes.
