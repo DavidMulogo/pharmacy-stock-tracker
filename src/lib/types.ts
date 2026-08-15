@@ -19,6 +19,7 @@ export type MasterMedicine = {
   pack_type: string;
   units_per_pack: number;
   default_selling_mode: SellingMode;
+  category: string;
   active: boolean;
 };
 export type ExpenseCategory = "Rent" | "Salary" | "Electricity" | "Water" | "Internet" | "Transport" | "Repairs" | "Supplies" | "Other";

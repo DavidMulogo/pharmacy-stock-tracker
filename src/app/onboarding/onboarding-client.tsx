@@ -142,6 +142,7 @@ export function OnboardingClient({
   const [catalog, setCatalog] = useState<MasterMedicine[]>([]);
   const [catalogImportedIds, setCatalogImportedIds] = useState<string[]>([]);
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogCategory, setCatalogCategory] = useState("ALL");
   const [catalogSelections, setCatalogSelections] = useState<Record<string, CatalogSelection>>({});
 
   const currentStep = useMemo(() => {
@@ -154,12 +155,18 @@ export function OnboardingClient({
 
   const filteredCatalog = useMemo(() => {
     const terms = catalogSearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    if (!terms.length) return catalog;
     return catalog.filter((medicine) => {
+      if (catalogCategory !== "ALL" && medicine.category !== catalogCategory) return false;
+      if (!terms.length) return true;
       const haystack = `${medicine.product_name} ${medicine.generic_name} ${medicine.strength} ${medicine.dosage_form}`.toLowerCase();
       return terms.every((term) => haystack.includes(term));
     });
-  }, [catalog, catalogSearch]);
+  }, [catalog, catalogCategory, catalogSearch]);
+
+  const catalogCategories = useMemo(
+    () => [...new Set(catalog.map((medicine) => medicine.category || "Other"))].sort(),
+    [catalog],
+  );
 
   function stepStatus(step: OnboardingStepId, complete: boolean) {
     if (complete) return "completed";
@@ -463,9 +470,15 @@ export function OnboardingClient({
             {catalogOpen ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                 <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-950">
-                  PharmaStock supplies medicine names and usual packaging only. Enter this pharmacy&apos;s selling prices. Buying cost, batch number, quantity, and expiry are recorded later under Opening Stock.
+                  This is a shared library, not this pharmacy&apos;s inventory. Only checked medicines are added to the pharmacy. Enter selling prices now; buying cost, quantity, batch number, and expiry are recorded under Opening Stock.
                 </div>
-                <input className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base outline-none focus:border-emerald-600" value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="Search medicine, generic name, strength, or dosage form" />
+                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_16rem]">
+                  <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base outline-none focus:border-emerald-600" value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="Search medicine, generic name, strength, or dosage form" />
+                  <select className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-base outline-none focus:border-emerald-600" value={catalogCategory} onChange={(event) => setCatalogCategory(event.target.value)}>
+                    <option value="ALL">All categories</option>
+                    {catalogCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+                  </select>
+                </div>
                 <p className="mt-2 text-sm font-bold text-slate-700">{filteredCatalog.length} medicines · {Object.keys(catalogSelections).length} selected</p>
                 <div className="mt-3 grid max-h-[34rem] gap-2 overflow-y-auto pr-1">
                   {filteredCatalog.map((medicine) => {

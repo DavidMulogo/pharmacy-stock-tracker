@@ -464,6 +464,7 @@ export type Database = {
           pack_type: string;
           units_per_pack: number;
           default_selling_mode: SellingMode;
+          category: string;
           active: boolean;
           created_at: string;
           updated_at: string;
@@ -479,6 +480,7 @@ export type Database = {
           pack_type: string;
           units_per_pack: number;
           default_selling_mode?: SellingMode;
+          category?: string;
           active?: boolean;
           created_at?: string;
           updated_at?: string;

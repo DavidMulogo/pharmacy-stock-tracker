@@ -6,29 +6,6 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-const PRODUCT_CONFIG = [
-  ["Paracetamol 500 mg Tablets", 200, 2000, 50],
-  ["Paracetamol 120 mg/5 mL Oral Suspension", null, 3500, 5],
-  ["Amoxicillin 500 mg Capsules", 500, 5000, 30],
-  ["Amoxicillin 250 mg/5 mL Oral Suspension", null, 6000, 5],
-  ["Metronidazole 400 mg Tablets", 300, 3000, 30],
-  ["Ciprofloxacin 500 mg Tablets", 500, 5000, 20],
-  ["Azithromycin 500 mg Tablets", 3500, 10500, 9],
-  ["Cetirizine 10 mg Tablets", 300, 3000, 30],
-  ["Loratadine 10 mg Tablets", 500, 5000, 20],
-  ["Omeprazole 20 mg Capsules", 500, 7000, 28],
-  ["Diclofenac 50 mg Tablets", 300, 3000, 30],
-  ["Ibuprofen 400 mg Tablets", 300, 3000, 30],
-  ["ORS Sachets", 1000, 20000, 20],
-  ["Zinc Sulfate 20 mg Dispersible Tablets", 500, 5000, 20],
-  ["Salbutamol 100 mcg Inhaler", null, 12000, 4],
-  ["Amlodipine 5 mg Tablets", 300, 9000, 30],
-  ["Metformin 500 mg Tablets", 300, 3000, 30],
-  ["Co-trimoxazole 480 mg Tablets", 300, 3000, 30],
-  ["Hydrocortisone 1% Cream", null, 5000, 5],
-  ["Clotrimazole 1% Cream", null, 5000, 5],
-];
-
 function parseArgs(argv) {
   const values = {
     apply: false,
@@ -79,10 +56,6 @@ function addDays(date, days) {
   return result;
 }
 
-function dateOnly(date) {
-  return date.toISOString().slice(0, 10);
-}
-
 async function expectData(promise, label) {
   const result = await promise;
   if (result.error) throw new Error(`${label}: ${result.error.message}`);
@@ -114,7 +87,8 @@ async function main() {
 
   console.log(`Pilot pharmacy: ${args.name}`);
   console.log(`Pharmacy code: ${args.code}`);
-  console.log(`Products: ${PRODUCT_CONFIG.length}; opening batches: ${PRODUCT_CONFIG.length * 2}; staff: ${staffPlan.length}`);
+  console.log(`Products: 0; opening batches: 0; staff: ${staffPlan.length}`);
+  console.log("The Owner will choose real medicines and enter opening stock during onboarding.");
   if (!args.apply) {
     console.log("Dry run only. No database records were created. Add --apply to proceed.");
     return;
@@ -186,79 +160,23 @@ async function main() {
       timezone: "Africa/Dar_es_Salaam",
     }).eq("pharmacy_id", pharmacyId), "Configure pharmacy settings");
 
-    const names = PRODUCT_CONFIG.map(([name]) => name);
-    const masters = await expectData(supabase.from("master_medicines").select("*").in("product_name", names).eq("active", true), "Load master medicines");
-    if (masters.length !== PRODUCT_CONFIG.length) {
-      const found = new Set(masters.map((medicine) => medicine.product_name));
-      throw new Error(`Master catalogue is missing: ${names.filter((name) => !found.has(name)).join(", ")}`);
-    }
-    const masterByName = new Map(masters.map((medicine) => [medicine.product_name, medicine]));
-    const productsPayload = PRODUCT_CONFIG.map(([name, unitPrice, packPrice, reorderLevel]) => {
-      const master = masterByName.get(name);
-      return {
-        pharmacy_id: pharmacyId,
-        master_medicine_id: master.id,
-        product_name: master.product_name,
-        generic_name: master.generic_name,
-        brand_name: master.brand_name,
-        dosage_form: master.dosage_form,
-        base_unit: master.base_unit,
-        pack_type: master.pack_type,
-        units_per_pack: master.units_per_pack,
-        default_selling_price: unitPrice ?? packPrice / master.units_per_pack,
-        selling_mode: master.default_selling_mode,
-        default_unit_price: unitPrice,
-        default_pack_price: packPrice,
-        reorder_level: reorderLevel,
-      };
-    });
-    const products = await expectData(supabase.from("products").insert(productsPayload).select("*"), "Create products");
-
-    const configByName = new Map(PRODUCT_CONFIG.map((config) => [config[0], config]));
-    const batches = products.flatMap((product, index) => {
-      const [, , packPrice] = configByName.get(product.product_name);
-      const packCost = Math.round(packPrice * 0.62);
-      return [
-        {
-          pharmacy_id: pharmacyId,
-          product_id: product.id,
-          batch_number: `PILOT-${String(index + 1).padStart(3, "0")}-A`,
-          expiry_date: dateOnly(addDays(now, 180 + index * 3)),
-          packs_received: 12 + (index % 5) * 3,
-          units_per_pack: product.units_per_pack,
-          buying_price: packCost,
-          buying_price_per_pack: packCost,
-        },
-        {
-          pharmacy_id: pharmacyId,
-          product_id: product.id,
-          batch_number: `PILOT-${String(index + 1).padStart(3, "0")}-B`,
-          expiry_date: dateOnly(addDays(now, 420 + index * 5)),
-          packs_received: 8 + (index % 4) * 2,
-          units_per_pack: product.units_per_pack,
-          buying_price: Math.round(packPrice * 0.68),
-          buying_price_per_pack: Math.round(packPrice * 0.68),
-        },
-      ];
-    });
-    await expectData(supabase.from("inventory_batches").insert(batches), "Create opening stock");
-
     await expectData(supabase.from("pharmacy_onboarding").upsert({
       pharmacy_id: pharmacyId,
-      profile_reviewed_at: now.toISOString(),
-      business_rules_reviewed_at: now.toISOString(),
-      staff_reviewed_at: now.toISOString(),
-      products_reviewed_at: now.toISOString(),
-      opening_stock_reviewed_at: now.toISOString(),
-      subscription_reviewed_at: now.toISOString(),
-      completed_at: now.toISOString(),
+      profile_reviewed_at: null,
+      business_rules_reviewed_at: null,
+      staff_reviewed_at: null,
+      products_reviewed_at: null,
+      opening_stock_reviewed_at: null,
+      subscription_reviewed_at: null,
+      completed_at: null,
     }, { onConflict: "pharmacy_id" }), "Complete onboarding state");
 
     console.log("\nPilot pharmacy created successfully. Save these temporary credentials now:\n");
     console.log(`Pharmacy code: ${args.code}`);
     for (const staff of staffPlan) console.log(`${staff.role.padEnd(11)} username=${staff.username.padEnd(12)} password=${staff.password}`);
     console.log(`\nPilot ends: ${pilotEnd.toISOString()}`);
-    console.log("Fake sales, expenses, corrections, and feedback were intentionally not created.");
+    console.log("Products, batches, sales, expenses, corrections, and feedback were intentionally not created.");
+    console.log("Log in as Owner and complete Setup using the master medicine catalogue or CSV.");
   } catch (error) {
     if (pharmacyId) await rollbackNewPilot(supabase, pharmacyId);
     throw error;

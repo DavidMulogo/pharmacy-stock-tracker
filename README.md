@@ -76,7 +76,7 @@ Create it only after reviewing the plan:
 node scripts/seed-pilot-pharmacy.mjs --apply --name "Zanzibar Pilot Pharmacy" --code "ZNZ-PILOT-01" --owner "Pilot Pharmacy Owner" --phone "255700000001"
 ```
 
-The command prints one-time temporary staff credentials. It creates realistic settings, five staff roles/accounts, 20 master-catalogue products, and 40 opening batches. It intentionally leaves sales, expenses, corrections, and feedback empty so pilot analytics begin cleanly.
+The command prints one-time temporary staff credentials. It creates realistic settings and five staff accounts, but deliberately creates no products, batches, sales, expenses, corrections, or feedback. The Owner completes real onboarding by choosing stocked medicines from the searchable master catalogue (or CSV/manual entry) and then recording real opening stock. Unselected catalogue medicines never count as that pharmacy's products or inventory.
 
 ## Admin Security
 

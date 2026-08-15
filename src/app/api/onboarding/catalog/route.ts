@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const selections = Array.isArray(body.selections) ? body.selections as Array<Record<string, unknown>> : [];
-    if (!selections.length || selections.length > 100) return NextResponse.json({ error: "Select between 1 and 100 medicines." }, { status: 400 });
+    if (!selections.length || selections.length > 250) return NextResponse.json({ error: "Select between 1 and 250 medicines." }, { status: 400 });
     const ids = [...new Set(selections.map((item) => String(item.master_medicine_id || "")).filter(Boolean))];
     if (ids.length !== selections.length) return NextResponse.json({ error: "Each selected medicine must be unique." }, { status: 400 });
 
