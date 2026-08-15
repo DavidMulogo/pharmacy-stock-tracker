@@ -78,6 +78,13 @@ node scripts/seed-pilot-pharmacy.mjs --apply --name "Zanzibar Pilot Pharmacy" --
 
 The command prints one-time temporary staff credentials. It creates realistic settings and five staff accounts, but deliberately creates no products, batches, sales, expenses, corrections, or feedback. The Owner completes real onboarding by choosing stocked medicines from the searchable master catalogue (or CSV/manual entry) and then recording real opening stock. Unselected catalogue medicines never count as that pharmacy's products or inventory.
 
+For a disposable demonstration tenant that must be populated quickly, preview and then apply the separate retail inventory loader. It refuses to run when the pharmacy already has products:
+
+```bash
+npm run seed:pilot-inventory -- --code "ZNZ-PILOT-01"
+npm run seed:pilot-inventory -- --apply --code "ZNZ-PILOT-01"
+```
+
 ## Admin Security
 
 Admin accounts live in `admin_users` and use bcrypt password hashes. The `/admin` portal includes Change Password, requires strong passwords, locks accounts after repeated failed logins, and invalidates old admin cookies after password changes.
