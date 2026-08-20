@@ -1416,14 +1416,14 @@ export function PharmacyApp({
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">PharmaStock MVP</h1>
             </div>
             <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm sm:w-64 sm:shrink-0">
                   <p className="text-xs font-bold uppercase text-emerald-700">Active pharmacy</p>
                   <p className="mt-1 font-bold text-emerald-950">{activePharmacy?.pharmacy_name || "Not logged in"}</p>
                   {activeUser ? <p className="mt-1 text-xs font-bold uppercase text-emerald-700">{activeUser.full_name} / {activeUser.role}</p> : null}
                 </div>
                 {activePharmacyId && !isDebugMode ? (
-                  <div className="grid grid-cols-2 gap-2 sm:flex">
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-1 sm:flex-wrap sm:items-center sm:justify-end">
                     {activeUser?.role === "OWNER" ? <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/settings">Settings</Link> : null}
                     <Link className="rounded-md border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-bold text-emerald-800" href="/reports">
                       Reports
