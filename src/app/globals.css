@@ -52,23 +52,6 @@ a:active {
   color: var(--brand-navy);
 }
 
-.brand-wordmark {
-  font-weight: 800;
-  letter-spacing: -0.055em;
-}
-
-.brand-tagline {
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.brand-tagline span {
-  color: var(--brand-green);
-}
-
 .brand-app-header {
   background-image: linear-gradient(105deg, #ffffff 0%, #ffffff 68%, rgb(21 101 255 / 4%) 100%);
   border-bottom-color: rgb(21 101 255 / 16%);
