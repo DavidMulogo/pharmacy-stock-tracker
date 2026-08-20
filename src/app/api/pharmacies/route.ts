@@ -11,7 +11,7 @@ type PharmacyUserInsert = Database["public"]["Tables"]["pharmacy_users"]["Insert
 export async function POST(request: Request) {
   try {
     if (process.env.NODE_ENV === "production") {
-      return NextResponse.json({ error: "Pharmacy creation is only available in development admin mode." }, { status: 403 });
+      return NextResponse.json({ error: "Administrative pharmacy creation is not enabled." }, { status: 403 });
     }
 
     const body = await request.json();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { formatTZS } from "@/lib/format";
 import type { EntitlementMode, Pharmacy, PharmacyBillingCycle, PharmacyPlan, PharmacyStatus } from "@/lib/types";
 
 type PharmacyForm = {
@@ -70,10 +71,10 @@ const statusOptions: PharmacyStatus[] = ["ACTIVE", "TRIAL", "EXPIRED", "SUSPENDE
 const presetOptions: SubscriptionPreset[] = ["PILOT_30", "STARTER_MONTHLY", "STARTER_ANNUAL", "BUSINESS_MONTHLY", "BUSINESS_ANNUAL", "CUSTOM"];
 const presetLabels: Record<SubscriptionPreset, string> = {
   PILOT_30: "30-day Business Pilot",
-  STARTER_MONTHLY: "Starter Monthly — TZS 20,000",
-  STARTER_ANNUAL: "Starter Annual — TZS 200,000",
-  BUSINESS_MONTHLY: "Business Monthly — TZS 45,000",
-  BUSINESS_ANNUAL: "Business Annual — TZS 450,000",
+  STARTER_MONTHLY: "Starter Monthly — TSh 20,000",
+  STARTER_ANNUAL: "Starter Annual — TSh 200,000",
+  BUSINESS_MONTHLY: "Business Monthly — TSh 45,000",
+  BUSINESS_ANNUAL: "Business Annual — TSh 450,000",
   CUSTOM: "Custom arrangement",
 };
 
@@ -927,7 +928,7 @@ export function AdminPortal({
                       <p className="mt-1 text-xs font-bold text-blue-700">
                         Entitlements: {pharmacy.entitlement_mode}
                         {pharmacy.billing_cycle ? ` · ${pharmacy.billing_cycle}` : ""}
-                        {pharmacy.agreed_price_tzs == null ? "" : ` · TZS ${pharmacy.agreed_price_tzs.toLocaleString()}`}
+                        {pharmacy.agreed_price_tzs == null ? "" : ` · ${formatTZS(pharmacy.agreed_price_tzs)}`}
                       </p>
                       {pharmacy.entitlement_observation?.would_block.length ? (
                         <p className="mt-1 text-xs font-bold text-amber-700">Observation flags: {pharmacy.entitlement_observation.would_block.join(", ")}</p>

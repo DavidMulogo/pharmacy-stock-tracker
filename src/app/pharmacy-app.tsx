@@ -1413,7 +1413,7 @@ export function PharmacyApp({
           <div className="flex flex-col gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Pharmacy POS</p>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">PharmaStock MVP</h1>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">PharmaStock</h1>
             </div>
             <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1510,8 +1510,8 @@ export function PharmacyApp({
             {isDebugMode ? (
               <section className="rounded-lg border-2 border-red-200 bg-red-50 p-3">
                 <div className="rounded-md border-2 border-red-500 bg-red-50 px-4 py-3 text-red-900">
-                  <p className="text-sm font-black uppercase">MULTI PHARMACY DEBUG</p>
-                  <p className="mt-1 text-sm font-bold">Development admin mode is enabled.</p>
+                  <p className="text-sm font-black uppercase">Administrative pharmacy selector</p>
+                  <p className="mt-1 text-sm font-bold">Administrative access is enabled.</p>
                 </div>
                 <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1.4fr]">
                   <div className="grid gap-3">

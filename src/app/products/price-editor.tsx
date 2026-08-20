@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatTZS } from "@/lib/format";
 import type { SellingMode } from "@/lib/types";
 
 type Props = { productId: string; sellingMode: SellingMode; unitsPerPack: number; initialUnitPrice: number | null; initialPackPrice: number | null };
@@ -52,7 +53,7 @@ export function PriceEditor(props: Props) {
       {usesUnits ? <label className="font-semibold">Unit price (TSh)<input type="number" min="0" step="0.01" value={unitPrice} onChange={(event) => setUnitPrice(event.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" /></label> : null}
       {usesPacks ? <label className="font-semibold">Pack price (TSh)<input type="number" min="0" step="0.01" value={packPrice} onChange={(event) => setPackPrice(event.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" /></label> : null}
     </div>
-    {usesUnits && usesPacks && suggestedPackPrice != null ? <button type="button" onClick={() => setPackPrice(String(suggestedPackPrice))} className="mt-3 text-sm font-bold text-emerald-700">Use suggested pack price: TSh {suggestedPackPrice.toLocaleString("en-US")}</button> : null}
+    {usesUnits && usesPacks && suggestedPackPrice != null ? <button type="button" onClick={() => setPackPrice(String(suggestedPackPrice))} className="mt-3 text-sm font-bold text-emerald-700">Use suggested pack price: {formatTZS(suggestedPackPrice)}</button> : null}
     {message ? <p className="mt-3 text-sm font-semibold text-red-700">{message}</p> : null}
     <div className="mt-4 flex gap-2">
       <button type="button" disabled={busy || !changed || !valid} onClick={save} className="rounded-md bg-emerald-700 px-4 py-2 font-bold text-white disabled:bg-slate-300">{busy ? "Saving..." : "Save prices"}</button>

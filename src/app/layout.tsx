@@ -13,8 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PharmaStock MVP",
-  description: "Simple pharmacy stock tracking and sales POS",
+  applicationName: "PharmaStock",
+  title: "PharmaStock",
+  description: "Pharmacy stock tracking and sales POS",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
