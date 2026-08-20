@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandLogo } from "@/app/brand-logo";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { formatDate } from "@/lib/format";
@@ -349,11 +350,12 @@ export function OnboardingClient({
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="brand-app-header border-b bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase text-emerald-700">PharmaStock Onboarding</p>
+              <BrandLogo compact />
+              <p className="mt-3 text-xs font-bold uppercase tracking-wide text-blue-700">Pharmacy onboarding</p>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Set up {pharmacy.pharmacy_name}</h1>
               <p className="mt-1 text-sm font-semibold text-slate-600">
                 Finish the few essentials needed before daily selling, stock checks, and reporting feel smooth.

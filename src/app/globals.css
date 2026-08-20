@@ -1,27 +1,78 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f6f8fc;
+  --foreground: #0d1b3d;
+  --brand-navy: #0d1b3d;
+  --brand-blue: #1565ff;
+  --brand-green: #16a34a;
+  --brand-lime: #7ed957;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-poppins);
   --font-mono: var(--font-geist-mono);
+  --color-slate-950: #0d1b3d;
+  --color-blue-700: #1565ff;
+  --color-emerald-700: #16a34a;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
 }
 
 button,
 input,
 select {
   font: inherit;
+}
+
+button,
+a {
+  transition-duration: 150ms;
+  transition-property: color, background-color, border-color, box-shadow, transform;
+}
+
+button:not(:disabled):active,
+a:active {
+  transform: translateY(1px);
+}
+
+:focus-visible {
+  outline: 3px solid rgb(21 101 255 / 28%);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgb(126 217 87 / 35%);
+  color: var(--brand-navy);
+}
+
+.brand-wordmark {
+  font-weight: 800;
+  letter-spacing: -0.055em;
+}
+
+.brand-tagline {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.brand-tagline span {
+  color: var(--brand-green);
+}
+
+.brand-app-header {
+  background-image: linear-gradient(105deg, #ffffff 0%, #ffffff 68%, rgb(21 101 255 / 4%) 100%);
+  border-bottom-color: rgb(21 101 255 / 16%);
+  box-shadow: 0 1px 0 rgb(13 27 61 / 4%);
 }
 
 .pilot-mobile-flex,

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandLogo } from "@/app/brand-logo";
 import { useEffect, useMemo, useState } from "react";
 import { formatDateTime } from "@/lib/format";
 import type { PilotFeedback, PilotFeedbackStatus } from "@/lib/types";
@@ -84,7 +85,7 @@ export function AdminFeedbackClient() {
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <div className="mx-auto grid max-w-6xl gap-5 px-4 py-6 sm:px-6">
         <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><p className="text-sm font-bold uppercase text-emerald-700">PharmaStock Admin</p><h1 className="text-2xl font-black">Pilot Feedback Queue</h1><p className="mt-1 text-sm font-semibold text-slate-600">Review real pharmacy experiences and track follow-up.</p></div>
+          <div><BrandLogo compact /><p className="mt-3 text-xs font-bold uppercase tracking-wide text-blue-700">Administration</p><h1 className="text-2xl font-black">Pilot Feedback Queue</h1><p className="mt-1 text-sm font-semibold text-slate-600">Review real pharmacy experiences and track follow-up.</p></div>
           <Link className="rounded-md border border-slate-300 bg-white px-4 py-3 text-center text-sm font-bold" href="/admin">Back to Admin</Link>
         </header>
         <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[16rem_1fr_auto]">

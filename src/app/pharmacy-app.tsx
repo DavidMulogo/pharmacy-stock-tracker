@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandLogo } from "@/app/brand-logo";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { formatDateTime, formatOptionalTZS, formatTZS } from "@/lib/format";
@@ -1408,13 +1409,10 @@ export function PharmacyApp({
           {toast.message}
         </div>
       ) : null}
-      <header className="border-b border-slate-200 bg-white">
+      <header className="brand-app-header border-b bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6">
           <div className="flex flex-col gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Pharmacy POS</p>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">PharmaStock</h1>
-            </div>
+            <BrandLogo />
             <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm sm:w-64 sm:shrink-0">

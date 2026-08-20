@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { BrandLogo } from "@/app/brand-logo";
 import { formatTZS } from "@/lib/format";
 import type { EntitlementMode, Pharmacy, PharmacyBillingCycle, PharmacyPlan, PharmacyStatus } from "@/lib/types";
 
@@ -635,7 +636,8 @@ export function AdminPortal({
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-950">
         <section className="mx-auto max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase text-emerald-700">PharmaStock Admin</p>
+          <BrandLogo compact />
+          <p className="mt-3 text-xs font-bold uppercase tracking-wide text-blue-700">Administration</p>
           <h1 className="mt-2 text-2xl font-bold">Admin Login</h1>
           <form className="mt-5 grid gap-4" onSubmit={submitLogin}>
             <Input label="Admin username" value={username} onChange={setUsername} />
@@ -652,10 +654,11 @@ export function AdminPortal({
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="brand-app-header border-b bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
-            <p className="text-xs font-bold uppercase text-emerald-700">PharmaStock Admin</p>
+            <BrandLogo compact />
+            <p className="mt-3 text-xs font-bold uppercase tracking-wide text-blue-700">Administration</p>
             <h1 className="text-2xl font-bold">Admin Dashboard</h1>
             <p className="mt-1 text-sm font-semibold text-slate-600">
               Logged in as {admin?.fullName || admin?.username || "Admin"}
